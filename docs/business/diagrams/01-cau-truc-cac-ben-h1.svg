@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" aria-label="Bản đồ các bên theo bốn tầng, mỗi ô ghi điều khoản căn cứ trong dự thảo. Ô viền liền: dự thảo gọi tên vai. Ô cam viền đứt: dự thảo chỉ quy định chung, có giải trình. Ô xám viền chấm: ngoài dự thảo, theo NQ 222." role="img" viewBox="0 0 960 560"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
+
+/* Layout: tài liệu review một cột, cùng hệ màu với tài liệu nghiệp vụ WeRWA; sơ đồ SVG trong khung riêng, bảng cuộn ngang */
+:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --ink:#14212B; --ink-2:#3B4A55; --muted:#5E6E78;
+  --line:#D6DEE3; --line-strong:#9AABB5; --accent:#0E5D6C; --accent-soft:#E1EFF1;
+  --warn:#9A5B00; --warn-soft:#FBF0DD; --ok:#2B7346; --ok-soft:#E3F2E8; --bad:#A03535; --bad-soft:#F8E5E5;
+  --f-display:"Noto Serif",Georgia,serif; --f-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F161B; --surface:#162027; --ink:#E3EBEE; --ink-2:#C0CDD3; --muted:#90A1AA;
+  --line:#28363F; --line-strong:#4B5D68; --accent:#62B8C7; --accent-soft:#16323A;
+  --warn:#E2A54A; --warn-soft:#33270F; --ok:#6CC48C; --ok-soft:#14301F; --bad:#E58080; --bad-soft:#3A1C1C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F161B; --surface:#162027; --ink:#E3EBEE; --ink-2:#C0CDD3; --muted:#90A1AA;
+  --line:#28363F; --line-strong:#4B5D68; --accent:#62B8C7; --accent-soft:#16323A;
+  --warn:#E2A54A; --warn-soft:#33270F; --ok:#6CC48C; --ok-soft:#14301F; --bad:#E58080; --bad-soft:#3A1C1C; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15.5px;line-height:1.62;margin:0}
+.wrap{max-width:1080px;margin:0 auto;padding-block:32px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.doc{border-bottom:1px solid var(--line);padding-bottom:20px}
+.eyebrow{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(26px,4vw,36px);line-height:1.2;margin:8px 0 10px;text-wrap:balance}
+.byline{color:var(--muted);font-size:13.5px}
+h2{font-family:var(--f-display);font-weight:600;font-size:23px;margin:48px 0 6px;text-wrap:balance}
+h2 .no{font-family:var(--f-mono);font-size:13.5px;color:var(--accent);margin-right:10px;vertical-align:3px}
+h3{font-size:16px;font-weight:600;margin:26px 0 6px}
+p{margin:10px 0;max-width:74ch}
+.lead{font-size:16.5px;color:var(--ink-2);max-width:72ch}
+ul,ol{padding-left:20px;max-width:76ch} li{margin:5px 0}
+.note{font-size:13px;color:var(--muted)}
+.decisions{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin:16px 0}
+.dec{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
+.dec .k{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.dec .v{font-weight:600;font-size:14.5px;margin-top:2px}
+.dec .s{font-size:13px;color:var(--ink-2);margin-top:2px}
+figure{margin:18px 0 24px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 16px 12px}
+.svgbox{overflow-x:auto}
+figure svg{display:block;width:100%;height:auto;min-width:720px}
+figcaption{font-size:13px;color:var(--muted);margin-top:10px;max-width:92ch}
+figcaption b{color:var(--ink-2)}
+.n{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.2}
+.na{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.6}
+.nw{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.4}
+.band{fill:var(--bg);stroke:var(--line);stroke-width:1}
+.ng{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.4;stroke-dasharray:5 3}
+.nga{fill:var(--accent-soft);stroke:var(--warn);stroke-width:1.6;stroke-dasharray:5 3}
+.nx{fill:var(--surface);stroke:var(--muted);stroke-width:1.3;stroke-dasharray:2 3}
+.tr{fill:var(--accent);font-family:var(--f-mono);font-size:10.5px}
+.trw{fill:var(--warn);font-family:var(--f-mono);font-size:10.5px}
+.trx{fill:var(--muted);font-family:var(--f-mono);font-size:10.5px}
+.t{fill:var(--ink);font-family:var(--f-body);font-size:13px;font-weight:600}
+.ts{fill:var(--muted);font-family:var(--f-body);font-size:11.5px}
+.ta{fill:var(--accent);font-family:var(--f-body);font-size:11.5px;font-weight:600;letter-spacing:.05em}
+.tw{fill:var(--warn);font-family:var(--f-body);font-size:11px;font-weight:600}
+.lbl{fill:var(--ink-2);font-family:var(--f-body);font-size:11.5px;paint-order:stroke;stroke:var(--surface);stroke-width:5px;stroke-linejoin:round}
+.e{stroke:var(--ink-2);stroke-width:1.3;fill:none}
+.ea{stroke:var(--accent);stroke-width:1.8;fill:none}
+.ed{stroke:var(--warn);stroke-width:1.3;fill:none;stroke-dasharray:5 4}
+.mk{fill:var(--ink-2)} .mka{fill:var(--accent)} .mkw{fill:var(--warn)}
+.legend{fill:none}
+.tbl{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:760px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td.grp{background:var(--bg);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.raci td:not(:first-child),.raci th:not(:first-child){text-align:center;font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap;margin-left:4px}
+.p-new{background:var(--warn-soft);color:var(--warn)} .p-keep{background:var(--accent-soft);color:var(--accent)} .p-bad{background:var(--bad-soft);color:var(--bad)}
+.ref{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.callout{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--warn-soft);padding:13px 17px;border-radius:6px;margin:18px 0;max-width:84ch}
+.callout b.h{display:block;margin-bottom:4px}
+.q{display:grid;gap:10px;margin:14px 0}
+.qi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 15px;min-width:0}
+.qi b{display:block}
+.qi .rec{font-size:13.5px;color:var(--ink-2);margin-top:4px}
+.qi .rec span{font-weight:600;color:var(--accent)}
+footer{margin-top:52px;border-top:1px solid var(--line);padding-top:14px}
+
+svg{background:var(--bg)}</style><defs>
+<marker id="ah" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mk" d="M0,0 L10,5 L0,10 z"></path></marker>
+<marker id="aha" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mka" d="M0,0 L10,5 L0,10 z"></path></marker>
+<marker id="ahw" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mkw" d="M0,0 L10,5 L0,10 z"></path></marker>
+</defs>
+<rect class="band" height="120" rx="6" width="952" x="4" y="6"></rect>
+<text class="ta" x="18" y="26">THẨM QUYỀN VÀ PHÊ DUYỆT</text>
+<rect class="n" height="80" rx="6" width="172" x="18" y="36"></rect><text class="t" text-anchor="middle" x="104.0" y="60">HĐND TP.HCM</text><text class="ts" text-anchor="middle" x="104.0" y="78">phê duyệt Đề án</text><text class="tr" text-anchor="middle" x="104.0" y="98">Đ5.1 · Đ12.2</text>
+<rect class="n" height="80" rx="6" width="172" x="204" y="36"></rect><text class="t" text-anchor="middle" x="290.0" y="60">UBND TP.HCM</text><text class="ts" text-anchor="middle" x="290.0" y="78">tổ chức phát hành</text><text class="tr" text-anchor="middle" x="290.0" y="98">Đ3.3 · Đ8.3</text>
+<rect class="n" height="80" rx="6" width="172" x="390" y="36"></rect><text class="t" text-anchor="middle" x="476.0" y="60">Cơ quan điều hành VIFC</text><text class="ts" text-anchor="middle" x="476.0" y="78">đầu mối, soạn Đề án</text><text class="tr" text-anchor="middle" x="476.0" y="98">Đ3.4 · Đ5.2</text>
+<rect class="n" height="80" rx="6" width="172" x="576" y="36"></rect><text class="t" text-anchor="middle" x="662.0" y="60">Sở Tài chính</text><text class="ts" text-anchor="middle" x="662.0" y="78">thẩm định Đề án</text><text class="tr" text-anchor="middle" x="662.0" y="98">Đ2.2 · Đ5.2</text>
+<rect class="n" height="80" rx="6" width="180" x="762" y="36"></rect><text class="t" text-anchor="middle" x="852.0" y="60">Bộ Tài chính · NHNN</text><text class="ts" text-anchor="middle" x="852.0" y="78">tham vấn, nhận báo cáo</text><text class="tr" text-anchor="middle" x="852.0" y="98">Đ5.2 · Đ11.4</text>
+<rect class="band" height="120" rx="6" width="952" x="4" y="134"></rect>
+<text class="ta" x="18" y="154">PHÂN PHỐI</text>
+<rect class="n" height="80" rx="6" width="358" x="18" y="164"></rect><text class="t" text-anchor="middle" x="197.0" y="188">Tổ hợp quản lý phát hành</text><text class="ts" text-anchor="middle" x="197.0" y="206">ứng viên: HSBC, SC, Vietcombank, VietinBank, ENBD</text><text class="tr" text-anchor="middle" x="197.0" y="226">Đ3.6 · Đ8.3a</text>
+<rect class="n" height="80" rx="6" width="172" x="390" y="164"></rect><text class="t" text-anchor="middle" x="476.0" y="188">Keiretsu (trong tổ hợp)</text><text class="ts" text-anchor="middle" x="476.0" y="206">thu xếp vốn, kết nối NĐT</text><text class="tr" text-anchor="middle" x="476.0" y="226">Đ3.6</text>
+<rect class="n" height="80" rx="6" width="172" x="576" y="164"></rect><text class="t" text-anchor="middle" x="662.0" y="188">Đại lý phân phối</text><text class="ts" text-anchor="middle" x="662.0" y="206">nếu Đề án chọn</text><text class="tr" text-anchor="middle" x="662.0" y="226">Đ8.2c</text>
+<rect class="n" height="80" rx="6" width="180" x="762" y="164"></rect><text class="t" text-anchor="middle" x="852.0" y="188">Tư vấn và xếp hạng</text><text class="ts" text-anchor="middle" x="852.0" y="206">pháp lý · xếp hạng · xanh</text><text class="tr" text-anchor="middle" x="852.0" y="226">Đ8.3b,d · Đ5.3e,k</text>
+<rect class="band" height="120" rx="6" width="952" x="4" y="262"></rect>
+<text class="ta" x="18" y="282">HẠ TẦNG</text>
+<rect class="n" height="80" rx="6" width="172" x="18" y="292"></rect><text class="t" text-anchor="middle" x="104.0" y="316">VSDC (ứng viên)</text><text class="ts" text-anchor="middle" x="104.0" y="334">tổ chức quản lý sổ đăng ký</text><text class="tr" text-anchor="middle" x="104.0" y="354">Đ9.3</text>
+<rect class="nga" height="80" rx="6" width="172" x="204" y="292"></rect><text class="t" text-anchor="middle" x="290.0" y="316">Holco · WeRWA</text><text class="ts" text-anchor="middle" x="290.0" y="334">vận hành công nghệ sổ</text><text class="trw" text-anchor="middle" x="290.0" y="354">Đ2.5 chung · giải trình</text>
+<rect class="ng" height="80" rx="6" width="172" x="390" y="292"></rect><text class="t" text-anchor="middle" x="476.0" y="316">BIDV (ứng viên)</text><text class="ts" text-anchor="middle" x="476.0" y="334">thanh toán · IPA</text><text class="trw" text-anchor="middle" x="476.0" y="354">Đ7.2đ chung · giải trình</text>
+<rect class="ng" height="80" rx="6" width="172" x="576" y="292"></rect><text class="t" text-anchor="middle" x="662.0" y="316">Kho bạc NN KV II</text><text class="ts" text-anchor="middle" x="662.0" y="334">nhận vốn, chi trả nợ</text><text class="trw" text-anchor="middle" x="662.0" y="354">Đ11.3 · giải trình</text>
+<rect class="n" height="80" rx="6" width="180" x="762" y="292"></rect><text class="t" text-anchor="middle" x="852.0" y="316">Kênh thứ cấp</text><text class="ts" text-anchor="middle" x="852.0" y="334">OTC → HNX → sàn VIFC</text><text class="tr" text-anchor="middle" x="852.0" y="354">Đ9.1 · Đ9.2</text>
+<rect class="band" height="120" rx="6" width="952" x="4" y="390"></rect>
+<text class="ta" x="18" y="410">PHÍA NHÀ ĐẦU TƯ VÀ GIÁM SÁT</text>
+<rect class="ng" height="80" rx="6" width="358" x="18" y="420"></rect><text class="t" text-anchor="middle" x="197.0" y="444">Ngân hàng lưu ký · Euroclear / Clearstream</text><text class="ts" text-anchor="middle" x="197.0" y="462">ứng viên: Deutsche Bank, Citibank Việt Nam</text><text class="trw" text-anchor="middle" x="197.0" y="482">Đ9.1 · Đ7.2đ chung · giải trình</text>
+<rect class="n" height="80" rx="6" width="172" x="390" y="420"></rect><text class="t" text-anchor="middle" x="476.0" y="444">Nhà đầu tư</text><text class="ts" text-anchor="middle" x="476.0" y="462">theo đối tượng Đề án</text><text class="tr" text-anchor="middle" x="476.0" y="482">Đ2.6 · Đ5.3d</text>
+<rect class="ng" height="80" rx="6" width="172" x="576" y="420"></rect><text class="t" text-anchor="middle" x="662.0" y="444">Trustee</text><text class="ts" text-anchor="middle" x="662.0" y="462">đại diện người sở hữu</text><text class="trw" text-anchor="middle" x="662.0" y="482">Đ7.2đ chung · giải trình</text>
+<rect class="nx" height="80" rx="6" width="180" x="762" y="420"></rect><text class="t" text-anchor="middle" x="852.0" y="444">Cơ quan giám sát VIFC</text><text class="ts" text-anchor="middle" x="852.0" y="462">báo cáo, lệnh phong tỏa</text><text class="trx" text-anchor="middle" x="852.0" y="482">NQ 222 Đ9 · ngoài dự thảo</text>
+<rect class="n" height="16" rx="3" width="26" x="18" y="528"></rect><text class="ts" x="52" y="540">dự thảo gọi tên vai</text>
+<rect class="ng" height="16" rx="3" width="26" x="210" y="528"></rect><text class="ts" x="244" y="540">dự thảo chỉ quy định chung · có giải trình (mục 02)</text>
+<rect class="nx" height="16" rx="3" width="26" x="560" y="528"></rect><text class="ts" x="594" y="540">ngoài dự thảo · theo NQ 222</text>
+<rect class="na" height="16" rx="3" width="26" x="790" y="528"></rect><text class="ts" x="824" y="540">WeRWA</text>
+</svg>

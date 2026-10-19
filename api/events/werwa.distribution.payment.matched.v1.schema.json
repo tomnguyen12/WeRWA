@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.distribution.payment.matched.v1.schema.json",
+  "title": "werwa.distribution.payment.matched.v1",
+  "description": "Bên phát: Phân phối. Bên nhận: Bộ điều phối.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.distribution.payment.matched.v1"
+    },
+    "source": {
+      "const": "/werwa/distribution"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "allocationId",
+        "amountMinor",
+        "bankRef"
+      ],
+      "properties": {
+        "allocationId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "amountMinor": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Số tiền theo đơn vị nhỏ nhất, dạng chuỗi"
+        },
+        "bankRef": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

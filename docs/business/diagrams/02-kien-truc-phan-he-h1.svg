@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" aria-label="Kiến trúc 6 phân hệ: các bên dùng nền tảng qua giao diện; ba phân hệ nghiệp vụ Onboarding, Phát hành, Quản lý phân phối; Quản trị áp cho mọi thao tác; Tích hợp và Onchain ở lớp nền." role="img" viewBox="0 0 960 470"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
+
+/* Layout: tài liệu kiến trúc một cột; sơ đồ SVG trong khung cuộn ngang; bảng chức năng theo phân hệ */
+:root{--bg:#F3F6F7;--surface:#FFFFFF;--ink:#14212B;--ink-2:#3B4A55;--muted:#5E6E78;--line:#D6DEE3;--line-strong:#9AABB5;--accent:#0E5D6C;--accent-soft:#E1EFF1;--warn:#9A5B00;--warn-soft:#FBF0DD;--ok:#2B7346;--ok-soft:#E3F2E8;--vio:#5B4A9A;--vio-soft:#ECE8F7;
+--f-display:"Noto Serif",Georgia,serif;--f-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;--f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0F161B;--surface:#162027;--ink:#E3EBEE;--ink-2:#C0CDD3;--muted:#90A1AA;--line:#28363F;--line-strong:#4B5D68;--accent:#62B8C7;--accent-soft:#16323A;--warn:#E2A54A;--warn-soft:#33270F;--ok:#6CC48C;--ok-soft:#14301F;--vio:#A99BE0;--vio-soft:#262040;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F161B;--surface:#162027;--ink:#E3EBEE;--ink-2:#C0CDD3;--muted:#90A1AA;--line:#28363F;--line-strong:#4B5D68;--accent:#62B8C7;--accent-soft:#16323A;--warn:#E2A54A;--warn-soft:#33270F;--ok:#6CC48C;--ok-soft:#14301F;--vio:#A99BE0;--vio-soft:#262040;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;margin:0}
+.wrap{max-width:1120px;margin:0 auto;padding-block:32px 72px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(26px,4vw,36px);line-height:1.2;margin:8px 0 8px;text-wrap:balance}
+.byline{color:var(--muted);font-size:13.5px}
+h2{font-family:var(--f-display);font-weight:600;font-size:23px;margin:46px 0 6px;text-wrap:balance}
+h2 .no{font-family:var(--f-mono);font-size:13.5px;color:var(--accent);margin-right:10px;vertical-align:3px}
+h3{font-size:17px;font-weight:600;margin:28px 0 2px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+h3 .no{font-family:var(--f-mono);font-size:13px;color:var(--surface);background:var(--accent);border-radius:4px;padding:0 7px}
+h3 .cnt{font-size:12.5px;font-weight:500;color:var(--muted)}
+.mdesc{color:var(--muted);font-size:13.5px;margin:2px 0 8px}
+p{max-width:76ch;margin:10px 0} .lead{font-size:16.5px;color:var(--ink-2)}
+ol,ul{max-width:80ch;padding-left:20px} li{margin:4px 0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:18px 0}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;min-width:0}
+.kpi .k{font-size:12px;color:var(--muted)} .kpi .v{font-family:var(--f-mono);font-size:22px;font-weight:500}
+figure{margin:16px 0 22px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 14px 10px}
+.svgbox{overflow-x:auto} .svgbox.cont{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px} figure svg{display:block;width:100%;height:auto;min-width:760px}
+figcaption{font-size:13px;color:var(--muted);margin-top:8px;max-width:92ch} figcaption b{color:var(--ink-2)}
+.ext{fill:var(--bg);stroke:var(--line-strong);stroke-width:1.2;stroke-dasharray:5 4}
+.m{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.3}
+.ma{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.6}
+.mg{fill:var(--vio-soft);stroke:var(--vio);stroke-width:1.4}
+.tl{fill:var(--accent);font-family:var(--f-body);font-size:11px;font-weight:600;letter-spacing:.06em}
+.tn{fill:var(--ink);font-family:var(--f-body);font-size:15px;font-weight:700}
+.ts{fill:var(--muted);font-family:var(--f-body);font-size:12.5px}
+.lb{fill:var(--ink-2);font-family:var(--f-body);font-size:11.5px}
+.e{stroke:var(--ink-2);stroke-width:1.3;fill:none}
+.mk{fill:var(--ink-2)}
+.lane{fill:var(--surface);stroke:var(--line);stroke-width:1} .lane.lx{fill:var(--bg)}
+.tln{fill:var(--ink-2);font-family:var(--f-body);font-size:11.5px;font-weight:600}
+.s{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.2}
+.sa{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.4}
+.sx{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.2;stroke-dasharray:4 3}
+.sn{fill:var(--accent);font-family:var(--f-mono);font-size:10.5px;font-weight:500}
+.st{fill:var(--ink);font-family:var(--f-body);font-size:11.5px;font-weight:600}
+.ss{fill:var(--muted);font-family:var(--f-body);font-size:10.5px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--line)}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td.id{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);white-space:nowrap}
+td.u{color:var(--ink-2);font-size:13.5px}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 9px;border-radius:999px;white-space:nowrap;margin:1px 0}
+.p-xd{background:var(--accent-soft);color:var(--accent)} .p-d1{background:var(--ok-soft);color:var(--ok)} .p-ds{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin:6px 0}
+.callout{border:1px solid var(--accent);background:var(--accent-soft);padding:12px 16px;border-radius:8px;margin:14px 0;max-width:86ch}
+footer{margin-top:48px;border-top:1px solid var(--line);padding-top:12px;font-size:13px;color:var(--muted)}
+
+svg{background:var(--bg)}</style><defs><marker id="ah" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mk" d="M0,0 L10,5 L0,10 z"></path></marker></defs>
+<rect class="ext" height="54" rx="8" width="940" x="10" y="10"></rect>
+<text class="tl" x="26" y="31">CÁC BÊN DÙNG QUA GIAO DIỆN (không phải phân hệ)</text>
+<text class="ts" x="26" y="51">UBND · Cơ quan điều hành · Tổ hợp · Nhà đầu tư, lưu ký · VSDC · BIDV · Kho bạc · Trustee · Cơ quan giám sát</text>
+<text class="tl" x="10" y="92">NGHIỆP VỤ</text>
+<rect class="m" height="118" rx="8" width="300" x="10" y="100"></rect><text class="tn" x="26" y="126">1 · Onboarding</text><text class="ts" x="26" y="148">KYB tổ chức · KYC nhà đầu tư</text><text class="ts" x="26" y="166">phân loại theo Đề án · ví, omnibus</text><text class="ts" x="26" y="184">KYC định kỳ · khôi phục ví</text>
+<rect class="m" height="118" rx="8" width="300" x="330" y="100"></rect><text class="tn" x="346" y="126">2 · Phát hành</text><text class="ts" x="346" y="148">Đề án, khung, hạn mức · hồ sơ Đ7</text><text class="ts" x="346" y="166">series, ISIN · coupon, đáo hạn, vi phạm</text><text class="ts" x="346" y="184">quản lý nợ (Đ11.7)</text>
+<rect class="m" height="118" rx="8" width="300" x="650" y="100"></rect><text class="tn" x="666" y="126">3 · Quản lý phân phối</text><text class="ts" x="666" y="148">sổ lệnh, phân bổ · thanh toán</text><text class="ts" x="666" y="166">sổ người sở hữu · chuyển nhượng</text><text class="ts" x="666" y="184">chi trả · trustee, biểu quyết</text>
+<rect class="mg" height="62" rx="8" width="940" x="10" y="238"></rect><text class="tn" x="26" y="263">4 · Quản trị</text><text class="ts" x="26" y="284">tuân thủ · giám sát, báo cáo · bảo mật · vận hành</text>
+<text class="tl" x="10" y="328">NỀN TẢNG</text>
+<rect class="m" height="118" rx="8" width="460" x="10" y="336"></rect><text class="tn" x="26" y="362">5 · Tích hợp</text><text class="ts" x="26" y="384">VSDC · BIDV Open API · Kho bạc</text><text class="ts" x="26" y="402">KYC, cấm vận · sàn, Euroclear/Clearstream</text><text class="ts" x="26" y="420">xuất sổ chuyển hạ tầng</text>
+<rect class="ma" height="118" rx="8" width="460" x="490" y="336"></rect><text class="tn" x="506" y="362">6 · Onchain</text><text class="ts" x="506" y="384">mạng có cấp phép · node VSDC, BIDV, Holco</text><text class="ts" x="506" y="402">hợp đồng ERC-3643 · ONCHAINID</text><text class="ts" x="506" y="420">chữ ký nhiều bên · HSM</text>
+<line class="e" marker-end="url(#ah)" x1="480" x2="480" y1="64" y2="96"></line>
+<line class="e" marker-end="url(#ah)" x1="420" x2="420" y1="218" y2="332"></line>
+<line class="e" marker-end="url(#ah)" x1="720" x2="720" y1="218" y2="332"></line>
+<text class="lb" x="428" y="320">gọi ra ngoài</text><text class="lb" x="728" y="320">ghi sổ, thực thi</text>
+</svg>

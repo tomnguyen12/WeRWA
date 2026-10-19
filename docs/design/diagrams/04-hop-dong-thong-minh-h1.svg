@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" aria-label="Quan hệ hợp đồng và vai: sáu vai gọi vào hợp đồng điều khiển series; điều khiển series là agent duy nhất của token; token hỏi module tuân thủ và sổ định danh; timelock nâng cấp proxy." role="img" style="min-width:940px" viewBox="0 0 1110 420"><style>
+/* Layout: tài liệu ADR một cột, cùng hệ màu các trang WeRWA; bảng tóm tắt trên cùng, mỗi ADR một khối, sơ đồ SVG cuộn ngang */
+:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --ink:#14212B; --ink-2:#3B4A55; --muted:#5E6E78;
+  --line:#D6DEE3; --line-strong:#9AABB5; --accent:#0E5D6C; --accent-soft:#E1EFF1;
+  --warn:#9A5B00; --warn-soft:#FBF0DD; --ok:#2B7346; --ok-soft:#E3F2E8; --vio:#5B4A9A; --vio-soft:#ECE8F7;
+  --f-display:"Noto Serif",Georgia,serif; --f-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F161B; --surface:#162027; --ink:#E3EBEE; --ink-2:#C0CDD3; --muted:#90A1AA;
+  --line:#28363F; --line-strong:#4B5D68; --accent:#62B8C7; --accent-soft:#16323A;
+  --warn:#E2A54A; --warn-soft:#33270F; --ok:#6CC48C; --ok-soft:#14301F; --vio:#A99BE0; --vio-soft:#262040; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F161B; --surface:#162027; --ink:#E3EBEE; --ink-2:#C0CDD3; --muted:#90A1AA;
+  --line:#28363F; --line-strong:#4B5D68; --accent:#62B8C7; --accent-soft:#16323A;
+  --warn:#E2A54A; --warn-soft:#33270F; --ok:#6CC48C; --ok-soft:#14301F; --vio:#A99BE0; --vio-soft:#262040; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;margin:0}
+.wrap{max-width:1100px;margin:0 auto;padding-block:32px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(26px,4vw,36px);line-height:1.2;margin:8px 0 8px;text-wrap:balance}
+.byline{color:var(--muted);font-size:13.5px}
+h2{font-family:var(--f-display);font-weight:600;font-size:22px;margin:46px 0 8px;text-wrap:balance}
+p{max-width:76ch;margin:10px 0} .lead{font-size:16.5px;color:var(--ink-2)}
+ul{max-width:80ch;padding-left:20px;margin:6px 0} li{margin:3px 0}
+.note{font-size:13px;color:var(--muted)}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 9px;border-radius:999px;white-space:nowrap}
+.s-chot{background:var(--ok-soft);color:var(--ok)}
+.s-de{background:var(--accent-soft);color:var(--accent)}
+.s-chon{background:var(--warn-soft);color:var(--warn)}
+.s-gd{background:transparent;color:var(--warn);border:1px dashed var(--warn)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin:8px 0}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);margin:12px 0}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--line)}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td.id{font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+td.id a{color:var(--accent);text-decoration:none}
+td.id a:hover,td.id a:focus-visible{text-decoration:underline}
+td.fn{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.callout{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--warn-soft);padding:12px 16px;border-radius:6px;margin:16px 0;max-width:88ch}
+.callout b.h{display:block;margin-bottom:4px}
+.adr{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:16px 0;scroll-margin-top:16px}
+.adr header{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px}
+.adr .no{font-family:var(--f-mono);font-size:13px;color:var(--accent);font-weight:500}
+.adr h3{font-size:17px;font-weight:600;margin:0;flex:1 1 auto;min-width:0}
+.adr dl{display:grid;grid-template-columns:150px 1fr;gap:6px 18px;margin:8px 0 0}
+.adr dt{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-top:2px}
+.adr dd{margin:0;min-width:0;color:var(--ink-2)}
+.adr dd.dec{color:var(--ink);font-weight:500}
+.adr dd ul{margin:0}
+.adr .fn{font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+@media (max-width:640px){.adr dl{grid-template-columns:1fr}.adr dt{padding-top:8px}}
+figure{margin:14px 0 6px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 12px 8px}
+.svgbox{overflow-x:auto}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:13px;color:var(--muted);margin-top:8px;max-width:92ch}
+figcaption b{color:var(--ink-2)}
+/* SVG */
+.zone{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.1;stroke-dasharray:5 4}
+.zone-x{fill:var(--bg);stroke:var(--line-strong);stroke-width:1.1;stroke-dasharray:5 4}
+.box{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.2}
+.box-a{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+.box-v{fill:var(--vio-soft);stroke:var(--vio);stroke-width:1.4}
+.box-w{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.3;stroke-dasharray:4 3}
+.box-x{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.2}
+.lane{fill:var(--surface);stroke:var(--line);stroke-width:1}
+.lane-x{fill:var(--bg);stroke:var(--line);stroke-width:1}
+.t{fill:var(--ink);font-family:var(--f-body);font-size:12.5px;font-weight:600}
+.ts{fill:var(--muted);font-family:var(--f-body);font-size:11px}
+.tl{fill:var(--accent);font-family:var(--f-body);font-size:11px;font-weight:600;letter-spacing:.05em}
+.tn{fill:var(--ink-2);font-family:var(--f-body);font-size:11.5px;font-weight:600}
+.lb{fill:var(--ink-2);font-family:var(--f-body);font-size:11px;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+.lbw{fill:var(--warn);font-family:var(--f-body);font-size:11px;font-weight:600;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+.e{stroke:var(--ink-2);stroke-width:1.3;fill:none}
+.ea{stroke:var(--accent);stroke-width:1.7;fill:none}
+.ed{stroke:var(--muted);stroke-width:1.2;fill:none;stroke-dasharray:4 4}
+.ew{stroke:var(--warn);stroke-width:1.3;fill:none;stroke-dasharray:5 4}
+.mk{fill:var(--ink-2)} .mka{fill:var(--accent)} .mkw{fill:var(--warn)} .mkd{fill:var(--muted)}
+.q{display:grid;gap:10px;margin:12px 0}
+.qi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 15px;min-width:0}
+.qi b{display:block}
+.qi span{display:block;font-size:13.5px;color:var(--ink-2);margin-top:3px}
+footer{margin-top:52px;border-top:1px solid var(--line);padding-top:14px;font-size:13px;color:var(--muted)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+
+code{font-family:var(--f-mono);font-size:12px;word-break:break-word}
+td.f{font-size:13px;color:var(--ink-2)}
+td.fn code{color:var(--ink)}
+.num{font-family:var(--f-mono);font-size:12px;font-weight:600}
+.inv{display:grid;gap:8px;margin:12px 0}
+.inv div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;min-width:0}
+.inv b{font-family:var(--f-mono);font-size:12.5px;color:var(--accent);margin-right:8px}
+pre{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;font-family:var(--f-mono);font-size:12.5px;line-height:1.55;color:var(--ink)}
+
+svg{background:var(--bg)}</style><defs>
+<marker id="ah" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mk" d="M0,0 L10,5 L0,10 z"></path></marker>
+<marker id="aha" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mka" d="M0,0 L10,5 L0,10 z"></path></marker>
+<marker id="ahw" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mkw" d="M0,0 L10,5 L0,10 z"></path></marker>
+<marker id="ahd" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mkd" d="M0,0 L10,5 L0,10 z"></path></marker>
+</defs>
+<rect class="box-v" height="50" rx="7" width="165" x="20" y="20"></rect><text class="t" text-anchor="middle" x="102.5" y="43">GOVERNANCE</text><text class="ts" text-anchor="middle" x="102.5" y="60">multisig 3/3 · UBND, VSDC, Holco</text>
+<rect class="box" height="50" rx="7" width="165" x="200" y="20"></rect><text class="t" text-anchor="middle" x="282.5" y="43">ISSUER</text><text class="ts" text-anchor="middle" x="282.5" y="60">Safe của UBND</text>
+<rect class="box" height="50" rx="7" width="165" x="380" y="20"></rect><text class="t" text-anchor="middle" x="462.5" y="43">REGISTRAR</text><text class="ts" text-anchor="middle" x="462.5" y="60">Safe của VSDC</text>
+<rect class="box" height="50" rx="7" width="165" x="560" y="20"></rect><text class="t" text-anchor="middle" x="642.5" y="43">PAYING_AGENT</text><text class="ts" text-anchor="middle" x="642.5" y="60">Safe của BIDV</text>
+<rect class="box" height="50" rx="7" width="165" x="740" y="20"></rect><text class="t" text-anchor="middle" x="822.5" y="43">OPERATOR</text><text class="ts" text-anchor="middle" x="822.5" y="60">khóa vận hành Holco</text>
+<rect class="box-v" height="50" rx="7" width="165" x="920" y="20"></rect><text class="t" text-anchor="middle" x="1002.5" y="43">ENFORCEMENT</text><text class="ts" text-anchor="middle" x="1002.5" y="60">multisig 2/2 · VSDC, Holco</text>
+<rect class="box-a" height="60" rx="7" width="165" x="20" y="170"></rect><text class="t" text-anchor="middle" x="102.5" y="193">Factory series</text><text class="ts" text-anchor="middle" x="102.5" y="210">SeriesFactory</text>
+<rect class="box-a" height="60" rx="7" width="600" x="260" y="170"></rect><text class="t" text-anchor="middle" x="560.0" y="193">Điều khiển series</text><text class="ts" text-anchor="middle" x="560.0" y="210">SeriesController · proxy · giữ máy trạng thái</text>
+<rect class="box-a" height="54" rx="7" width="180" x="260" y="300"></rect><text class="t" text-anchor="middle" x="350.0" y="323">Token ERC-3643</text><text class="ts" text-anchor="middle" x="350.0" y="340">T-REX · decimals 0</text>
+<rect class="box-a" height="54" rx="7" width="200" x="470" y="300"></rect><text class="t" text-anchor="middle" x="570.0" y="323">Module tuân thủ</text><text class="ts" text-anchor="middle" x="570.0" y="340">loại NĐT · hạn mức · cổng chuyển</text>
+<rect class="box-a" height="54" rx="7" width="180" x="700" y="300"></rect><text class="t" text-anchor="middle" x="790.0" y="323">Sổ định danh</text><text class="ts" text-anchor="middle" x="790.0" y="340">ONCHAINID · claim</text>
+<rect class="box-v" height="54" rx="7" width="165" x="920" y="300"></rect><text class="t" text-anchor="middle" x="1002.5" y="323">Timelock</text><text class="ts" text-anchor="middle" x="1002.5" y="340">nâng cấp proxy</text>
+<path class="ea" d="M102,70 V168" marker-end="url(#aha)"></path>
+<text class="lb" text-anchor="start" x="110" y="112">deploySeries</text>
+<path class="ea" d="M282,70 V168" marker-end="url(#aha)"></path>
+<text class="lb" text-anchor="start" x="288" y="100">setAllocation</text>
+<path class="ea" d="M462,70 V168" marker-end="url(#aha)"></path>
+<text class="lb" text-anchor="start" x="468" y="100">setIsin</text>
+<text class="lb" text-anchor="start" x="468" y="114">attestRegister</text>
+<text class="lb" text-anchor="start" x="468" y="128">attestSnapshot</text>
+<path class="ea" d="M642,70 V168" marker-end="url(#aha)"></path>
+<text class="lb" text-anchor="start" x="648" y="100">addPaymentBatch</text>
+<path class="ea" d="M822,70 V168" marker-end="url(#aha)"></path>
+<text class="lb" text-anchor="start" x="828" y="100">mint · correctionBurn</text>
+<text class="lb" text-anchor="start" x="828" y="114">takeSnapshot</text>
+<text class="lb" text-anchor="start" x="828" y="128">mature · burnRedeemed</text>
+<path class="ea" d="M1002,70 V200 H862" marker-end="url(#aha)"></path>
+<text class="lb" text-anchor="start" x="1010" y="100">freeze · unfreeze</text>
+<text class="lb" text-anchor="start" x="1010" y="114">forcedTransfer</text>
+<text class="lb" text-anchor="start" x="1010" y="128">recoverWallet</text>
+<text class="lb" text-anchor="start" x="1010" y="142">pause</text>
+<path class="ea" d="M185,200 H258" marker-end="url(#aha)"></path>
+<text class="lb" text-anchor="middle" x="221" y="193">triển khai</text>
+<path class="ea" d="M350,230 V298" marker-end="url(#aha)"></path>
+<text class="lb" text-anchor="start" x="358" y="262">agent: mint, burn,</text>
+<text class="lb" text-anchor="start" x="358" y="276">freeze, forcedTransfer</text>
+<path class="e" d="M440,327 H468" marker-end="url(#ah)"></path>
+<path class="ed" d="M600,300 V232" marker-end="url(#ahd)"></path>
+<text class="lb" text-anchor="start" x="606" y="272">đọc state</text>
+<path class="e" d="M350,354 V392 H790 V356" marker-end="url(#ah)"></path>
+<text class="lb" text-anchor="middle" x="570" y="386">isVerified · đọc claim</text>
+<path class="ew" d="M960,300 V262 H850 V232" marker-end="url(#ahw)"></path>
+<text class="lb" text-anchor="middle" x="905" y="256">nâng cấp sau thời gian chờ</text>
+</svg>

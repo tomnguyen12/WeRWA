@@ -1,0 +1,178 @@
+<svg xmlns="http://www.w3.org/2000/svg" aria-label="Luồng gọi và sự kiện giữa các mô-đun khi ghi sổ đợt đầu: UBND ký danh sách phân bổ, BIDV ký lô đã nhận tiền, bộ điều phối mint từng mục, VSDC xác nhận sổ." role="img" style="min-width:980px" viewBox="0 0 1130 804"><style>
+/* Layout: tài liệu ADR một cột, cùng hệ màu các trang WeRWA; bảng tóm tắt trên cùng, mỗi ADR một khối, sơ đồ SVG cuộn ngang */
+:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --ink:#14212B; --ink-2:#3B4A55; --muted:#5E6E78;
+  --line:#D6DEE3; --line-strong:#9AABB5; --accent:#0E5D6C; --accent-soft:#E1EFF1;
+  --warn:#9A5B00; --warn-soft:#FBF0DD; --ok:#2B7346; --ok-soft:#E3F2E8; --vio:#5B4A9A; --vio-soft:#ECE8F7;
+  --f-display:"Noto Serif",Georgia,serif; --f-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F161B; --surface:#162027; --ink:#E3EBEE; --ink-2:#C0CDD3; --muted:#90A1AA;
+  --line:#28363F; --line-strong:#4B5D68; --accent:#62B8C7; --accent-soft:#16323A;
+  --warn:#E2A54A; --warn-soft:#33270F; --ok:#6CC48C; --ok-soft:#14301F; --vio:#A99BE0; --vio-soft:#262040; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F161B; --surface:#162027; --ink:#E3EBEE; --ink-2:#C0CDD3; --muted:#90A1AA;
+  --line:#28363F; --line-strong:#4B5D68; --accent:#62B8C7; --accent-soft:#16323A;
+  --warn:#E2A54A; --warn-soft:#33270F; --ok:#6CC48C; --ok-soft:#14301F; --vio:#A99BE0; --vio-soft:#262040; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;margin:0}
+.wrap{max-width:1100px;margin:0 auto;padding-block:32px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(26px,4vw,36px);line-height:1.2;margin:8px 0 8px;text-wrap:balance}
+.byline{color:var(--muted);font-size:13.5px}
+h2{font-family:var(--f-display);font-weight:600;font-size:22px;margin:46px 0 8px;text-wrap:balance}
+p{max-width:76ch;margin:10px 0} .lead{font-size:16.5px;color:var(--ink-2)}
+ul{max-width:80ch;padding-left:20px;margin:6px 0} li{margin:3px 0}
+.note{font-size:13px;color:var(--muted)}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 9px;border-radius:999px;white-space:nowrap}
+.s-chot{background:var(--ok-soft);color:var(--ok)}
+.s-de{background:var(--accent-soft);color:var(--accent)}
+.s-chon{background:var(--warn-soft);color:var(--warn)}
+.s-gd{background:transparent;color:var(--warn);border:1px dashed var(--warn)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin:8px 0}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);margin:12px 0}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--line)}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td.id{font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+td.id a{color:var(--accent);text-decoration:none}
+td.id a:hover,td.id a:focus-visible{text-decoration:underline}
+td.fn{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.callout{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--warn-soft);padding:12px 16px;border-radius:6px;margin:16px 0;max-width:88ch}
+.callout b.h{display:block;margin-bottom:4px}
+.adr{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:16px 0;scroll-margin-top:16px}
+.adr header{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px}
+.adr .no{font-family:var(--f-mono);font-size:13px;color:var(--accent);font-weight:500}
+.adr h3{font-size:17px;font-weight:600;margin:0;flex:1 1 auto;min-width:0}
+.adr dl{display:grid;grid-template-columns:150px 1fr;gap:6px 18px;margin:8px 0 0}
+.adr dt{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-top:2px}
+.adr dd{margin:0;min-width:0;color:var(--ink-2)}
+.adr dd.dec{color:var(--ink);font-weight:500}
+.adr dd ul{margin:0}
+.adr .fn{font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+@media (max-width:640px){.adr dl{grid-template-columns:1fr}.adr dt{padding-top:8px}}
+figure{margin:14px 0 6px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 12px 8px}
+.svgbox{overflow-x:auto}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:13px;color:var(--muted);margin-top:8px;max-width:92ch}
+figcaption b{color:var(--ink-2)}
+/* SVG */
+.zone{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.1;stroke-dasharray:5 4}
+.zone-x{fill:var(--bg);stroke:var(--line-strong);stroke-width:1.1;stroke-dasharray:5 4}
+.box{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.2}
+.box-a{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+.box-v{fill:var(--vio-soft);stroke:var(--vio);stroke-width:1.4}
+.box-w{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.3;stroke-dasharray:4 3}
+.box-x{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.2}
+.lane{fill:var(--surface);stroke:var(--line);stroke-width:1}
+.lane-x{fill:var(--bg);stroke:var(--line);stroke-width:1}
+.t{fill:var(--ink);font-family:var(--f-body);font-size:12.5px;font-weight:600}
+.ts{fill:var(--muted);font-family:var(--f-body);font-size:11px}
+.tl{fill:var(--accent);font-family:var(--f-body);font-size:11px;font-weight:600;letter-spacing:.05em}
+.tn{fill:var(--ink-2);font-family:var(--f-body);font-size:11.5px;font-weight:600}
+.lb{fill:var(--ink-2);font-family:var(--f-body);font-size:11px;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+.lbw{fill:var(--warn);font-family:var(--f-body);font-size:11px;font-weight:600;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+.e{stroke:var(--ink-2);stroke-width:1.3;fill:none}
+.ea{stroke:var(--accent);stroke-width:1.7;fill:none}
+.ed{stroke:var(--muted);stroke-width:1.2;fill:none;stroke-dasharray:4 4}
+.ew{stroke:var(--warn);stroke-width:1.3;fill:none;stroke-dasharray:5 4}
+.mk{fill:var(--ink-2)} .mka{fill:var(--accent)} .mkw{fill:var(--warn)} .mkd{fill:var(--muted)}
+.q{display:grid;gap:10px;margin:12px 0}
+.qi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 15px;min-width:0}
+.qi b{display:block}
+.qi span{display:block;font-size:13.5px;color:var(--ink-2);margin-top:3px}
+footer{margin-top:52px;border-top:1px solid var(--line);padding-top:14px;font-size:13px;color:var(--muted)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+
+code{font-family:var(--f-mono);font-size:12px;word-break:break-word}
+td.f{font-size:13px;color:var(--ink-2)}
+td.fn code{color:var(--ink)}
+.num{font-family:var(--f-mono);font-size:12px;font-weight:600}
+pre{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;font-family:var(--f-mono);font-size:12.5px;line-height:1.55;color:var(--ink)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.two>div{min-width:0}
+
+svg{background:var(--bg)}</style><defs>
+<marker id="ah" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mk" d="M0,0 L10,5 L0,10 z"></path></marker>
+<marker id="aha" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mka" d="M0,0 L10,5 L0,10 z"></path></marker>
+<marker id="ahw" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mkw" d="M0,0 L10,5 L0,10 z"></path></marker>
+<marker id="ahd" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path class="mkd" d="M0,0 L10,5 L0,10 z"></path></marker>
+</defs><rect class="box-x" height="40" rx="6" width="148" x="6" y="10"></rect><text class="t" style="font-size:11.5px" text-anchor="middle" x="80" y="35">Giao diện các bên</text>
+<line stroke="var(--line-strong)" stroke-dasharray="3 4" stroke-width="1" x1="80" x2="80" y1="50" y2="794"></line>
+<rect class="box" height="40" rx="6" width="148" x="166" y="10"></rect><text class="t" style="font-size:11.5px" text-anchor="middle" x="240" y="35">5 · Tích hợp</text>
+<line stroke="var(--line-strong)" stroke-dasharray="3 4" stroke-width="1" x1="240" x2="240" y1="50" y2="794"></line>
+<rect class="box" height="40" rx="6" width="148" x="326" y="10"></rect><text class="t" style="font-size:11.5px" text-anchor="middle" x="400" y="35">3 · Phân phối</text>
+<line stroke="var(--line-strong)" stroke-dasharray="3 4" stroke-width="1" x1="400" x2="400" y1="50" y2="794"></line>
+<rect class="box-v" height="40" rx="6" width="148" x="486" y="10"></rect><text class="t" style="font-size:11.5px" text-anchor="middle" x="560" y="35">4 · Quản trị</text>
+<line stroke="var(--line-strong)" stroke-dasharray="3 4" stroke-width="1" x1="560" x2="560" y1="50" y2="794"></line>
+<rect class="box-a" height="40" rx="6" width="148" x="646" y="10"></rect><text class="t" style="font-size:11.5px" text-anchor="middle" x="720" y="35">6 · Onchain</text>
+<line stroke="var(--line-strong)" stroke-dasharray="3 4" stroke-width="1" x1="720" x2="720" y1="50" y2="794"></line>
+<rect class="box" height="40" rx="6" width="148" x="806" y="10"></rect><text class="t" style="font-size:11.5px" text-anchor="middle" x="880" y="35">2 · Phát hành</text>
+<line stroke="var(--line-strong)" stroke-dasharray="3 4" stroke-width="1" x1="880" x2="880" y1="50" y2="794"></line>
+<rect class="box-a" height="40" rx="6" width="148" x="966" y="10"></rect><text class="t" style="font-size:11.5px" text-anchor="middle" x="1040" y="35">Chuỗi</text>
+<line stroke="var(--line-strong)" stroke-dasharray="3 4" stroke-width="1" x1="1040" x2="1040" y1="50" y2="794"></line>
+<path class="e" d="M80,76 H396" marker-end="url(#ah)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="74" y="80">1</text>
+<text class="lb" text-anchor="middle" x="240.0" y="70">POST /allocation-lists/{id}/submit</text>
+<path class="e" d="M400,110 H556" marker-end="url(#ah)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="394" y="114">2</text>
+<text class="lb" text-anchor="middle" x="480.0" y="104">tạo yêu cầu duyệt 4 mắt</text>
+<path class="ed" d="M560,144 H404" marker-end="url(#ahd)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="394" y="148">3</text>
+<text class="lb" text-anchor="middle" x="480.0" y="138">governance.approval.decided</text>
+<path class="e" d="M400,178 H556" marker-end="url(#ah)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="394" y="182">4</text>
+<text class="lb" text-anchor="middle" x="480.0" y="172">tạo đề nghị ký setAllocation</text>
+<path class="e" d="M80,212 H556" marker-end="url(#ah)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="74" y="216">5</text>
+<text class="lb" text-anchor="middle" x="320.0" y="206">POST /signing-proposals/{id}/signatures · UBND</text>
+<path class="ed" d="M560,246 H716" marker-end="url(#ahd)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="554" y="250">6</text>
+<text class="lb" text-anchor="middle" x="640.0" y="240">governance.signing.threshold_reached</text>
+<path class="ea" d="M720,280 H1036" marker-end="url(#aha)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="714" y="284">7</text>
+<text class="lb" text-anchor="middle" x="880.0" y="274">execTransaction</text>
+<path class="ed" d="M720,314 H404" marker-end="url(#ahd)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="394" y="318">8</text>
+<text class="lb" text-anchor="middle" x="560.0" y="308">onchain.tx.mined → allocation_list.signed</text>
+<path class="e" d="M80,348 H236" marker-end="url(#ah)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="74" y="352">9</text>
+<text class="lb" text-anchor="middle" x="160.0" y="342">BIDV báo có · webhook</text>
+<path class="ed" d="M240,382 H396" marker-end="url(#ahd)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="234" y="386">10</text>
+<text class="lb" text-anchor="middle" x="320.0" y="376">integration.bank.credit_received</text>
+<path class="e" d="M400,416 H556" marker-end="url(#ah)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="394" y="420">11</text>
+<text class="lb" text-anchor="middle" x="480.0" y="410">đối chiếu, gom lô → đề nghị ký addPaymentBatch</text>
+<path class="e" d="M80,450 H556" marker-end="url(#ah)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="74" y="454">12</text>
+<text class="lb" text-anchor="middle" x="320.0" y="444">POST …/signatures · BIDV</text>
+<path class="ed" d="M720,484 H404" marker-end="url(#ahd)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="394" y="488">13</text>
+<text class="lb" text-anchor="middle" x="560.0" y="478">onchain.tx.mined → payment_batch.signed</text>
+<path class="e" d="M400,518 H716" marker-end="url(#ah)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="394" y="522">14</text>
+<text class="lb" text-anchor="middle" x="560.0" y="512">bộ điều phối: mint từng mục</text>
+<path class="ea" d="M720,552 H1036" marker-end="url(#aha)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="714" y="556">15</text>
+<text class="lb" text-anchor="middle" x="880.0" y="546">mint(mục, 2 đường chứng minh)</text>
+<path class="ed" d="M720,586 H404" marker-end="url(#ahd)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="394" y="590">16</text>
+<text class="lb" text-anchor="middle" x="560.0" y="580">onchain.tx.mined → mint.completed</text>
+<path class="e" d="M400,620 H556" marker-end="url(#ah)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="394" y="624">17</text>
+<text class="lb" text-anchor="middle" x="480.0" y="614">đủ mục → đề nghị ký attestRegister</text>
+<path class="e" d="M80,654 H556" marker-end="url(#ah)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="74" y="658">18</text>
+<text class="lb" text-anchor="middle" x="320.0" y="648">POST …/signatures · VSDC</text>
+<path class="ea" d="M720,688 H1036" marker-end="url(#aha)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="714" y="692">19</text>
+<text class="lb" text-anchor="middle" x="880.0" y="682">execTransaction</text>
+<path class="ed" d="M720,722 H404" marker-end="url(#ahd)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="394" y="726">20</text>
+<text class="lb" text-anchor="middle" x="560.0" y="716">onchain.tx.mined → register.attested</text>
+<path class="ed" d="M400,756 H876" marker-end="url(#ahd)"></path>
+<text class="num" fill="var(--accent)" text-anchor="end" x="394" y="760">21</text>
+<text class="lb" text-anchor="middle" x="640.0" y="750">distribution.register.attested</text></svg>

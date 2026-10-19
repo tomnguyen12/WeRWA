@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.integration.bank.payout_confirmed.v1.schema.json",
+  "title": "werwa.integration.bank.payout_confirmed.v1",
+  "description": "Bên phát: Tích hợp. Bên nhận: Phân phối.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.integration.bank.payout_confirmed.v1"
+    },
+    "source": {
+      "const": "/werwa/integration"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "instructionRef",
+        "lines"
+      ],
+      "properties": {
+        "instructionRef": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.onboarding.investor.kyc_approved.v1.schema.json",
+  "title": "werwa.onboarding.investor.kyc_approved.v1",
+  "description": "Bên phát: Onboarding. Bên nhận: Phân phối, Onchain.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.onboarding.investor.kyc_approved.v1"
+    },
+    "source": {
+      "const": "/werwa/onboarding"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "organizationId",
+        "investorClass",
+        "expiresAt"
+      ],
+      "properties": {
+        "organizationId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "investorClass": {
+          "type": "string"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

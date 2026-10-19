@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.distribution.mint.completed.v1.schema.json",
+  "title": "werwa.distribution.mint.completed.v1",
+  "description": "Bên phát: Phân phối. Bên nhận: Bộ điều phối, Quản trị.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.distribution.mint.completed.v1"
+    },
+    "source": {
+      "const": "/werwa/distribution"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "allocationId",
+        "wallet",
+        "quantity",
+        "txHash"
+      ],
+      "properties": {
+        "allocationId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "wallet": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0,
+          "description": "Số trái phiếu (decimals 0)"
+        },
+        "txHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

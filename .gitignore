@@ -1,0 +1,26 @@
+# Bí mật — không bao giờ commit
+*.key
+*.pem
+*.p12
+*.jks
+.env
+.env.*
+!.env.example
+**/softhsm/tokens/
+
+# Build
+node_modules/
+target/
+build/
+out/
+cache/
+broadcast/
+.gradle/
+dist/
+coverage/
+
+# IDE, hệ điều hành
+.idea/
+.vscode/
+*.iml
+.DS_Store

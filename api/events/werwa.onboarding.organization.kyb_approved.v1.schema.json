@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.onboarding.organization.kyb_approved.v1.schema.json",
+  "title": "werwa.onboarding.organization.kyb_approved.v1",
+  "description": "Bên phát: Onboarding. Bên nhận: Quản trị.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.onboarding.organization.kyb_approved.v1"
+    },
+    "source": {
+      "const": "/werwa/onboarding"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "organizationId",
+        "roles"
+      ],
+      "properties": {
+        "organizationId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ISSUER",
+              "OPERATING_AGENCY",
+              "SYNDICATE",
+              "REGISTRAR",
+              "PAYING_AGENT",
+              "TREASURY",
+              "CUSTODIAN",
+              "TRUSTEE",
+              "SUPERVISOR",
+              "OPERATOR",
+              "INVESTOR"
+            ]
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

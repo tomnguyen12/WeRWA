@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.integration.bank.credit_received.v1.schema.json",
+  "title": "werwa.integration.bank.credit_received.v1",
+  "description": "Bên phát: Tích hợp. Bên nhận: Phân phối.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.integration.bank.credit_received.v1"
+    },
+    "source": {
+      "const": "/werwa/integration"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "bankRef",
+        "virtualAccount",
+        "amountMinor",
+        "valueDate"
+      ],
+      "properties": {
+        "bankRef": {
+          "type": "string"
+        },
+        "virtualAccount": {
+          "type": "string"
+        },
+        "amountMinor": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Số tiền theo đơn vị nhỏ nhất, dạng chuỗi"
+        },
+        "valueDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

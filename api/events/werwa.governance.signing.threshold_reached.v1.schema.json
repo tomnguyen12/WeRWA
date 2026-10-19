@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.governance.signing.threshold_reached.v1.schema.json",
+  "title": "werwa.governance.signing.threshold_reached.v1",
+  "description": "Bên phát: Quản trị. Bên nhận: Onchain.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.governance.signing.threshold_reached.v1"
+    },
+    "source": {
+      "const": "/werwa/governance"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "proposalId",
+        "safe",
+        "calldataHash"
+      ],
+      "properties": {
+        "proposalId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "safe": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "calldataHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
