@@ -41,6 +41,20 @@ interface ISeriesController is ISeriesState {
         bool minted;
     }
 
+    /// @notice Chính sách với vị thế đang phong tỏa khi đáo hạn (ADR-0018). Thứ tự là một phần của ABI.
+    enum FrozenRedemptionPolicy {
+        HOLD_UNTIL_RELEASED, // (a) mặc định: giữ phần phong tỏa tới khi giải tỏa hoặc chuyển cưỡng chế (G6)
+        BURN_AFTER_PAYOUT // (b) hủy cả phần phong tỏa sau khi IPA xác nhận chi gốc
+    }
+
+    struct Snapshot {
+        uint64 recordBlock;
+        bytes32 registerHash;
+        bool attested;
+        address attestedBy;
+        uint64 attestedAt;
+    }
+
     struct RegistrarAttestation {
         bytes32 registerHash;
         uint64 atBlock;
@@ -65,6 +79,16 @@ interface ISeriesController is ISeriesState {
     event Paused(address indexed by);
     event Unpaused(address indexed by);
     event PaymentAttestationToggled(bool required);
+    event SnapshotTaken(uint16 indexed period, uint64 recordBlock, bytes32 registerHash);
+    event SnapshotAttested(uint16 indexed period, bytes32 registerHash, address indexed registrar);
+    event SeriesMatured(bytes32 payoutHash);
+    event Redeemed(address indexed holder, uint64 burned, uint64 frozenRemaining);
+    event FrozenPositionRedeemed(address indexed holder, uint64 quantity, bytes32 payoutHash);
+    event SeriesClosed();
+    event PositionFrozen(address indexed wallet, uint64 quantity, bytes32 orderHash);
+    event PositionUnfrozen(address indexed wallet, uint64 quantity, bytes32 orderHash);
+    event ForcedTransfer(address indexed from, address indexed to, uint64 quantity, bytes32 orderHash);
+    event FrozenRedemptionPolicySet(FrozenRedemptionPolicy policy, bytes32 basisHash);
 
     // ---- Lỗi theo đặc tả ----
     error AlreadyInitialized();
@@ -82,6 +106,13 @@ interface ISeriesController is ISeriesState {
     error NotMinted();
     error MismatchedItem();
     error BadState();
+    error SnapshotExists();
+    error HashMismatch();
+    error NotYetMatured();
+    error SnapshotNotAttested();
+    error SupplyNotZero();
+    error ExceedsBalance();
+    error ExceedsFrozen();
 
     // ---- Lỗi bổ sung (C17, chờ duyệt) ----
     error Unauthorized();
@@ -90,4 +121,6 @@ interface ISeriesController is ISeriesState {
     error InvalidIsin();
     error InvalidBlock();
     error SeriesPaused();
+    error InvalidPeriod();
+    error AlreadyAttested();
 }

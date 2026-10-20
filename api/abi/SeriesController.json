@@ -97,6 +97,37 @@
   },
   {
     "type": "function",
+    "name": "attestSnapshot",
+    "inputs": [
+      {
+        "name": "period",
+        "type": "uint16",
+        "internalType": "uint16"
+      },
+      {
+        "name": "registerHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "burnRedeemed",
+    "inputs": [
+      {
+        "name": "holders",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "cancel",
     "inputs": [
       {
@@ -105,6 +136,13 @@
         "internalType": "bytes32"
       }
     ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "close",
+    "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -190,6 +228,70 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "forcedTransfer",
+    "inputs": [
+      {
+        "name": "from",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "qty",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "orderHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "freeze",
+    "inputs": [
+      {
+        "name": "wallet",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "qty",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "orderHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "frozenRedemptionPolicy",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum ISeriesController.FrozenRedemptionPolicy"
       }
     ],
     "stateMutability": "view"
@@ -400,6 +502,19 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "mature",
+    "inputs": [
+      {
+        "name": "payoutHash_",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -627,6 +742,19 @@
   },
   {
     "type": "function",
+    "name": "payoutHash",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "periodCount",
     "inputs": [],
     "outputs": [
@@ -768,6 +896,24 @@
   },
   {
     "type": "function",
+    "name": "setFrozenRedemptionPolicy",
+    "inputs": [
+      {
+        "name": "policy",
+        "type": "uint8",
+        "internalType": "enum ISeriesController.FrozenRedemptionPolicy"
+      },
+      {
+        "name": "basisHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setIsin",
     "inputs": [
       {
@@ -794,6 +940,52 @@
   },
   {
     "type": "function",
+    "name": "snapshotOf",
+    "inputs": [
+      {
+        "name": "period",
+        "type": "uint16",
+        "internalType": "uint16"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct ISeriesController.Snapshot",
+        "components": [
+          {
+            "name": "recordBlock",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "registerHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "attested",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "attestedBy",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "attestedAt",
+            "type": "uint64",
+            "internalType": "uint64"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "state",
     "inputs": [],
     "outputs": [
@@ -804,6 +996,29 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "takeSnapshot",
+    "inputs": [
+      {
+        "name": "period",
+        "type": "uint16",
+        "internalType": "uint16"
+      },
+      {
+        "name": "recordBlock",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "registerHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -856,6 +1071,42 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "totalRedeemed",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "unfreeze",
+    "inputs": [
+      {
+        "name": "wallet",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "qty",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "orderHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -916,6 +1167,81 @@
         "type": "uint64",
         "indexed": false,
         "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ForcedTransfer",
+    "inputs": [
+      {
+        "name": "from",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "quantity",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "orderHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FrozenPositionRedeemed",
+    "inputs": [
+      {
+        "name": "holder",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "quantity",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "payoutHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FrozenRedemptionPolicySet",
+    "inputs": [
+      {
+        "name": "policy",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum ISeriesController.FrozenRedemptionPolicy"
+      },
+      {
+        "name": "basisHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false
@@ -1017,6 +1343,81 @@
   },
   {
     "type": "event",
+    "name": "PositionFrozen",
+    "inputs": [
+      {
+        "name": "wallet",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "quantity",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "orderHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PositionUnfrozen",
+    "inputs": [
+      {
+        "name": "wallet",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "quantity",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "orderHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Redeemed",
+    "inputs": [
+      {
+        "name": "holder",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "burned",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "frozenRemaining",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "RegisterAttested",
     "inputs": [
       {
@@ -1051,6 +1452,12 @@
         "internalType": "bytes32"
       }
     ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SeriesClosed",
+    "inputs": [],
     "anonymous": false
   },
   {
@@ -1092,6 +1499,69 @@
   },
   {
     "type": "event",
+    "name": "SeriesMatured",
+    "inputs": [
+      {
+        "name": "payoutHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SnapshotAttested",
+    "inputs": [
+      {
+        "name": "period",
+        "type": "uint16",
+        "indexed": true,
+        "internalType": "uint16"
+      },
+      {
+        "name": "registerHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "registrar",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SnapshotTaken",
+    "inputs": [
+      {
+        "name": "period",
+        "type": "uint16",
+        "indexed": true,
+        "internalType": "uint16"
+      },
+      {
+        "name": "recordBlock",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "registerHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "StateChanged",
     "inputs": [
       {
@@ -1124,6 +1594,11 @@
   },
   {
     "type": "error",
+    "name": "AlreadyAttested",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "AlreadyInitialized",
     "inputs": []
   },
@@ -1149,7 +1624,22 @@
   },
   {
     "type": "error",
+    "name": "ExceedsBalance",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ExceedsFrozen",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "ExceedsMaxQuantity",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "HashMismatch",
     "inputs": []
   },
   {
@@ -1170,6 +1660,11 @@
   {
     "type": "error",
     "name": "InvalidPaymentProof",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidPeriod",
     "inputs": []
   },
   {
@@ -1199,6 +1694,11 @@
   },
   {
     "type": "error",
+    "name": "NotYetMatured",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "PaymentRootExists",
     "inputs": []
   },
@@ -1215,6 +1715,21 @@
   {
     "type": "error",
     "name": "SeriesPaused",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SnapshotExists",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SnapshotNotAttested",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SupplyNotZero",
     "inputs": []
   },
   {
