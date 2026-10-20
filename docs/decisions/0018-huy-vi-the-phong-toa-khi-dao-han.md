@@ -83,4 +83,4 @@ flowchart TD
   - ABI của `SeriesController` có thêm một hàm, một enum, hai sự kiện; sự kiện `Redeemed` có thêm trường phần phong tỏa còn lại.
   - Có thể cần một sự kiện nghiệp vụ mới để báo IPA giữ gốc cho vị thế phong tỏa. Việc này chờ luồng backend quyết.
 - **Dữ liệu và hợp đồng đã triển khai:** chưa có series nào. Thêm biến lưu trữ trước `__gap` theo quy tắc nâng cấp.
-- **Câu hỏi cho pháp lý** (không chặn bản XD): hủy trái phiếu đang bị phong tỏa sau khi gốc đã chi vào IPA có cần cơ quan ra lệnh đồng ý trước không. Nếu cần, `basisHash` của lần đổi chính sách phải là văn bản đồng ý đó.
+- **Câu hỏi cho pháp lý** (không chặn bản XD; hai phương án ở ADR-0020): hủy trái phiếu đang bị phong tỏa sau khi gốc đã chi vào IPA có cần cơ quan ra lệnh đồng ý trước không. Nếu cần, `basisHash` của lần đổi chính sách phải là văn bản đồng ý đó.
