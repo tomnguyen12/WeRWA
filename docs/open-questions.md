@@ -22,7 +22,7 @@ Gặp điểm dưới đây khi viết code: làm theo **giả định đang dù
 | Ngày phát hành đợt đầu | Lịch Đ1, ngày chốt mã hợp đồng |
 | Kiểm toán hợp đồng trong nước hay quốc tế | Lịch chốt mã |
 | Mua hay thuê HSM | `infra/`, cấu hình PKCS#11 |
-| Giấy phép GPL-3.0 của T-REX: triển khai lên node BIDV, VSDC có là chuyển giao không | Không chặn XD; nếu không chấp nhận thì tự viết theo giao diện ERC-3643 |
+| Giấy phép GPL-3.0 của T-REX: triển khai lên node BIDV, VSDC có là chuyển giao không | Không chặn XD. Hai phương án ở ADR-0019: A giữ T-REX, B tự viết theo giao diện ERC-3643; bước tách giao diện làm trước |
 | Bổ sung HLD v0.3 và ADR cũ | Bảng ánh xạ ADR cũ sang bộ v1 |
 
 ## Sửa trang nghiệp vụ (để sau thiết kế và demo)
