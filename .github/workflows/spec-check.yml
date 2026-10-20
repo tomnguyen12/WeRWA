@@ -1,11 +1,10 @@
 name: spec-check
 
+# Chạy với mọi PR và mọi push vào main, để có thể đặt hai bước dưới làm status check bắt buộc.
 on:
   pull_request:
-    paths: ['api/**', 'redocly.yaml', '.github/workflows/spec-check.yml']
   push:
     branches: [main]
-    paths: ['api/**']
 
 permissions:
   contents: read

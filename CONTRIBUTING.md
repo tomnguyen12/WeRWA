@@ -45,7 +45,7 @@ Phạm vi hợp lệ: `onboarding`, `issuance`, `distribution`, `governance`, `i
 
 | Luồng | Cổng bắt buộc |
 |---|---|
-| `api/` | Lint OpenAPI (Redocly), kiểm lược đồ sự kiện hợp lệ JSON Schema 2020-12 |
+| `api/` (chạy với mọi PR; bắt buộc qua trước khi merge) | Lint OpenAPI (Redocly), kiểm lược đồ sự kiện hợp lệ JSON Schema 2020-12 |
 | `contracts/` | `forge build`, `forge test` gồm invariant I1–I8, độ phủ ≥ 95% phần WeRWA, Slither, kiểm bố cục lưu trữ khi đổi hợp đồng nâng cấp được |
 | `backend/` | Build, unit test, `ApplicationModules.verify()`, kiểm thử tích hợp Testcontainers (Besu, PostgreSQL, NATS), kiểm khớp OpenAPI |
 | `frontend/` | Typecheck, lint, unit test, client sinh từ OpenAPI không lệch |
