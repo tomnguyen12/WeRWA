@@ -39,6 +39,18 @@
     {
       "name": "AuditAnchor",
       "source": "contracts/src/AuditAnchor.sol"
+    },
+    {
+      "name": "InvestorClassModule",
+      "source": "contracts/src/compliance/InvestorClassModule.sol"
+    },
+    {
+      "name": "HoldingLimitModule",
+      "source": "contracts/src/compliance/HoldingLimitModule.sol"
+    },
+    {
+      "name": "TransferGateModule",
+      "source": "contracts/src/compliance/TransferGateModule.sol"
     }
   ]
 }
