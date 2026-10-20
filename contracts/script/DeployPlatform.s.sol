@@ -25,6 +25,7 @@ import {SeriesController} from "../src/SeriesController.sol";
 import {SeriesFactory} from "../src/factory/SeriesFactory.sol";
 import {ModuleDeployer} from "../src/factory/ModuleDeployer.sol";
 import {WeRWATimelock} from "../src/governance/WeRWATimelock.sol";
+import {AuditAnchor} from "../src/AuditAnchor.sol";
 
 /// @notice Triển khai toàn nền tảng WeRWA lên một mạng (devnet, mạng thử XD).
 ///         Không chứa khóa: người gửi giao dịch là khóa triển khai truyền qua `forge script --sender/--account`;
@@ -38,7 +39,6 @@ import {WeRWATimelock} from "../src/governance/WeRWATimelock.sol";
 ///   WERWA_HOLCO_OPERATOR      Khóa vận hành Holco: agent sổ định danh, OPERATOR của AuditAnchor
 ///   WERWA_TIMELOCK_DELAY      Giây; mặc định 3600 (C15)
 ///   WERWA_TOPIC_KYC, WERWA_TOPIC_CLASS  Mã chủ đề claim; mặc định theo giả định C1
-/// AuditAnchor triển khai riêng sau khi PR AuditAnchor (#3) vào main.
 contract DeployPlatform is Script {
     struct Config {
         address governance3of3;
@@ -63,6 +63,7 @@ contract DeployPlatform is Script {
         address moduleDeployer;
         address proxyAdmin;
         address seriesFactory;
+        address auditAnchor;
     }
 
     function run() external returns (Deployed memory d) {
@@ -140,6 +141,8 @@ contract DeployPlatform is Script {
             )
         );
         d.seriesFactory = address(new TransparentUpgradeableProxy(address(new SeriesFactory()), d.proxyAdmin, init));
+        // Neo nhật ký kiểm toán: OPERATOR là khóa vận hành Holco; GOVERNANCE xoay khóa (C3).
+        d.auditAnchor = address(new AuditAnchor(cfg.governance3of3, cfg.holcoOperator));
     }
 
     /// @dev Giao mọi quyền sở hữu cho timelock.
@@ -171,5 +174,6 @@ contract DeployPlatform is Script {
         console2.log("holcoClaimIssuer", d.holcoClaimIssuer);
         console2.log("controllerBeacon", d.controllerBeacon);
         console2.log("seriesFactory", d.seriesFactory);
+        console2.log("auditAnchor", d.auditAnchor);
     }
 }

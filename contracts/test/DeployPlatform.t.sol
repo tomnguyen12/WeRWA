@@ -7,6 +7,7 @@ import {SeriesFactory} from "../src/factory/SeriesFactory.sol";
 import {WeRWATimelock} from "../src/governance/WeRWATimelock.sol";
 import {ClaimIssuer} from "@onchain-id/solidity/contracts/ClaimIssuer.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {AuditAnchor} from "../src/AuditAnchor.sol";
 
 /// @notice Script triển khai chạy trọn và giao mọi quyền sở hữu cho timelock; khóa triển khai không giữ quyền gì.
 contract DeployPlatformTest is Test {
@@ -41,6 +42,9 @@ contract DeployPlatformTest is Test {
         assertEq(Ownable(d.proxyAdmin).owner(), d.timelock);
         assertEq(SeriesFactory(d.seriesFactory).governance(), cfg.governance3of3);
         assertTrue(WeRWATimelock(payable(d.timelock)).hasRole(keccak256("PROPOSER_ROLE"), cfg.governance3of3));
+
+        assertEq(AuditAnchor(d.auditAnchor).operator(), cfg.holcoOperator);
+        assertEq(AuditAnchor(d.auditAnchor).governance(), cfg.governance3of3);
 
         ClaimIssuer issuer = ClaimIssuer(d.holcoClaimIssuer);
         assertTrue(issuer.keyHasPurpose(keccak256(abi.encode(cfg.holcoSafe)), 1));
