@@ -4,4 +4,4 @@ ADR-01 đến ADR-16 nằm trong `docs/design/01-quyet-dinh-cong-nghe.md`. Quy�
 
 | Số | Tiêu đề | Trạng thái |
 |---|---|---|
-| | | |
+| [0017](0017-vi-mien-han-muc.md) | Ví được miễn hạn mức: ví omnibus của lưu ký và ví của WeRWA, chọn bằng cấu hình | Đề xuất |
