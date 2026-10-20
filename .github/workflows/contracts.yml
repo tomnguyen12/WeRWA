@@ -1,0 +1,88 @@
+name: contracts
+
+# Cổng bắt buộc của luồng contracts/ (CONTRIBUTING.md, mục CI).
+# Chạy với mọi PR và push vào main, để đặt được các job dưới làm status check bắt buộc.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  FOUNDRY_PROFILE: ci
+  FOUNDRY_VERSION: v1.8.5
+  SLITHER_VERSION: 0.11.3
+
+defaults:
+  run:
+    working-directory: contracts
+
+jobs:
+  build-test:
+    name: build · test · invariant · độ phủ
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+      - name: Định dạng
+        run: forge fmt --check
+      - name: Build và kích thước hợp đồng
+        run: forge build --sizes
+      - name: Kiểm thử (unit, fuzz, invariant I1–I8)
+        run: forge test -vvv
+      - name: Độ phủ dòng phần WeRWA ≥ 95%
+        run: |
+          forge coverage --report lcov --report-file lcov.info --no-match-coverage '(test|script|lib)/'
+          python3 script/check-coverage.py lcov.info 95
+
+  static-analysis:
+    name: Slither
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install slither-analyzer==${{ env.SLITHER_VERSION }}
+      - name: Slither, không có lỗi mức cao
+        run: |
+          if ! find src -name '*.sol' | grep -q .; then
+            echo "Chưa có hợp đồng WeRWA trong src/; bỏ qua."
+            exit 0
+          fi
+          slither . --config-file slither.config.json
+
+  storage-layout:
+    name: Bố cục lưu trữ
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+      - run: python3 script/check-storage-layout.py
+
+  abi:
+    name: ABI khớp api/abi/
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+      - run: script/export-abi.sh --check

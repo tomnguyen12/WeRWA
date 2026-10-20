@@ -1,0 +1,40 @@
+{
+  "generatedBy": "contracts/script/export-abi.sh",
+  "solc": "0.8.17",
+  "trex": "4.1.3",
+  "onchainId": "2.2.1",
+  "contracts": [
+    {
+      "name": "Token",
+      "source": "contracts/lib/trex/contracts/token/Token.sol"
+    },
+    {
+      "name": "IdentityRegistry",
+      "source": "contracts/lib/trex/contracts/registry/implementation/IdentityRegistry.sol"
+    },
+    {
+      "name": "IdentityRegistryStorage",
+      "source": "contracts/lib/trex/contracts/registry/implementation/IdentityRegistryStorage.sol"
+    },
+    {
+      "name": "ClaimTopicsRegistry",
+      "source": "contracts/lib/trex/contracts/registry/implementation/ClaimTopicsRegistry.sol"
+    },
+    {
+      "name": "TrustedIssuersRegistry",
+      "source": "contracts/lib/trex/contracts/registry/implementation/TrustedIssuersRegistry.sol"
+    },
+    {
+      "name": "ModularCompliance",
+      "source": "contracts/lib/trex/contracts/compliance/modular/ModularCompliance.sol"
+    },
+    {
+      "name": "Identity",
+      "source": "contracts/lib/onchain-id/contracts/Identity.sol"
+    },
+    {
+      "name": "ClaimIssuer",
+      "source": "contracts/lib/onchain-id/contracts/ClaimIssuer.sol"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+# Hợp đồng nâng cấp được cần kiểm bố cục lưu trữ. Mỗi dòng: <đường dẫn nguồn>:<tên hợp đồng>
+# Thêm SeriesController, SeriesFactory khi có trong src/ (PR 4, PR 6).
