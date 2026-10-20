@@ -35,6 +35,10 @@
     {
       "name": "ClaimIssuer",
       "source": "contracts/lib/onchain-id/contracts/ClaimIssuer.sol"
+    },
+    {
+      "name": "AuditAnchor",
+      "source": "contracts/src/AuditAnchor.sol"
     }
   ]
 }

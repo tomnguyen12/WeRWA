@@ -12,3 +12,6 @@ lib/trex/contracts/compliance/modular/ModularCompliance.sol:ModularCompliance
 # ONCHAINID 2.2.1
 lib/onchain-id/contracts/Identity.sol:Identity
 lib/onchain-id/contracts/ClaimIssuer.sol:ClaimIssuer
+
+# WeRWA
+src/AuditAnchor.sol:AuditAnchor
