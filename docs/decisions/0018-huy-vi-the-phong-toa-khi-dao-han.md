@@ -1,6 +1,6 @@
 # ADR-0018 — Vị thế đang phong tỏa khi đáo hạn: hai chính sách, chọn bằng cấu hình khi vận hành
 
-- **Trạng thái:** Đề xuất
+- **Trạng thái:** Đã duyệt (Tommy Nguyen, 20/10/2026)
 - **Ngày:** 2026-10-20
 - **Người đề xuất:** Claude (phiên contracts), theo yêu cầu của Tommy Nguyen: "cấu hình để lựa chọn 2 phương án khi vận hành"
 - **Người duyệt:** SA

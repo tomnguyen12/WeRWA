@@ -5,4 +5,4 @@ ADR-01 đến ADR-16 nằm trong `docs/design/01-quyet-dinh-cong-nghe.md`. Quy�
 | Số | Tiêu đề | Trạng thái |
 |---|---|---|
 | [0017](0017-vi-mien-han-muc.md) | Ví được miễn hạn mức: ví omnibus của lưu ký và ví của WeRWA, chọn bằng cấu hình | Đã duyệt 20/10/2026 |
-| [0018](0018-huy-vi-the-phong-toa-khi-dao-han.md) | Vị thế phong tỏa khi đáo hạn: giữ tới khi giải tỏa hoặc hủy sau khi chi gốc, chọn bằng cấu hình | Đề xuất |
+| [0018](0018-huy-vi-the-phong-toa-khi-dao-han.md) | Vị thế phong tỏa khi đáo hạn: giữ tới khi giải tỏa hoặc hủy sau khi chi gốc, chọn bằng cấu hình | Đã duyệt 20/10/2026 |
