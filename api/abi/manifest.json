@@ -39,6 +39,34 @@
     {
       "name": "AuditAnchor",
       "source": "contracts/src/AuditAnchor.sol"
+    },
+    {
+      "name": "InvestorClassModule",
+      "source": "contracts/src/compliance/InvestorClassModule.sol"
+    },
+    {
+      "name": "HoldingLimitModule",
+      "source": "contracts/src/compliance/HoldingLimitModule.sol"
+    },
+    {
+      "name": "TransferGateModule",
+      "source": "contracts/src/compliance/TransferGateModule.sol"
+    },
+    {
+      "name": "SeriesController",
+      "source": "contracts/src/SeriesController.sol"
+    },
+    {
+      "name": "SeriesFactory",
+      "source": "contracts/src/factory/SeriesFactory.sol"
+    },
+    {
+      "name": "ModuleDeployer",
+      "source": "contracts/src/factory/ModuleDeployer.sol"
+    },
+    {
+      "name": "WeRWATimelock",
+      "source": "contracts/src/governance/WeRWATimelock.sol"
     }
   ]
 }
