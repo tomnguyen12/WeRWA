@@ -5,3 +5,6 @@ ADR-01 đến ADR-16 nằm trong `docs/design/01-quyet-dinh-cong-nghe.md`. Quy�
 | Số | Tiêu đề | Trạng thái |
 |---|---|---|
 | [0017](0017-vi-mien-han-muc.md) | Ví được miễn hạn mức: ví omnibus của lưu ký và ví của WeRWA, chọn bằng cấu hình | Đã duyệt 20/10/2026 |
+| [0018](0018-huy-vi-the-phong-toa-khi-dao-han.md) | Vị thế phong tỏa khi đáo hạn: giữ tới khi giải tỏa hoặc hủy sau khi chi gốc, chọn bằng cấu hình | Đã duyệt 20/10/2026 |
+| [0019](0019-hai-phuong-an-giay-phep-erc3643.md) | Giấy phép GPL-3.0 của T-REX: phương án A giữ T-REX, phương án B tự viết theo giao diện ERC-3643 | Đề xuất |
+| [0020](0020-dong-y-huy-vi-the-phong-toa.md) | Đồng ý của cơ quan ra lệnh trước khi hủy vị thế phong tỏa: không cần, hoặc cần theo từng vị thế; chọn bằng cấu hình | Đề xuất |

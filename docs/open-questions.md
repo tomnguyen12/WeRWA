@@ -11,8 +11,8 @@ Gặp điểm dưới đây khi viết code: làm theo **giả định đang dù
 | G3 | Series vi phạm | DEFAULTED vẫn cho chuyển nhượng OTC |
 | G4 | Ai đánh dấu vi phạm | Holco (Đ1) |
 | G5 | Tạm dừng | Dừng cần 2/2 VSDC + Holco; mở lại cần 3/3 |
-| G6 | Hủy trái phiếu khi đáo hạn | `burnRedeemed` bỏ qua vị thế đang phong tỏa |
-| G7 | Giới hạn nắm giữ | Ví omnibus được miễn kiểm giới hạn trên chuỗi |
+| G6 | Hủy trái phiếu khi đáo hạn | Theo ADR-0018: mặc định `burnRedeemed` bỏ qua vị thế đang phong tỏa; `BURN_AFTER_PAYOUT` hủy cả sau khi IPA xác nhận chi gốc |
+| G7 | Giới hạn nắm giữ | Theo ADR-0017: loại ví trong mặt nạ `exemptKinds` của series được miễn; mặc định chỉ ví omnibus của lưu ký |
 | G8 | Thời gian chờ của bộ điều phối ghi sổ | Ký danh sách 2 ngày làm việc; lô BIDV 4 giờ làm việc; VSDC 1 ngày làm việc (tham số) |
 
 ## Chờ Tommy quyết
@@ -22,7 +22,7 @@ Gặp điểm dưới đây khi viết code: làm theo **giả định đang dù
 | Ngày phát hành đợt đầu | Lịch Đ1, ngày chốt mã hợp đồng |
 | Kiểm toán hợp đồng trong nước hay quốc tế | Lịch chốt mã |
 | Mua hay thuê HSM | `infra/`, cấu hình PKCS#11 |
-| Giấy phép GPL-3.0 của T-REX: triển khai lên node BIDV, VSDC có là chuyển giao không | Không chặn XD; nếu không chấp nhận thì tự viết theo giao diện ERC-3643 |
+| Giấy phép GPL-3.0 của T-REX: triển khai lên node BIDV, VSDC có là chuyển giao không | Không chặn XD. Hai phương án ở ADR-0019: A giữ T-REX, B tự viết theo giao diện ERC-3643; bước tách giao diện làm trước |
 | Bổ sung HLD v0.3 và ADR cũ | Bảng ánh xạ ADR cũ sang bộ v1 |
 
 ## Sửa trang nghiệp vụ (để sau thiết kế và demo)
