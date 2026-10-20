@@ -1,6 +1,6 @@
 # ADR-0017 — Ví được miễn hạn mức nắm giữ: hỗ trợ cả ví omnibus của lưu ký và ví của WeRWA, chọn bằng cấu hình
 
-- **Trạng thái:** Đề xuất
+- **Trạng thái:** Đã duyệt (Tommy Nguyen, 20/10/2026)
 - **Ngày:** 2026-10-20
 - **Người đề xuất:** Claude (phiên contracts), theo yêu cầu của Tommy Nguyen: "thiết kế cho cả 2 và chọn cấu hình sau"
 - **Người duyệt:** SA
