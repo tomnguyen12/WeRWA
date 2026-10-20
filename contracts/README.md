@@ -37,6 +37,8 @@ script/export-abi.sh --check                  # CI: api/abi/ khớp bản build
 src/                    hợp đồng WeRWA
 test/                   kiểm thử; tên theo mã US-x.yy-ACn
 test/utils/TREXSuite.sol  bộ dựng T-REX + ONCHAINID cho kiểm thử
+test/utils/PlatformFixture.sol  dựng toàn nền tảng như script triển khai
+test/invariant/         bất biến I1–I8 (SeriesHandler + SeriesInvariants)
 script/                 xuất ABI, cổng độ phủ, kiểm bố cục lưu trữ
 storage-layout/         ảnh chụp bố cục lưu trữ đã duyệt (tạo khi có hợp đồng nâng cấp được)
 ```
@@ -48,3 +50,23 @@ storage-layout/         ảnh chụp bố cục lưu trữ đã duyệt (tạo k
 ## Bố cục lưu trữ
 
 Hợp đồng nâng cấp được liệt kê trong `script/storage-layout.txt`. Khi đổi biến lưu trữ: chỉ thêm biến mới trước `__gap` và bớt `__gap` tương ứng, chạy `check-storage-layout.py --update`, đưa ảnh chụp mới vào PR để SA duyệt.
+
+## Bất biến I1–I8
+
+`test/invariant/SeriesInvariants.t.sol` chạy trên một series do `SeriesFactory` triển khai.
+
+`SeriesHandler` gọi ngẫu nhiên mọi thao tác:
+- bằng đúng vai và bằng vai sai;
+- cố mint mục giả;
+- chuyển nhượng khi đang bị khóa;
+- chuyển tới ví chưa xác minh;
+- phong tỏa và chuyển cưỡng chế;
+- đáo hạn, hủy trái phiếu và đóng series.
+
+Hàm `advance` đẩy series theo đúng luồng, để các lượt fuzz đi tới ACTIVE, MATURED và CLOSED.
+
+Mỗi lượt chạy `forge test` đều chạy bất biến. Profile `ci` dùng 512 lượt × độ sâu 128.
+
+Để kiểm bộ bất biến có bắt được lỗi, đã thử sửa sai mã rồi chạy lại:
+- mở `TransferGateModule` ở ISSUING → I4 báo lỗi;
+- bỏ điều kiện hủy series → I5 và I8 báo lỗi.
