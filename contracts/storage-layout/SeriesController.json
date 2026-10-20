@@ -217,10 +217,38 @@
     "slots": 3
   },
   {
-    "label": "__gap",
+    "label": "_snapshots",
     "slot": 23,
     "offset": 0,
-    "type": "uint256[30]",
-    "slots": 30
+    "type": "mapping(uint16 => struct ISeriesController.Snapshot)",
+    "slots": 1
+  },
+  {
+    "label": "totalRedeemed",
+    "slot": 24,
+    "offset": 0,
+    "type": "uint64",
+    "slots": 1
+  },
+  {
+    "label": "frozenRedemptionPolicy",
+    "slot": 24,
+    "offset": 8,
+    "type": "enum ISeriesController.FrozenRedemptionPolicy",
+    "slots": 1
+  },
+  {
+    "label": "payoutHash",
+    "slot": 25,
+    "offset": 0,
+    "type": "bytes32",
+    "slots": 1
+  },
+  {
+    "label": "__gap",
+    "slot": 26,
+    "offset": 0,
+    "type": "uint256[27]",
+    "slots": 27
   }
 ]

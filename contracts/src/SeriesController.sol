@@ -15,7 +15,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 ///         Đặc tả: docs/design/04-hop-dong-thong-minh.md; máy trạng thái: docs/design/03-may-trang-thai.md.
 /// @dev Chạy sau BeaconProxy (C13); nâng cấp qua beacon do timelock sở hữu. Giữ `__gap` cho nâng cấp.
 ///      Không nhận tiền, không delegatecall, không selfdestruct.
-///      Phần lưu hành và tuân thủ (chụp sổ, đáo hạn, phong tỏa…) thêm ở PR 5.
+///      markDefault, markCured và recoverWallet thuộc Đ1 (C9, C11), chưa có ở bản này.
 contract SeriesController is ISeriesController {
     uint256 private constant _PPM = 1_000_000;
 
@@ -63,9 +63,15 @@ contract SeriesController is ISeriesController {
 
     RegistrarAttestation private _registerAttestation;
 
+    // ---- Lưu hành và đáo hạn (PR 5) ----
+    mapping(uint16 => Snapshot) private _snapshots; // kỳ → danh sách chốt
+    uint64 public totalRedeemed;
+    FrozenRedemptionPolicy public frozenRedemptionPolicy;
+    bytes32 public payoutHash;
+
     /// @dev Khoảng trống lưu trữ cho các bản nâng cấp. Thêm biến mới ngay trên dòng này và bớt __gap tương ứng.
     // slither-disable-next-line naming-convention,unused-state
-    uint256[30] private __gap;
+    uint256[27] private __gap;
 
     modifier only(address role) {
         if (msg.sender != role) revert Unauthorized();
@@ -271,8 +277,138 @@ contract SeriesController is ISeriesController {
     }
 
     // =====================================================================
+    // Lưu hành và trả nợ
+    // =====================================================================
+
+    /// @notice Holco ghi mã băm danh sách chốt của một kỳ tại khối cuối ngày T−1.
+    function takeSnapshot(uint16 period, uint64 recordBlock, bytes32 registerHash) external only(operator) {
+        _requireActiveOrDefaulted();
+        if (period == 0 || period > periodCount) revert InvalidPeriod();
+        if (_snapshots[period].registerHash != bytes32(0)) revert SnapshotExists();
+        if (recordBlock > block.number) revert InvalidBlock();
+        if (registerHash == bytes32(0)) revert HashMismatch();
+        _snapshots[period].recordBlock = recordBlock;
+        _snapshots[period].registerHash = registerHash;
+        emit SnapshotTaken(period, recordBlock, registerHash);
+    }
+
+    /// @notice VSDC xác nhận danh sách chốt của một kỳ; mã băm phải khớp bản Holco đã ghi.
+    function attestSnapshot(uint16 period, bytes32 registerHash) external only(registrar) {
+        _requireActiveOrDefaulted();
+        Snapshot storage snap = _snapshots[period];
+        if (snap.registerHash == bytes32(0) || snap.registerHash != registerHash) revert HashMismatch();
+        if (snap.attested) revert AlreadyAttested();
+        snap.attested = true;
+        snap.attestedBy = msg.sender;
+        // casting to 'uint64' is safe because block.timestamp stays below 2^64 for billions of years
+        // forge-lint: disable-next-line(unsafe-typecast)
+        snap.attestedAt = uint64(block.timestamp);
+        emit SnapshotAttested(period, registerHash, msg.sender);
+    }
+
+    /// @notice Đáo hạn: đã tới ngày đáo hạn và danh sách kỳ gốc (kỳ cuối, C10) đã được VSDC xác nhận.
+    ///         ACTIVE, DEFAULTED → MATURED; chặn chuyển nhượng.
+    function mature(bytes32 payoutHash_) external only(operator) {
+        _requireActiveOrDefaulted();
+        // Ngày đáo hạn tính theo ngày; sai lệch vài giây của thời gian khối không ảnh hưởng.
+        // slither-disable-next-line timestamp
+        if (block.timestamp < maturityDate) revert NotYetMatured();
+        if (!_snapshots[periodCount].attested) revert SnapshotNotAttested();
+        payoutHash = payoutHash_;
+        emit SeriesMatured(payoutHash_);
+        _transition(SeriesState.MATURED);
+    }
+
+    /// @notice Hủy trái phiếu của các ví sau đáo hạn. Phần phong tỏa xử lý theo frozenRedemptionPolicy (ADR-0018).
+    function burnRedeemed(address[] calldata holders) external only(operator) whenNotPaused {
+        if (state != SeriesState.MATURED) revert BadState();
+        bool burnFrozen = frozenRedemptionPolicy == FrozenRedemptionPolicy.BURN_AFTER_PAYOUT;
+        uint256 n = holders.length;
+        uint64[] memory amounts = new uint64[](n);
+        uint64 total = 0;
+
+        // Bước 1: đọc số dư, ghi trạng thái và sự kiện trước mọi lệnh hủy (checks-effects-interactions).
+        // Một ví lặp lại trong danh sách chỉ được tính ở lần đầu.
+        for (uint256 i = 0; i < n; i++) {
+            address holder = holders[i];
+            if (_seenBefore(holders, i)) continue;
+            // Số dư trái phiếu luôn ≤ maxQuantity (uint64), nên ép kiểu an toàn.
+            // slither-disable-next-line calls-loop
+            uint256 balance = token.balanceOf(holder);
+            // slither-disable-next-line calls-loop
+            uint256 frozen = token.getFrozenTokens(holder);
+            uint256 burned = burnFrozen ? balance : balance - frozen;
+            uint256 frozenBurned = burnFrozen ? frozen : 0;
+            // forge-lint: disable-next-line(unsafe-typecast)
+            amounts[i] = uint64(burned);
+            // forge-lint: disable-next-line(unsafe-typecast)
+            total += uint64(burned);
+            // forge-lint: disable-next-line(unsafe-typecast)
+            emit Redeemed(holder, uint64(burned), uint64(frozen - frozenBurned));
+            // forge-lint: disable-next-line(unsafe-typecast)
+            if (frozenBurned > 0) emit FrozenPositionRedeemed(holder, uint64(frozenBurned), payoutHash);
+        }
+        totalRedeemed += total;
+
+        // Bước 2: hủy trên token (hợp đồng tin cậy của series).
+        for (uint256 i = 0; i < n; i++) {
+            // slither-disable-next-line calls-loop
+            if (amounts[i] > 0) token.burn(holders[i], amounts[i]);
+        }
+    }
+
+    /// @notice Đóng series khi tổng cung bằng 0. MATURED → CLOSED.
+    function close() external only(operator) {
+        if (state != SeriesState.MATURED) revert BadState();
+        if (token.totalSupply() != 0) revert SupplyNotZero();
+        emit SeriesClosed();
+        _transition(SeriesState.CLOSED);
+    }
+
+    /// @notice Đổi chính sách với vị thế phong tỏa khi đáo hạn (ADR-0018). GOVERNANCE 3/3, kèm mã băm căn cứ.
+    function setFrozenRedemptionPolicy(FrozenRedemptionPolicy policy, bytes32 basisHash) external only(governance) {
+        _requireNotFinal();
+        frozenRedemptionPolicy = policy;
+        emit FrozenRedemptionPolicySet(policy, basisHash);
+    }
+
+    // =====================================================================
+    // Tuân thủ: phong tỏa, giải tỏa, chuyển cưỡng chế (ENFORCEMENT · VSDC + Holco 2/2, G2)
+    // Vẫn chạy khi series tạm dừng (C6).
+    // =====================================================================
+
+    function freeze(address wallet, uint64 qty, bytes32 orderHash) external only(enforcement) {
+        _requireEnforceable();
+        uint256 free = token.balanceOf(wallet) - token.getFrozenTokens(wallet);
+        if (qty == 0 || qty > free) revert ExceedsBalance();
+        emit PositionFrozen(wallet, qty, orderHash);
+        token.freezePartialTokens(wallet, qty);
+    }
+
+    function unfreeze(address wallet, uint64 qty, bytes32 orderHash) external only(enforcement) {
+        _requireEnforceable();
+        if (qty == 0 || qty > token.getFrozenTokens(wallet)) revert ExceedsFrozen();
+        emit PositionUnfrozen(wallet, qty, orderHash);
+        token.unfreezePartialTokens(wallet, qty);
+    }
+
+    /// @dev Chuyển cưỡng chế của T-REX tự giải tỏa phần cần thiết của ví chuyển và bỏ qua module tuân thủ;
+    ///      ví nhận phải đã xác minh (I7).
+    function forcedTransfer(address from, address to, uint64 qty, bytes32 orderHash) external only(enforcement) {
+        _requireEnforceable();
+        if (!identityRegistry.isVerified(to)) revert NotVerified();
+        if (qty == 0 || qty > token.balanceOf(from)) revert ExceedsBalance();
+        emit ForcedTransfer(from, to, qty, orderHash);
+        if (!token.forcedTransfer(from, to, qty)) revert ExceedsBalance();
+    }
+
+    // =====================================================================
     // Đọc
     // =====================================================================
+
+    function snapshotOf(uint16 period) external view returns (Snapshot memory) {
+        return _snapshots[period];
+    }
 
     // Slither báo nhầm: so sánh địa chỉ người ký, không dùng thời gian.
     // slither-disable-next-line timestamp
@@ -333,6 +469,23 @@ contract SeriesController is ISeriesController {
         SeriesState from = state;
         state = to;
         emit StateChanged(from, to);
+    }
+
+    function _seenBefore(address[] calldata holders, uint256 i) private pure returns (bool) {
+        for (uint256 k = 0; k < i; k++) {
+            if (holders[k] == holders[i]) return true;
+        }
+        return false;
+    }
+
+    function _requireActiveOrDefaulted() private view {
+        if (state != SeriesState.ACTIVE && state != SeriesState.DEFAULTED) revert BadState();
+    }
+
+    function _requireEnforceable() private view {
+        if (state != SeriesState.ACTIVE && state != SeriesState.DEFAULTED && state != SeriesState.MATURED) {
+            revert BadState();
+        }
     }
 
     function _requireNotFinal() private view {
