@@ -1,0 +1,14 @@
+# Danh sách hợp đồng xuất ABI vào api/abi/. Mỗi dòng: <đường dẫn nguồn>:<tên hợp đồng>
+# Thêm hợp đồng WeRWA vào đây khi có trong src/. Không sửa tay api/abi/.
+
+# T-REX 4.1.3 — backend đọc sự kiện và gọi các hợp đồng này
+lib/trex/contracts/token/Token.sol:Token
+lib/trex/contracts/registry/implementation/IdentityRegistry.sol:IdentityRegistry
+lib/trex/contracts/registry/implementation/IdentityRegistryStorage.sol:IdentityRegistryStorage
+lib/trex/contracts/registry/implementation/ClaimTopicsRegistry.sol:ClaimTopicsRegistry
+lib/trex/contracts/registry/implementation/TrustedIssuersRegistry.sol:TrustedIssuersRegistry
+lib/trex/contracts/compliance/modular/ModularCompliance.sol:ModularCompliance
+
+# ONCHAINID 2.2.1
+lib/onchain-id/contracts/Identity.sol:Identity
+lib/onchain-id/contracts/ClaimIssuer.sol:ClaimIssuer
