@@ -2,10 +2,12 @@
 pragma solidity 0.8.17;
 
 import {WeRWAModuleBase} from "./WeRWAModuleBase.sol";
-import {IIdentityRegistry} from "@trex/registry/interface/IIdentityRegistry.sol";
-import {ITrustedIssuersRegistry} from "@trex/registry/interface/ITrustedIssuersRegistry.sol";
-import {IIdentity} from "@onchain-id/solidity/contracts/interface/IIdentity.sol";
-import {IClaimIssuer} from "@onchain-id/solidity/contracts/interface/IClaimIssuer.sol";
+import {
+    IERC3643IdentityRegistry,
+    IERC3643TrustedIssuersRegistry,
+    IERC735Identity,
+    IERC3643ClaimIssuer
+} from "../erc3643/IERC3643.sol";
 
 /// @title InvestorClassModule
 /// @notice Ví nhận phải có claim INVESTOR_CLASS hợp lệ, do bên cấp claim tin cậy ký, mã loại nằm trong danh sách
@@ -73,10 +75,10 @@ contract InvestorClassModule is WeRWAModuleBase {
 
     /// @notice Ví có đủ điều kiện nhận trái phiếu của series không (cùng luật với moduleCheck).
     function isEligible(address compliance, address wallet) public view returns (bool) {
-        IIdentityRegistry registry = _token(compliance).identityRegistry();
-        IIdentity identity = registry.identity(wallet);
+        IERC3643IdentityRegistry registry = _token(compliance).identityRegistry();
+        IERC735Identity identity = registry.identity(wallet);
         if (address(identity) == address(0)) return false;
-        ITrustedIssuersRegistry issuers = registry.issuersRegistry();
+        IERC3643TrustedIssuersRegistry issuers = registry.issuersRegistry();
 
         if (!_hasValidClaim(identity, issuers, kycTopic, compliance)) return false;
         return _hasValidClaim(identity, issuers, investorClassTopic, compliance);
@@ -88,12 +90,13 @@ contract InvestorClassModule is WeRWAModuleBase {
 
     /// @dev Có ít nhất một claim của bên cấp tin cậy cho chủ đề, chữ ký hợp lệ, chưa thu hồi, còn hạn
     ///      (và với INVESTOR_CLASS: mã loại được phép).
-    function _hasValidClaim(IIdentity identity, ITrustedIssuersRegistry issuers, uint256 topic, address compliance)
-        private
-        view
-        returns (bool)
-    {
-        IClaimIssuer[] memory trusted = issuers.getTrustedIssuersForClaimTopic(topic);
+    function _hasValidClaim(
+        IERC735Identity identity,
+        IERC3643TrustedIssuersRegistry issuers,
+        uint256 topic,
+        address compliance
+    ) private view returns (bool) {
+        IERC3643ClaimIssuer[] memory trusted = issuers.getTrustedIssuersForClaimTopic(topic);
         for (uint256 i = 0; i < trusted.length; i++) {
             bytes32 claimId = keccak256(abi.encode(address(trusted[i]), topic));
             // Vòng lặp theo danh sách bên cấp tin cậy (do multisig 3 bên quản lý, rất ngắn); scheme và uri không dùng.
@@ -126,13 +129,15 @@ contract InvestorClassModule is WeRWAModuleBase {
     }
 
     /// @dev Gọi bên cấp claim; bên cấp lỗi hoặc revert thì coi như claim không hợp lệ.
-    function _isClaimValid(IClaimIssuer issuer, IIdentity identity, uint256 topic, bytes memory sig, bytes memory data)
-        private
-        view
-        returns (bool)
-    {
+    function _isClaimValid(
+        IERC3643ClaimIssuer issuer,
+        IERC735Identity identity,
+        uint256 topic,
+        bytes memory sig,
+        bytes memory data
+    ) private view returns (bool) {
         // slither-disable-next-line calls-loop
-        try issuer.isClaimValid(identity, topic, sig, data) returns (bool valid) {
+        try issuer.isClaimValid(address(identity), topic, sig, data) returns (bool valid) {
             return valid;
         } catch {
             return false;

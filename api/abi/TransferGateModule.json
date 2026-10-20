@@ -4,7 +4,7 @@
     "name": "bindCompliance",
     "inputs": [
       {
-        "name": "_compliance",
+        "name": "compliance",
         "type": "address",
         "internalType": "address"
       }
@@ -36,7 +36,7 @@
     "name": "isComplianceBound",
     "inputs": [
       {
-        "name": "_compliance",
+        "name": "compliance",
         "type": "address",
         "internalType": "address"
       }
@@ -206,7 +206,7 @@
     "name": "unbindCompliance",
     "inputs": [
       {
-        "name": "_compliance",
+        "name": "compliance",
         "type": "address",
         "internalType": "address"
       }
@@ -261,7 +261,27 @@
   },
   {
     "type": "error",
+    "name": "AlreadyBound",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OnlyBoundCompliance",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OnlyComplianceItself",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "ZeroAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroCompliance",
     "inputs": []
   }
 ]

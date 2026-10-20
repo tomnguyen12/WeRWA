@@ -18,6 +18,7 @@ import {SeriesState} from "../src/interfaces/ISeriesState.sol";
 import {SeriesLeaves} from "../src/libraries/SeriesLeaves.sol";
 import {SeriesFactory} from "../src/factory/SeriesFactory.sol";
 import {WeRWATimelock} from "../src/governance/WeRWATimelock.sol";
+import {TREXSuiteDeployer} from "../src/adapters/trex/TREXSuiteDeployer.sol";
 import {InvestorClassModule} from "../src/compliance/InvestorClassModule.sol";
 import {HoldingLimitModule} from "../src/compliance/HoldingLimitModule.sol";
 import {TransferGateModule} from "../src/compliance/TransferGateModule.sol";
@@ -378,9 +379,25 @@ contract SeriesFactoryTest is PlatformFixture {
     function test_factory_storedConfig() public view {
         assertEq(factory.governance(), governance3of3);
         assertEq(factory.timelock(), address(timelock));
-        assertEq(factory.implementationAuthority(), address(ia));
+        assertEq(address(factory.tokenDeployer()), address(tokenDeployer));
+        assertEq(tokenDeployer.implementationAuthority(), address(ia));
         assertEq(factory.identityRegistry(), address(identityRegistry));
         assertEq(factory.controllerBeacon(), address(beacon));
         assertEq(address(factory.moduleDeployer()), address(moduleDeployer));
+    }
+
+    function test_trexSuiteDeployer_rejectsZeroAuthority() public {
+        vm.expectRevert(TREXSuiteDeployer.ZeroAddress.selector);
+        new TREXSuiteDeployer(address(0));
+    }
+
+    // ADR-0019: bộ tạo token chuyển quyền sở hữu cho người gọi; ai gọi cũng chỉ nhận bộ token của mình.
+    function test_trexSuiteDeployer_handsOwnershipToCaller() public {
+        address caller = makeAddr("anyone");
+        vm.prank(caller);
+        (address t, address c) = tokenDeployer.deployTokenSet(address(identityRegistry), "X", "X");
+        assertEq(Token(t).owner(), caller);
+        assertEq(ModularCompliance(c).owner(), caller);
+        assertEq(ModularCompliance(c).getTokenBound(), t);
     }
 }

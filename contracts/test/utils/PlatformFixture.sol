@@ -11,6 +11,7 @@ import {ISeriesController} from "../../src/ISeriesController.sol";
 import {SeriesFactory} from "../../src/factory/SeriesFactory.sol";
 import {ModuleDeployer} from "../../src/factory/ModuleDeployer.sol";
 import {WeRWATimelock} from "../../src/governance/WeRWATimelock.sol";
+import {TREXSuiteDeployer} from "../../src/adapters/trex/TREXSuiteDeployer.sol";
 import {HoldingLimitModule} from "../../src/compliance/HoldingLimitModule.sol";
 
 /// @notice Dựng toàn nền tảng như script triển khai: bộ T-REX dùng chung, timelock, beacon của SeriesController,
@@ -36,6 +37,7 @@ abstract contract PlatformFixture is TREXSuite {
     ModuleDeployer internal moduleDeployer;
     ProxyAdmin internal proxyAdmin;
     SeriesFactory internal factory;
+    TREXSuiteDeployer internal tokenDeployer;
 
     // Điều khoản mẫu.
     uint256 internal constant FACE_VALUE_MINOR = 100_000;
@@ -59,6 +61,8 @@ abstract contract PlatformFixture is TREXSuite {
         beacon.transferOwnership(address(timelock));
 
         moduleDeployer = new ModuleDeployer(TOPIC_KYC_INSTITUTION, TOPIC_INVESTOR_CLASS);
+        // ADR-0019 phương án A: bộ tạo token T-REX. Phương án B thay bằng bộ tạo của bản tự viết.
+        tokenDeployer = new TREXSuiteDeployer(address(ia));
 
         proxyAdmin = new ProxyAdmin();
         proxyAdmin.transferOwnership(address(timelock));
@@ -72,7 +76,7 @@ abstract contract PlatformFixture is TREXSuite {
                         (
                             governance3of3,
                             address(timelock),
-                            address(ia),
+                            address(tokenDeployer),
                             address(identityRegistry),
                             address(beacon),
                             address(moduleDeployer)

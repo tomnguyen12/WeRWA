@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
+import {WeRWAModuleBase} from "../../src/compliance/WeRWAModuleBase.sol";
 import {ModuleTestBase} from "./ModuleTestBase.sol";
 import {TransferGateModule} from "../../src/compliance/TransferGateModule.sol";
 import {SeriesState} from "../../src/interfaces/ISeriesState.sol";
@@ -100,7 +101,7 @@ contract TransferGateModuleTest is ModuleTestBase {
 
     // US-4.01-AC3: đổi tham số chỉ qua multisig 3 bên (chủ compliance).
     function test_US_4_01_AC3_configOnlyThroughCompliance() public {
-        vm.expectRevert("only bound compliance can call");
+        vm.expectRevert(WeRWAModuleBase.OnlyBoundCompliance.selector);
         gate.setSeriesController(address(1));
 
         vm.prank(alice);
@@ -132,11 +133,44 @@ contract TransferGateModuleTest is ModuleTestBase {
     }
 
     function test_actionsOnlyFromCompliance() public {
-        vm.expectRevert("only bound compliance can call");
+        vm.expectRevert(WeRWAModuleBase.OnlyBoundCompliance.selector);
         gate.moduleTransferAction(alice, bob, 1);
-        vm.expectRevert("only bound compliance can call");
+        vm.expectRevert(WeRWAModuleBase.OnlyBoundCompliance.selector);
         gate.moduleMintAction(alice, 1);
-        vm.expectRevert("only bound compliance can call");
+        vm.expectRevert(WeRWAModuleBase.OnlyBoundCompliance.selector);
         gate.moduleBurnAction(alice, 1);
+    }
+
+    // ADR-0019: WeRWAModuleBase tự cài phần gắn/gỡ compliance theo giao diện module của ERC-3643.
+    function test_bind_rules() public {
+        TransferGateModule m = new TransferGateModule();
+        vm.expectRevert(WeRWAModuleBase.ZeroCompliance.selector);
+        m.bindCompliance(address(0));
+        vm.expectRevert(WeRWAModuleBase.OnlyComplianceItself.selector);
+        m.bindCompliance(address(compliance));
+        vm.prank(address(compliance));
+        m.bindCompliance(address(compliance));
+        assertTrue(m.isComplianceBound(address(compliance)));
+        vm.prank(address(compliance));
+        vm.expectRevert(WeRWAModuleBase.AlreadyBound.selector);
+        m.bindCompliance(address(compliance));
+    }
+
+    function test_unbind_viaRemoveModule() public {
+        vm.prank(timelock);
+        compliance.removeModule(address(gate));
+        assertFalse(gate.isComplianceBound(address(compliance)));
+        vm.expectRevert(WeRWAModuleBase.OnlyBoundCompliance.selector);
+        gate.unbindCompliance(address(compliance));
+    }
+
+    function test_unbind_onlyComplianceItself() public {
+        // Một compliance khác đã gắn module cố gỡ hộ compliance của series: bị từ chối.
+        address other = makeAddr("otherCompliance");
+        vm.prank(other);
+        gate.bindCompliance(other);
+        vm.prank(other);
+        vm.expectRevert(WeRWAModuleBase.OnlyComplianceItself.selector);
+        gate.unbindCompliance(address(compliance));
     }
 }

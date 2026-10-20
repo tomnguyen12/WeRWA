@@ -10,14 +10,14 @@
     "label": "token",
     "slot": 0,
     "offset": 1,
-    "type": "contract IToken",
+    "type": "address",
     "slots": 1
   },
   {
     "label": "identityRegistry",
     "slot": 1,
     "offset": 0,
-    "type": "contract IIdentityRegistry",
+    "type": "address",
     "slots": 1
   },
   {

@@ -5,8 +5,7 @@ import {ISeriesController} from "./ISeriesController.sol";
 import {SeriesState} from "./interfaces/ISeriesState.sol";
 import {SeriesLeaves} from "./libraries/SeriesLeaves.sol";
 import {IsinLib} from "./libraries/IsinLib.sol";
-import {IToken} from "@trex/token/IToken.sol";
-import {IIdentityRegistry} from "@trex/registry/interface/IIdentityRegistry.sol";
+import {IERC3643Token, IERC3643IdentityRegistry} from "./erc3643/IERC3643.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /// @title SeriesController
@@ -23,8 +22,8 @@ contract SeriesController is ISeriesController {
     bool private _initialized;
 
     // ---- Hợp đồng gắn kèm ----
-    IToken public token;
-    IIdentityRegistry public identityRegistry;
+    IERC3643Token public token;
+    IERC3643IdentityRegistry public identityRegistry;
 
     // ---- Điều khoản (khóa sau khi triển khai) ----
     bytes32 public seriesId;
@@ -107,11 +106,11 @@ contract SeriesController is ISeriesController {
         if (
             terms.maxQuantity == 0 || terms.faceValueMinor == 0 || terms.issuePricePpm == 0 || terms.periodCount == 0
                 || terms.rateFloorPpm > terms.rateCapPpm || terms.currency == bytes3(0)
-                || IToken(token_).decimals() != 0
+                || IERC3643Token(token_).decimals() != 0
         ) revert InvalidTerms();
 
-        token = IToken(token_);
-        identityRegistry = IToken(token_).identityRegistry();
+        token = IERC3643Token(token_);
+        identityRegistry = IERC3643Token(token_).identityRegistry();
 
         seriesId = terms.seriesId;
         termsHash = terms.termsHash;
@@ -137,7 +136,7 @@ contract SeriesController is ISeriesController {
         emit SeriesDeployed(terms.seriesId, token_, terms.termsHash, terms.maxQuantity, terms.periodCount);
         emit StateChanged(SeriesState.DEPLOYED, SeriesState.DEPLOYED);
 
-        if (IToken(token_).paused()) IToken(token_).unpause();
+        if (IERC3643Token(token_).paused()) IERC3643Token(token_).unpause();
     }
 
     /// @notice VSDC gắn ISIN, mỗi series một lần. DEPLOYED → READY.

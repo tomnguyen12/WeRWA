@@ -32,6 +32,8 @@ jobs:
           version: ${{ env.FOUNDRY_VERSION }}
       - name: Định dạng
         run: forge fmt --check
+      - name: Ranh giới giấy phép (ADR-0019)
+        run: script/check-gpl-boundary.sh
       - name: Build và kích thước hợp đồng
         run: forge build --sizes
       - name: Kiểm thử (unit, fuzz, invariant I1–I8)
