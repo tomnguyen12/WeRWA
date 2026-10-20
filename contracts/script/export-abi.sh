@@ -35,8 +35,8 @@ solc="$(jq -r '.compiler.version // empty' "out/Token.sol/Token.json" 2>/dev/nul
 
 printf '%s\n' "${entries[@]}" | jq -s \
   --arg solc "$solc" \
-  --arg trex "$(git -C lib/trex describe --tags --always)" \
-  --arg oid "$(git -C lib/onchain-id describe --tags --always)" \
+  --arg trex "$(jq -r .version lib/trex/package.json)" \
+  --arg oid "$(jq -r .version lib/onchain-id/package.json)" \
   '{generatedBy:"contracts/script/export-abi.sh", solc:$solc, trex:$trex, onchainId:$oid, contracts:.}' \
   > "$TMP/manifest.json"
 
