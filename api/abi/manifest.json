@@ -51,6 +51,10 @@
     {
       "name": "TransferGateModule",
       "source": "contracts/src/compliance/TransferGateModule.sol"
+    },
+    {
+      "name": "SeriesController",
+      "source": "contracts/src/SeriesController.sol"
     }
   ]
 }

@@ -1,0 +1,226 @@
+[
+  {
+    "label": "_initialized",
+    "slot": 0,
+    "offset": 0,
+    "type": "bool",
+    "slots": 1
+  },
+  {
+    "label": "token",
+    "slot": 0,
+    "offset": 1,
+    "type": "contract IToken",
+    "slots": 1
+  },
+  {
+    "label": "identityRegistry",
+    "slot": 1,
+    "offset": 0,
+    "type": "contract IIdentityRegistry",
+    "slots": 1
+  },
+  {
+    "label": "seriesId",
+    "slot": 2,
+    "offset": 0,
+    "type": "bytes32",
+    "slots": 1
+  },
+  {
+    "label": "termsHash",
+    "slot": 3,
+    "offset": 0,
+    "type": "bytes32",
+    "slots": 1
+  },
+  {
+    "label": "currency",
+    "slot": 4,
+    "offset": 0,
+    "type": "bytes3",
+    "slots": 1
+  },
+  {
+    "label": "faceValueMinor",
+    "slot": 5,
+    "offset": 0,
+    "type": "uint256",
+    "slots": 1
+  },
+  {
+    "label": "issuePricePpm",
+    "slot": 6,
+    "offset": 0,
+    "type": "uint32",
+    "slots": 1
+  },
+  {
+    "label": "maxQuantity",
+    "slot": 6,
+    "offset": 4,
+    "type": "uint64",
+    "slots": 1
+  },
+  {
+    "label": "rateFloorPpm",
+    "slot": 6,
+    "offset": 12,
+    "type": "uint32",
+    "slots": 1
+  },
+  {
+    "label": "rateCapPpm",
+    "slot": 6,
+    "offset": 16,
+    "type": "uint32",
+    "slots": 1
+  },
+  {
+    "label": "periodCount",
+    "slot": 6,
+    "offset": 20,
+    "type": "uint16",
+    "slots": 1
+  },
+  {
+    "label": "maturityDate",
+    "slot": 6,
+    "offset": 22,
+    "type": "uint64",
+    "slots": 1
+  },
+  {
+    "label": "issuer",
+    "slot": 7,
+    "offset": 0,
+    "type": "address",
+    "slots": 1
+  },
+  {
+    "label": "registrar",
+    "slot": 8,
+    "offset": 0,
+    "type": "address",
+    "slots": 1
+  },
+  {
+    "label": "payingAgent",
+    "slot": 9,
+    "offset": 0,
+    "type": "address",
+    "slots": 1
+  },
+  {
+    "label": "operator",
+    "slot": 10,
+    "offset": 0,
+    "type": "address",
+    "slots": 1
+  },
+  {
+    "label": "enforcement",
+    "slot": 11,
+    "offset": 0,
+    "type": "address",
+    "slots": 1
+  },
+  {
+    "label": "governance",
+    "slot": 12,
+    "offset": 0,
+    "type": "address",
+    "slots": 1
+  },
+  {
+    "label": "state",
+    "slot": 12,
+    "offset": 20,
+    "type": "enum SeriesState",
+    "slots": 1
+  },
+  {
+    "label": "paused",
+    "slot": 12,
+    "offset": 21,
+    "type": "bool",
+    "slots": 1
+  },
+  {
+    "label": "paymentAttestationRequired",
+    "slot": 12,
+    "offset": 22,
+    "type": "bool",
+    "slots": 1
+  },
+  {
+    "label": "isin",
+    "slot": 13,
+    "offset": 0,
+    "type": "bytes12",
+    "slots": 1
+  },
+  {
+    "label": "allocationRoot",
+    "slot": 14,
+    "offset": 0,
+    "type": "bytes32",
+    "slots": 1
+  },
+  {
+    "label": "allocationListHash",
+    "slot": 15,
+    "offset": 0,
+    "type": "bytes32",
+    "slots": 1
+  },
+  {
+    "label": "totalAllocated",
+    "slot": 16,
+    "offset": 0,
+    "type": "uint64",
+    "slots": 1
+  },
+  {
+    "label": "totalMinted",
+    "slot": 16,
+    "offset": 8,
+    "type": "uint64",
+    "slots": 1
+  },
+  {
+    "label": "_periodRatePpm",
+    "slot": 17,
+    "offset": 0,
+    "type": "uint32[]",
+    "slots": 1
+  },
+  {
+    "label": "_paymentBatchHash",
+    "slot": 18,
+    "offset": 0,
+    "type": "mapping(bytes32 => bytes32)",
+    "slots": 1
+  },
+  {
+    "label": "_minted",
+    "slot": 19,
+    "offset": 0,
+    "type": "mapping(bytes32 => struct ISeriesController.MintRecord)",
+    "slots": 1
+  },
+  {
+    "label": "_registerAttestation",
+    "slot": 20,
+    "offset": 0,
+    "type": "struct ISeriesController.RegistrarAttestation",
+    "slots": 3
+  },
+  {
+    "label": "__gap",
+    "slot": 23,
+    "offset": 0,
+    "type": "uint256[30]",
+    "slots": 30
+  }
+]

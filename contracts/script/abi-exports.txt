@@ -18,3 +18,4 @@ src/AuditAnchor.sol:AuditAnchor
 src/compliance/InvestorClassModule.sol:InvestorClassModule
 src/compliance/HoldingLimitModule.sol:HoldingLimitModule
 src/compliance/TransferGateModule.sol:TransferGateModule
+src/SeriesController.sol:SeriesController
