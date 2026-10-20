@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.governance.enforcement.applied.v1.schema.json",
+  "title": "werwa.governance.enforcement.applied.v1",
+  "description": "Bên phát: Quản trị. Bên nhận: Phân phối, Phát hành.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.governance.enforcement.applied.v1"
+    },
+    "source": {
+      "const": "/werwa/governance"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "orderId",
+        "wallet",
+        "quantity",
+        "action"
+      ],
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "wallet": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0,
+          "description": "Số trái phiếu (decimals 0)"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "FREEZE",
+            "UNFREEZE",
+            "FORCED_TRANSFER"
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

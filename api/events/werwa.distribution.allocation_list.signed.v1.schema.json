@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.distribution.allocation_list.signed.v1.schema.json",
+  "title": "werwa.distribution.allocation_list.signed.v1",
+  "description": "Bên phát: Phân phối. Bên nhận: Phát hành, Tích hợp.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.distribution.allocation_list.signed.v1"
+    },
+    "source": {
+      "const": "/werwa/distribution"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "listId",
+        "merkleRoot",
+        "totalQuantity"
+      ],
+      "properties": {
+        "listId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "merkleRoot": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "totalQuantity": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0,
+          "description": "Số trái phiếu (decimals 0)"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.distribution.snapshot.attested.v1.schema.json",
+  "title": "werwa.distribution.snapshot.attested.v1",
+  "description": "Bên phát: Phân phối. Bên nhận: Phát hành, Tích hợp.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.distribution.snapshot.attested.v1"
+    },
+    "source": {
+      "const": "/werwa/distribution"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "seriesId",
+        "period",
+        "registerHash"
+      ],
+      "properties": {
+        "seriesId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "period": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "registerHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

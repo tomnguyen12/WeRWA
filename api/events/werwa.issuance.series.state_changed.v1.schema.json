@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.issuance.series.state_changed.v1.schema.json",
+  "title": "werwa.issuance.series.state_changed.v1",
+  "description": "Bên phát: Phát hành. Bên nhận: Mọi mô-đun.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.issuance.series.state_changed.v1"
+    },
+    "source": {
+      "const": "/werwa/issuance"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "seriesId",
+        "from",
+        "to",
+        "txHash"
+      ],
+      "properties": {
+        "seriesId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "from": {
+          "type": "string",
+          "enum": [
+            "DRAFT",
+            "PENDING_REVIEW",
+            "PENDING_SIGNATURES",
+            "DEPLOYED",
+            "READY",
+            "OFFERING",
+            "BOOK_CLOSED",
+            "ALLOCATED",
+            "ISSUING",
+            "ACTIVE",
+            "DEFAULTED",
+            "MATURED",
+            "CLOSED",
+            "CANCELLED"
+          ]
+        },
+        "to": {
+          "type": "string",
+          "enum": [
+            "DRAFT",
+            "PENDING_REVIEW",
+            "PENDING_SIGNATURES",
+            "DEPLOYED",
+            "READY",
+            "OFFERING",
+            "BOOK_CLOSED",
+            "ALLOCATED",
+            "ISSUING",
+            "ACTIVE",
+            "DEFAULTED",
+            "MATURED",
+            "CLOSED",
+            "CANCELLED"
+          ]
+        },
+        "txHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.distribution.payment_batch.signed.v1.schema.json",
+  "title": "werwa.distribution.payment_batch.signed.v1",
+  "description": "Bên phát: Phân phối. Bên nhận: Bộ điều phối.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.distribution.payment_batch.signed.v1"
+    },
+    "source": {
+      "const": "/werwa/distribution"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "batchId",
+        "merkleRoot",
+        "itemCount"
+      ],
+      "properties": {
+        "batchId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "merkleRoot": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "itemCount": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

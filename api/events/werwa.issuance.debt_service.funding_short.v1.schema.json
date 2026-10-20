@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.issuance.debt_service.funding_short.v1.schema.json",
+  "title": "werwa.issuance.debt_service.funding_short.v1",
+  "description": "Bên phát: Phát hành. Bên nhận: Quản trị (cảnh báo).",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.issuance.debt_service.funding_short.v1"
+    },
+    "source": {
+      "const": "/werwa/issuance"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "seriesId",
+        "period",
+        "shortfallMinor"
+      ],
+      "properties": {
+        "seriesId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "period": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "shortfallMinor": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Số tiền theo đơn vị nhỏ nhất, dạng chuỗi"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

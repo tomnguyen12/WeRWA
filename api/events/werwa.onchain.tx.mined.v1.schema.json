@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.onchain.tx.mined.v1.schema.json",
+  "title": "werwa.onchain.tx.mined.v1",
+  "description": "Bên phát: Onchain. Bên nhận: Mô-đun gửi giao dịch.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.onchain.tx.mined.v1"
+    },
+    "source": {
+      "const": "/werwa/onchain"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "txId",
+        "txHash",
+        "block",
+        "subjectRef"
+      ],
+      "properties": {
+        "txId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "txHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "block": {
+          "type": "integer"
+        },
+        "subjectRef": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

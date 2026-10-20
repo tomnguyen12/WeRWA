@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.governance.approval.decided.v1.schema.json",
+  "title": "werwa.governance.approval.decided.v1",
+  "description": "Bên phát: Quản trị. Bên nhận: Mô-đun yêu cầu.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.governance.approval.decided.v1"
+    },
+    "source": {
+      "const": "/werwa/governance"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "approvalId",
+        "subjectRef",
+        "decision"
+      ],
+      "properties": {
+        "approvalId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "subjectRef": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

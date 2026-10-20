@@ -1,0 +1,42 @@
+name: spec-check
+
+# Chạy với mọi PR và mọi push vào main, để có thể đặt hai bước dưới làm status check bắt buộc.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npx --yes @redocly/cli@1.25.0 lint api/openapi.yaml
+
+  event-schemas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install jsonschema==4.23.0 pyyaml==6.0.2
+      - name: Lược đồ hợp lệ và khớp catalog
+        run: |
+          python - <<'PY'
+          import json, glob, yaml, jsonschema, sys
+          cat = yaml.safe_load(open('api/events/catalog.yaml'))['events']
+          files = {p.split('/')[-1] for p in glob.glob('api/events/werwa.*.schema.json')}
+          listed = {e['schema'] for e in cat}
+          for f in sorted(glob.glob('api/events/*.schema.json')):
+              jsonschema.Draft202012Validator.check_schema(json.load(open(f)))
+          if files != listed:
+              print('Lệch catalog:', sorted(files ^ listed)); sys.exit(1)
+          print(len(files), 'lược đồ hợp lệ')
+          PY

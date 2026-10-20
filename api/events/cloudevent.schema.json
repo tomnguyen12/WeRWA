@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/cloudevent.schema.json",
+  "title": "Vỏ CloudEvents 1.0 của WeRWA",
+  "type": "object",
+  "required": [
+    "specversion",
+    "id",
+    "type",
+    "source",
+    "time",
+    "data"
+  ],
+  "properties": {
+    "specversion": {
+      "const": "1.0"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUIDv7"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^werwa\\.[a-z_]+\\.[a-z_]+\\.[a-z_]+\\.v[0-9]+$"
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^/werwa/[a-z]+$"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "traceparent": {
+      "type": "string"
+    },
+    "datacontenttype": {
+      "const": "application/json"
+    },
+    "data": {
+      "type": "object"
+    }
+  }
+}

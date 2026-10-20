@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.issuance.series.isin_assigned.v1.schema.json",
+  "title": "werwa.issuance.series.isin_assigned.v1",
+  "description": "Bên phát: Phát hành. Bên nhận: Phân phối.",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.issuance.series.isin_assigned.v1"
+    },
+    "source": {
+      "const": "/werwa/issuance"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "seriesId",
+        "isin"
+      ],
+      "properties": {
+        "seriesId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "isin": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
