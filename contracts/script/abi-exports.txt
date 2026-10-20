@@ -19,3 +19,6 @@ src/compliance/InvestorClassModule.sol:InvestorClassModule
 src/compliance/HoldingLimitModule.sol:HoldingLimitModule
 src/compliance/TransferGateModule.sol:TransferGateModule
 src/SeriesController.sol:SeriesController
+src/factory/SeriesFactory.sol:SeriesFactory
+src/factory/ModuleDeployer.sol:ModuleDeployer
+src/governance/WeRWATimelock.sol:WeRWATimelock
