@@ -89,6 +89,8 @@ interface ISeriesController is ISeriesState {
     event PositionUnfrozen(address indexed wallet, uint64 quantity, bytes32 orderHash);
     event ForcedTransfer(address indexed from, address indexed to, uint64 quantity, bytes32 orderHash);
     event FrozenRedemptionPolicySet(FrozenRedemptionPolicy policy, bytes32 basisHash);
+    event RedemptionConsentRequirementSet(bool required, bytes32 basisHash);
+    event RedemptionConsentRecorded(address indexed wallet, uint64 quantity, bytes32 orderHash, bytes32 consentHash);
 
     // ---- Lỗi theo đặc tả ----
     error AlreadyInitialized();

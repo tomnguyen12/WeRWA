@@ -1,7 +1,7 @@
 <!-- Sinh tự động từ trang thiết kế đã duyệt: https://claude.ai/artifact/S4NCGvthaa99dRHpBGKU8e
      Sửa nội dung thiết kế thì sửa ở đây qua PR có SA duyệt; trang HTML chỉ còn là bản lưu. -->
 
-Bước 5 · Đã duyệt · 19/10/2026 · Cập nhật 20/10/2026 theo ADR-0017, ADR-0018 và các điểm C1–C18 đã duyệt (docs/open-questions.md)
+Bước 5 · Đã duyệt · 19/10/2026 · Cập nhật 20/10/2026 theo ADR-0017, ADR-0018, ADR-0020 và các điểm C1–C18 đã duyệt (docs/open-questions.md)
 
 # Hợp đồng thông minh WeRWA
 
@@ -81,6 +81,8 @@ Hàm đổi trạng thái đều phát sự kiện, kể cả khi trạng thái 
 | `pause() / unpause()`                                                                         | ENFORCEMENT / GOVERNANCE | mọi trạng thái trừ CLOSED  | Dừng khẩn cấp do 2 bên; chỉ 3 bên mở lại                                                                                                                                                                                                 | Paused / Unpaused                                               | —                                                                                                         |
 | `setPaymentAttestationRequired(bool)`                                                         | GOVERNANCE               | trước ACTIVE               | Tắt điều kiện BIDV nếu BIDV không ký                                                                                                                                                                                                     | PaymentAttestationToggled                                       | BadState                                                                                                  |
 | `setFrozenRedemptionPolicy(FrozenRedemptionPolicy policy, bytes32 basisHash)`               | GOVERNANCE               | mọi trạng thái trừ CLOSED, CANCELLED | Chọn chính sách với vị thế phong tỏa khi đáo hạn (ADR-0018); mặc định HOLD_UNTIL_RELEASED | FrozenRedemptionPolicySet | BadState |
+| `setRedemptionConsentRequirement(bool required, bytes32 basisHash)`                         | GOVERNANCE               | mọi trạng thái trừ CLOSED, CANCELLED | Bật (mặc định) hoặc tắt điều kiện đồng ý của cơ quan ra lệnh trước khi hủy vị thế phong tỏa (ADR-0020) | RedemptionConsentRequirementSet | BadState |
+| `recordRedemptionConsent(address wallet, uint64 qty, bytes32 orderHash, bytes32 consentHash)` | ENFORCEMENT              | ACTIVE, DEFAULTED, MATURED | Ghi đồng ý theo từng lệnh, cộng dồn theo ví; `burnRedeemed` với `BURN_AFTER_PAYOUT` chỉ hủy tối đa phần đã đồng ý | RedemptionConsentRecorded | ExceedsFrozen (qty = 0) |
 
 Tên và tham số sự kiện, các lỗi bổ sung (`Unauthorized`, `ZeroAddress`, `InvalidTerms`, `InvalidIsin`, `InvalidBlock`, `SeriesPaused`, `InvalidPeriod`, `AlreadyAttested`) theo `contracts/src/ISeriesController.sol` (C4, C17). Mỗi lần chuyển trạng thái phát thêm `StateChanged(from, to)`. `markDefault`, `markCured`, `recoverWallet` làm ở Đ1 (C9, C11).
 

@@ -68,9 +68,13 @@ contract SeriesController is ISeriesController {
     FrozenRedemptionPolicy public frozenRedemptionPolicy;
     bytes32 public payoutHash;
 
+    // ---- Đồng ý hủy vị thế phong tỏa (ADR-0020) ----
+    bool public requireRedemptionConsent;
+    mapping(address => uint64) private _consentedQuantity; // ví → số lượng phong tỏa đã có đồng ý hủy
+
     /// @dev Khoảng trống lưu trữ cho các bản nâng cấp. Thêm biến mới ngay trên dòng này và bớt __gap tương ứng.
     // slither-disable-next-line naming-convention,unused-state
-    uint256[27] private __gap;
+    uint256[25] private __gap;
 
     modifier only(address role) {
         if (msg.sender != role) revert Unauthorized();
@@ -131,6 +135,7 @@ contract SeriesController is ISeriesController {
         governance = terms.governance;
 
         paymentAttestationRequired = true;
+        requireRedemptionConsent = true; // ADR-0020: mặc định cần đồng ý cho tới khi có ý kiến pháp lý
         state = SeriesState.DEPLOYED;
 
         emit SeriesDeployed(terms.seriesId, token_, terms.termsHash, terms.maxQuantity, terms.periodCount);
@@ -318,7 +323,8 @@ contract SeriesController is ISeriesController {
         _transition(SeriesState.MATURED);
     }
 
-    /// @notice Hủy trái phiếu của các ví sau đáo hạn. Phần phong tỏa xử lý theo frozenRedemptionPolicy (ADR-0018).
+    /// @notice Hủy trái phiếu của các ví sau đáo hạn. Phần phong tỏa xử lý theo frozenRedemptionPolicy (ADR-0018);
+    ///         khi requireRedemptionConsent bật, chỉ hủy phần phong tỏa đã có đồng ý của cơ quan ra lệnh (ADR-0020).
     function burnRedeemed(address[] calldata holders) external only(operator) whenNotPaused {
         if (state != SeriesState.MATURED) revert BadState();
         bool burnFrozen = frozenRedemptionPolicy == FrozenRedemptionPolicy.BURN_AFTER_PAYOUT;
@@ -336,8 +342,17 @@ contract SeriesController is ISeriesController {
             uint256 balance = token.balanceOf(holder);
             // slither-disable-next-line calls-loop
             uint256 frozen = token.getFrozenTokens(holder);
-            uint256 burned = burnFrozen ? balance : balance - frozen;
-            uint256 frozenBurned = burnFrozen ? frozen : 0;
+            uint256 frozenBurned = 0;
+            if (burnFrozen) {
+                frozenBurned = frozen;
+                if (requireRedemptionConsent) {
+                    uint256 consented = _consentedQuantity[holder];
+                    if (consented < frozenBurned) frozenBurned = consented;
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    _consentedQuantity[holder] = uint64(consented - frozenBurned);
+                }
+            }
+            uint256 burned = balance - frozen + frozenBurned;
             // forge-lint: disable-next-line(unsafe-typecast)
             amounts[i] = uint64(burned);
             // forge-lint: disable-next-line(unsafe-typecast)
@@ -371,6 +386,13 @@ contract SeriesController is ISeriesController {
         emit FrozenRedemptionPolicySet(policy, basisHash);
     }
 
+    /// @notice Bật (phương án 2) hoặc tắt (phương án 1) điều kiện đồng ý trước khi hủy vị thế phong tỏa (ADR-0020).
+    function setRedemptionConsentRequirement(bool required, bytes32 basisHash) external only(governance) {
+        _requireNotFinal();
+        requireRedemptionConsent = required;
+        emit RedemptionConsentRequirementSet(required, basisHash);
+    }
+
     // =====================================================================
     // Tuân thủ: phong tỏa, giải tỏa, chuyển cưỡng chế (ENFORCEMENT · VSDC + Holco 2/2, G2)
     // Vẫn chạy khi series tạm dừng (C6).
@@ -391,6 +413,18 @@ contract SeriesController is ISeriesController {
         token.unfreezePartialTokens(wallet, qty);
     }
 
+    /// @notice Ghi đồng ý của cơ quan ra lệnh cho phép hủy một phần vị thế phong tỏa khi đáo hạn (ADR-0020).
+    ///         Đi cùng luồng lệnh phong tỏa 4.02; cộng dồn theo ví.
+    function recordRedemptionConsent(address wallet, uint64 quantity, bytes32 orderHash, bytes32 consentHash)
+        external
+        only(enforcement)
+    {
+        _requireEnforceable();
+        if (quantity == 0) revert ExceedsFrozen();
+        _consentedQuantity[wallet] += quantity;
+        emit RedemptionConsentRecorded(wallet, quantity, orderHash, consentHash);
+    }
+
     /// @dev Chuyển cưỡng chế của T-REX tự giải tỏa phần cần thiết của ví chuyển và bỏ qua module tuân thủ;
     ///      ví nhận phải đã xác minh (I7).
     function forcedTransfer(address from, address to, uint64 qty, bytes32 orderHash) external only(enforcement) {
@@ -404,6 +438,10 @@ contract SeriesController is ISeriesController {
     // =====================================================================
     // Đọc
     // =====================================================================
+
+    function consentedQuantity(address wallet) external view returns (uint64) {
+        return _consentedQuantity[wallet];
+    }
 
     function snapshotOf(uint16 period) external view returns (Snapshot memory) {
         return _snapshots[period];
