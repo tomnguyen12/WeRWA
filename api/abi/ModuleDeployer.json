@@ -1,0 +1,74 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "kycTopic_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "investorClassTopic_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "deploy",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "m",
+        "type": "tuple",
+        "internalType": "struct ModuleDeployer.Modules",
+        "components": [
+          {
+            "name": "investorClass",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "holdingLimit",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "transferGate",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "investorClassTopic",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "kycTopic",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  }
+]

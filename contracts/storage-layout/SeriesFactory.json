@@ -1,0 +1,79 @@
+[
+  {
+    "label": "_initialized",
+    "slot": 0,
+    "offset": 0,
+    "type": "uint8",
+    "slots": 1
+  },
+  {
+    "label": "_initializing",
+    "slot": 0,
+    "offset": 1,
+    "type": "bool",
+    "slots": 1
+  },
+  {
+    "label": "governance",
+    "slot": 0,
+    "offset": 2,
+    "type": "address",
+    "slots": 1
+  },
+  {
+    "label": "timelock",
+    "slot": 1,
+    "offset": 0,
+    "type": "address",
+    "slots": 1
+  },
+  {
+    "label": "implementationAuthority",
+    "slot": 2,
+    "offset": 0,
+    "type": "address",
+    "slots": 1
+  },
+  {
+    "label": "identityRegistry",
+    "slot": 3,
+    "offset": 0,
+    "type": "address",
+    "slots": 1
+  },
+  {
+    "label": "controllerBeacon",
+    "slot": 4,
+    "offset": 0,
+    "type": "address",
+    "slots": 1
+  },
+  {
+    "label": "moduleDeployer",
+    "slot": 5,
+    "offset": 0,
+    "type": "contract ModuleDeployer",
+    "slots": 1
+  },
+  {
+    "label": "_series",
+    "slot": 6,
+    "offset": 0,
+    "type": "mapping(bytes32 => struct SeriesFactory.SeriesRecord)",
+    "slots": 1
+  },
+  {
+    "label": "_seriesIds",
+    "slot": 7,
+    "offset": 0,
+    "type": "bytes32[]",
+    "slots": 1
+  },
+  {
+    "label": "__gap",
+    "slot": 8,
+    "offset": 0,
+    "type": "uint256[42]",
+    "slots": 42
+  }
+]

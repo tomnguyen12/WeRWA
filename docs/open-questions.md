@@ -35,6 +35,8 @@ Gặp điểm dưới đây khi viết code: làm theo **giả định đang dù
 
 Thêm dòng mới ở đây kèm ngày, người hỏi, chỗ trong code bị ảnh hưởng.
 
+Ngày 20/10/2026 Tommy chỉ đạo: làm theo đề xuất hợp lý trước, sẽ xác nhận sau khi làm việc với VIFC. Các dòng "Chờ SA duyệt" hoặc "chờ xác nhận" dưới đây đang được code theo đề xuất.
+
 | Ngày | Câu hỏi | Ảnh hưởng | Trạng thái |
 |---|---|---|---|
 | 20/10/2026 · C1 · phiên contracts | Định dạng claim. Sổ định danh T-REX không kiểm hạn claim, nên hạn phải kiểm trong module. Dữ liệu claim INVESTOR_CLASS là `abi.encode(uint16 classCode, uint64 validUntil)`; claim KYC_INSTITUTION là `abi.encode(uint64 validUntil)`. `InvestorClassModule` kiểm hạn của cả hai claim. Mã số chủ đề claim chưa chốt: tạm dùng `uint256(keccak256("WERWA.CLAIM.KYC_INSTITUTION"))` và `uint256(keccak256("WERWA.CLAIM.INVESTOR_CLASS"))` | `InvestorClassModule`, `test/utils/TREXSuite.sol`; backend cấp claim (US-1.02, US-6.03) | Định dạng đã duyệt 20/10. Mã chủ đề: giả định, chờ chốt |
@@ -54,3 +56,4 @@ Thêm dòng mới ở đây kèm ngày, người hỏi, chỗ trong code bị �
 | 20/10/2026 · C15 · phiên contracts | Timelock: thời gian chờ ở XD 1 giờ (tham số); ai cũng thực thi được sau khi hết thời gian chờ | `TimelockController` (PR 6) | Đã duyệt 20/10 |
 | 20/10/2026 · C16 · phiên contracts | Token T-REX khởi tạo ở trạng thái tạm dừng (`paused = true`). Đề xuất: `SeriesController.initialize` mở tạm dừng token ngay, vì `TransferGateModule` đã chặn chuyển nhượng tới khi VSDC xác nhận sổ; `pause`/`unpause` của controller gọi xuống token | `SeriesController.initialize`, `pause`, `unpause` (PR 4) | Đề xuất được xác nhận 20/10 (cách hiểu: lời "xác nhận" gồm cả C16) |
 | 20/10/2026 · C17 · phiên contracts | Lệch nhỏ của `SeriesController` so với đặc tả: `initialize` nhận thêm địa chỉ token; thêm lỗi `Unauthorized`, `ZeroAddress`, `InvalidTerms`, `InvalidIsin`, `InvalidBlock`, `SeriesPaused`; tắt điều kiện BIDV thì bỏ qua cả kiểm tiền; hàm đọc lãi suất tên `periodRates()` | `SeriesController` (PR 4, #6) | Chờ SA duyệt trong #6 |
+| 20/10/2026 · C18 · phiên contracts | `deploySeries(SeriesTerms terms, TokenConfig cfg)` thay cho `(terms, name, symbol)` ở C14: `TokenConfig` gồm tên, ký hiệu, mặt nạ `exemptKinds` và danh sách ví omnibus ban đầu, để factory đặt cấu hình ADR-0017 ngay khi triển khai. Mỗi series có bộ ba module riêng (ADR-04), tạo qua `ModuleDeployer` cho factory dưới 24 KB | `SeriesFactory` (PR 6) | Làm theo đề xuất; chờ xác nhận sau khi làm việc với VIFC |
