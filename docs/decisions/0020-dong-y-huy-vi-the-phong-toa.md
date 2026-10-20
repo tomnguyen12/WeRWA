@@ -1,6 +1,6 @@
 # ADR-0020 — Đồng ý của cơ quan ra lệnh trước khi hủy vị thế phong tỏa: hai phương án, chọn bằng cấu hình
 
-- **Trạng thái:** Đề xuất
+- **Trạng thái:** Đã duyệt (Tommy Nguyen, 20/10/2026) — duyệt phần "Quyết định đề xuất"
 - **Ngày:** 2026-10-20
 - **Người đề xuất:** Claude (phiên contracts), theo yêu cầu của Tommy Nguyen: "Pháp lý. thiết kế 2 option"
 - **Người duyệt:** SA

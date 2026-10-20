@@ -1,6 +1,6 @@
 # ADR-0019 — Giấy phép GPL-3.0 của T-REX: hai phương án triển khai ERC-3643, chọn sau khi có ý kiến pháp lý
 
-- **Trạng thái:** Đề xuất
+- **Trạng thái:** Đã duyệt (Tommy Nguyen, 20/10/2026) — duyệt phần "Quyết định đề xuất"
 - **Ngày:** 2026-10-20
 - **Người đề xuất:** Claude (phiên contracts), theo yêu cầu của Tommy Nguyen: "Pháp lý. thiết kế 2 option"
 - **Người duyệt:** SA
