@@ -19,7 +19,7 @@ Bản trong repo là ảnh chụp ngày 19/10/2026. Bản gốc thay đổi thì
 | 5 | [Hợp đồng thông minh](design/04-hop-dong-thong-minh.md) | 19/10/2026 |
 | 6 | [API và sự kiện](design/05-api-va-su-kien.md) | 19/10/2026 |
 | 7 | [User story và tiêu chí chấp nhận](design/06-user-story.md) | 19/10/2026 |
-| 8 | [Yêu cầu phi chức năng](nfr.md) | đề xuất, chờ duyệt |
+| 8 | [Yêu cầu phi chức năng](nfr.md) | 20/10/2026 |
 
 Sơ đồ ở `design/diagrams/` là SVG, tự đổi màu theo chế độ sáng tối.
 
