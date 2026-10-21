@@ -25,6 +25,11 @@
   "difficulty": "0x1",
   "mixHash": "0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365",
   "coinbase": "0x0000000000000000000000000000000000000000",
-  "alloc": {},
+  "alloc": {
+    "914d7Fec6aaC8cd542e72Bca78B30650d45643d7": {
+      "balance": "0x0",
+      "code": "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3"
+    }
+  },
   "extraData": ""
 }

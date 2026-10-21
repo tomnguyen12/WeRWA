@@ -26,14 +26,15 @@ export BESU_IMAGE
 NODES=(v1 v2 v3 v4 o1-a o1-b)
 VALIDATORS=(v1 v2 v3 v4)
 # Tài khoản thử của devnet, được cấp phép gửi giao dịch. Module khác thêm địa chỉ qua out/allowlist.d/*.txt.
-TEST_ACCOUNTS=(smoke)
+#   smoke      kiểm thử khói và US-6.01
+#   bootstrap  dựng Safe 1.4.1 và Safe các bên (infra/safe/safe.sh); không giữ vai nào trên hợp đồng
+TEST_ACCOUNTS=(smoke bootstrap)
 
 declare -A NODE_IP=(
   [v1]=172.30.10.11 [v2]=172.30.10.12 [v3]=172.30.10.13 [v4]=172.30.10.14
   [o1-a]=172.30.10.21 [o1-b]=172.30.10.22
 )
 
-need() { command -v "$1" >/dev/null 2>&1 || die "thiếu lệnh $1"; }
 
 besu_tool() {
   docker run --rm --user "$(id -u):$(id -g)" -e JAVA_TOOL_OPTIONS= \
