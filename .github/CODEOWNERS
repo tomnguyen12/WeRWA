@@ -1,6 +1,7 @@
-# Thiết kế, hợp đồng máy đọc và hợp đồng thông minh cần SA duyệt
+# Thiết kế, hợp đồng máy đọc, hợp đồng thông minh, hạ tầng và cổng CI cần SA duyệt
 /docs/       @tomnguyen12
 /api/        @tomnguyen12
 /contracts/  @tomnguyen12
 /infra/      @tomnguyen12
+/.github/    @tomnguyen12
 /CLAUDE.md   @tomnguyen12
