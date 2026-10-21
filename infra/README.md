@@ -136,7 +136,33 @@ Luật ở `monitoring/rules/werwa-chain.yml`.
 
 Kết quả trong `keycloak/out/` (gitignore): `.env` (mật khẩu DB và admin), `werwa-realm.json` (realm đã dựng, không có bí mật), `backend.env` (`SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI`, `..._JWK_SET_URI`, `..._AUDIENCES`).
 
-Lệnh: `up`, `status`, `down` (giữ dữ liệu), `reset` (xóa DB `keycloak`, giữ mật khẩu), `clean` (xóa cả `out/`). Người dùng thử có khóa OTP sinh sẵn làm ở PR sau.
+Lệnh: `up`, `status`, `down` (giữ dữ liệu), `reset` (xóa DB `keycloak`, giữ mật khẩu và khóa OTP người dùng thử), `clean` (xóa cả `out/`).
+
+### Người dùng thử (I4, I6)
+
+`up` tạo người dùng thử theo `keycloak/seed/orgs.json`: 12 tổ chức, mỗi vai một tổ chức, riêng INVESTOR có `investor-a` và `investor-b`. `org_id` là UUID cố định trong tệp seed, để dữ liệu mẫu bảng `organization` của backend khớp claim. Mỗi tổ chức có 2 người dùng `<code>-maker` và `<code>-checker` (người lập, người duyệt), mang đúng vai của tổ chức. Tổng 24 người dùng.
+
+| Tổ chức (`code`) | Vai | `org_id` |
+|---|---|---|
+| `ubnd` | ISSUER | `01a15bc1-f400-7c28-a7a8-d5d4cc19328b` |
+| `operating-agency` | OPERATING_AGENCY | `01a15bc1-f401-70b2-9cfa-eb63c4f24ecc` |
+| `syndicate` | SYNDICATE | `01a15bc1-f402-7188-aa1d-f504e6afe7e1` |
+| `vsdc` | REGISTRAR | `01a15bc1-f403-7f0b-8fb9-a75cdc4b5b00` |
+| `bidv` | PAYING_AGENT | `01a15bc1-f404-72f3-86c3-4f3f7c24f440` |
+| `treasury` | TREASURY | `01a15bc1-f405-7f16-adca-5a6b16465e6f` |
+| `custodian` | CUSTODIAN | `01a15bc1-f406-76b6-ac98-237eb9f37341` |
+| `trustee` | TRUSTEE | `01a15bc1-f407-79bc-8f1d-6af20348c738` |
+| `supervisor` | SUPERVISOR | `01a15bc1-f408-7d65-ace1-f4c87b5c1cdc` |
+| `holco` | OPERATOR | `01a15bc1-f409-7589-aef1-774ceddccf3f` |
+| `investor-a` | INVESTOR | `01a15bc1-f40a-7520-aeb5-19bb9d2faaa5` |
+| `investor-b` | INVESTOR | `01a15bc1-f40b-7c54-aa64-c99f087b0103` |
+
+Mật khẩu và khóa OTP sinh ngẫu nhiên lần đầu vào `keycloak/out/users.json` (quyền 600, gitignore; chỉ cho devnet), gồm cả URI `otpauth://` để nạp vào ứng dụng xác thực khi đăng nhập tay. Người dùng được tạo qua `partialImport`, vì Admin REST API không có lệnh tạo credential OTP. Nếu người dùng đã có trên Keycloak mà mất `users.json`, `up` dừng và đề nghị `reset`, để khóa OTP không lệch.
+
+Khóa OTP là chuỗi Keycloak lưu nguyên; khóa HMAC là byte UTF-8 của chuỗi đó. `keycloak/totp.py <khóa>` tính mã hiện tại.
+
+**Đăng nhập trong kiểm thử:** `keycloak/login.sh <username>` đi đúng browser flow bằng curl (code + PKCE S256, form mật khẩu, form OTP, đổi code lấy token) và in phản hồi token; `--claims` in claim của access token; `--list` liệt kê người dùng thử. Không dùng direct grant. Keycloak không nhận lại mã OTP đã dùng, nên khi đăng nhập cùng người dùng hai lần trong một bước 30 giây, công cụ chờ sang bước kế tiếp (ghi ở `out/.otp-used/`). Kiểm thử của backend và frontend dùng lại `login.sh` hoặc các hàm `login_*` trong `keycloak/lib.sh`.
+
 
 ## Kiểm thử
 
@@ -159,6 +185,13 @@ Lệnh: `up`, `status`, `down` (giữ dữ liệu), `reset` (xóa DB `keycloak`,
 | K4 | Bảng Keycloak ở DB `keycloak` của role `keycloak` (không superuser); `keycloak` và `werwa_app` không vào được DB của nhau | như trên |
 | K5 | Khởi động lại Keycloak: realm còn; `up` lần nữa không tạo lại, không lệch | như trên |
 | K6 | Issuer cố định nhìn từ máy và từ trong mạng `werwa-devnet-app`; JWKS trong mạng qua `keycloak.werwa.devnet` | như trên |
+| US-4.07-AC1 | Đúng mật khẩu chưa có code, phải qua form OTP; OTP sai bị từ chối; OTP đúng nhận code và đổi được token | `test/keycloak-users.sh` |
+| K7 | Cả 24 người dùng thử đăng nhập bằng khóa OTP sinh sẵn; access token và ID token có `org_id` đúng seed, `roles` đúng vai, không vai khác; `iss`, `aud`, `azp` đúng | như trên |
+| K8 | Direct grant với mật khẩu và OTP đúng của người dùng thật vẫn không cấp token | như trên |
+| K9 | Người dùng mới chưa có OTP bị buộc cài OTP sau mật khẩu, không nhận code | như trên |
+| K10 | Trước idle refresh được; quá SSO idle refresh bị từ chối (CI tạo realm với idle 60 giây; mặc định 900 thì bỏ qua) | như trên |
+| K11 | Khởi động lại Keycloak: người dùng và khóa OTP còn, đăng nhập lại được | như trên |
+| K12 | `out/users.json` quyền 600 và bị git bỏ qua | như trên |
 | US-6.01-AC3 (hạ tầng) | Đủ 6 node thì không có cảnh báo. Tắt V3: trong 60 giây Alertmanager có `WerwaValidatorDown` (v3) và `WerwaOnlyThreeValidators`, không báo nhầm mất đồng thuận. Bật lại: trong 90 giây cảnh báo hết | `test/us-6.01-ac3.sh` |
 
 US-6.01-AC3: hạ tầng giao cảnh báo tới Alertmanager và webhook; phần hiện lên màn hình vận hành thuộc backend và frontend (I5 trong `docs/open-questions.md`).

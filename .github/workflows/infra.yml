@@ -97,10 +97,13 @@ jobs:
   keycloak:
     name: Keycloak · realm werwa
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: infra
+    env:
+      # SSO idle ngắn để K10 kiểm được hết idle trong vài phút; mặc định 900 giây (I9).
+      WERWA_KC_SSO_IDLE: '60'
     steps:
       - uses: actions/checkout@v5
       - name: Cài natscli (ghim phiên bản và mã băm; services.sh cần)
@@ -114,10 +117,12 @@ jobs:
         run: docker pull "$KEYCLOAK_IMAGE"
       - name: Dựng PostgreSQL và NATS JetStream
         run: services/services.sh up
-      - name: Dựng Keycloak, tạo realm werwa
+      - name: Dựng Keycloak, tạo realm werwa và người dùng thử
         run: keycloak/keycloak.sh up
       - name: Kiểm Keycloak (K1–K6)
         run: test/keycloak.sh
+      - name: Người dùng thử và đăng nhập có OTP (US-4.07-AC1, K7–K12)
+        run: test/keycloak-users.sh
       - name: Nhật ký khi lỗi
         if: failure()
         run: docker compose -p werwa-keycloak logs --no-color --tail 300
