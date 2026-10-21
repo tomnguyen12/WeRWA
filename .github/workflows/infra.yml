@@ -66,6 +66,7 @@ jobs:
         run: |
           curl -sSfL -o nats.zip "https://github.com/nats-io/natscli/releases/download/v${NATSCLI_VERSION}/nats-${NATSCLI_VERSION}-linux-amd64.zip"
           echo "${NATSCLI_SHA256}  nats.zip" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
           unzip -q -j nats.zip "nats-${NATSCLI_VERSION}-linux-amd64/nats" -d "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Dựng PostgreSQL và NATS JetStream
