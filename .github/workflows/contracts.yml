@@ -36,6 +36,8 @@ jobs:
         run: forge build --sizes
       - name: Kiểm thử (unit, fuzz, invariant I1–I8)
         run: forge test -vvv
+      - name: Triển khai thử DeployPlatform lên anvil (broadcast, I1)
+        run: script/deploy-smoke.sh
       - name: Độ phủ dòng phần WeRWA ≥ 95%
         run: |
           forge coverage --report lcov --report-file lcov.info --no-match-coverage '(test|script|lib)/'
