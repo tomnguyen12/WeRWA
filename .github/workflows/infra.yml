@@ -5,11 +5,13 @@ on:
   pull_request:
     paths:
       - 'infra/**'
+      - 'api/openapi.yaml'
       - '.github/workflows/infra.yml'
   push:
     branches: [main]
     paths:
       - 'infra/**'
+      - 'api/openapi.yaml'
       - '.github/workflows/infra.yml'
 
 permissions:
@@ -20,6 +22,7 @@ env:
   BESU_IMAGE: hyperledger/besu:26.10.0
   NATSCLI_VERSION: 0.5.0
   NATSCLI_SHA256: d9fc93e9e9ab0310deff7e719a8a0da6f9d66f26d473f039aaee70155507aecc
+  KEYCLOAK_IMAGE: quay.io/keycloak/keycloak:26.8.1
 
 jobs:
   devnet:
@@ -79,3 +82,36 @@ jobs:
       - name: Dừng dịch vụ
         if: always()
         run: services/services.sh clean
+
+  keycloak:
+    name: Keycloak · realm werwa
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cài natscli (ghim phiên bản và mã băm; services.sh cần)
+        run: |
+          curl -sSfL -o nats.zip "https://github.com/nats-io/natscli/releases/download/v${NATSCLI_VERSION}/nats-${NATSCLI_VERSION}-linux-amd64.zip"
+          echo "${NATSCLI_SHA256}  nats.zip" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          unzip -q -j nats.zip "nats-${NATSCLI_VERSION}-linux-amd64/nats" -d "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Kéo ảnh Keycloak
+        run: docker pull "$KEYCLOAK_IMAGE"
+      - name: Dựng PostgreSQL và NATS JetStream
+        run: services/services.sh up
+      - name: Dựng Keycloak, tạo realm werwa
+        run: keycloak/keycloak.sh up
+      - name: Kiểm Keycloak (K1–K6)
+        run: test/keycloak.sh
+      - name: Nhật ký khi lỗi
+        if: failure()
+        run: docker compose -p werwa-keycloak logs --no-color --tail 300
+      - name: Dừng dịch vụ
+        if: always()
+        run: |
+          keycloak/keycloak.sh clean || true
+          services/services.sh clean
