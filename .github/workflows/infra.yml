@@ -23,7 +23,7 @@ jobs:
   devnet:
     name: devnet · kiểm thử khói
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: infra
@@ -38,6 +38,8 @@ jobs:
         run: devnet/devnet.sh up
       - name: Kiểm thử khói (khối 2 giây, 4 validator, phí gas 0, cấp phép)
         run: test/devnet-smoke.sh
+      - name: US-6.01 (tắt 1 validator, mất vùng A, tắt 2 validator rồi bật lại)
+        run: test/us-6.01.sh
       - name: Nhật ký node khi lỗi
         if: failure()
         run: docker compose -p werwa-devnet logs --no-color --tail 300

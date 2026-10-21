@@ -33,7 +33,6 @@ declare -A NODE_IP=(
   [o1-a]=172.30.10.21 [o1-b]=172.30.10.22
 )
 
-need() { command -v "$1" >/dev/null 2>&1 || die "thiếu lệnh $1"; }
 
 besu_tool() {
   docker run --rm --user "$(id -u):$(id -g)" -e JAVA_TOOL_OPTIONS= \

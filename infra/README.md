@@ -72,4 +72,11 @@ Vùng chỉ là nhãn `werwa.region` trên container. Mất vùng A ở devnet l
 | S5 | Tài khoản ngoài danh sách bị từ chối (`-32007`) | như trên |
 | S6 | Node ngoài danh sách: 0 peer, không nhận được khối | như trên |
 
+| US-6.01-AC1 | Lần lượt tắt V1, V2, V3, V4: mỗi lần mạng vẫn tạo 3 khối mới trong 30 giây. Mất vùng A (V1 và O1-a): đọc qua O1-b, mạng vẫn tạo khối | `test/us-6.01.sh` |
+| US-6.01-AC2 | Tắt V2 và V4: 20 giây không có khối mới. Bật lại: mạng tự chạy tiếp; khối trước sự cố giữ mã băm ở cả hai O1; giao dịch gửi trước sự cố vẫn ở đúng khối | như trên |
+
+US-6.01-AC3 (cảnh báo trên màn hình vận hành khi còn 3 validator) không thuộc luồng `infra/` ở lượt này.
+
+Sau khi mất đồng thuận, QBFT tăng thời gian chờ đổi vòng theo cấp số nhân, nên mạng cần khoảng 1–2 phút sau khi bật lại mới có khối mới (đo tại máy: 78 giây). Kiểm thử cho tối đa 240 giây.
+
 CI: `.github/workflows/infra.yml` chạy với PR đổi `infra/`.
