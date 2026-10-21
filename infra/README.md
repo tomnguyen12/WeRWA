@@ -114,6 +114,30 @@ Luật ở `monitoring/rules/werwa-chain.yml`.
 - "Validator hoạt động" ở đây là node trả lời metric, chưa phải node đang ký khối. Node vừa khởi động lại được tính là hoạt động trước khi nối lại đồng thuận. `WerwaBlockProductionStalled` bù cho trường hợp này.
 - Ở môi trường thật, V3 và V4 nằm ở hạ tầng của BIDV và VSDC. Holco chỉ lấy được metric của hai node này nếu hai bên mở cổng metric. Nếu không, phải đếm validator theo cách khác, ví dụ đếm chữ ký trong khối.
 
+## Keycloak (định danh, ADR-15)
+
+`keycloak/keycloak.sh up` chạy Keycloak 26.8.1 (`quay.io/keycloak/keycloak:26.8.1`) ở chế độ production, lưu trên PostgreSQL của `infra/services` (DB `keycloak`, role `keycloak`, không phải superuser), rồi tạo realm `werwa` từ `keycloak/realm/`. Chạy lại an toàn: realm đã có thì so với tệp theo `keycloak/realm/drift.jq`, lệch thì dừng; đổi có chủ ý thì `reset` rồi `up`. Cần chạy `services/services.sh up` trước.
+
+| | Trên máy | Trong mạng `werwa-devnet-app` |
+|---|---|---|
+| OIDC, đăng nhập | `http://localhost:8180/realms/werwa` | `http://keycloak.werwa.devnet:8080/realms/werwa` |
+| Health | `http://127.0.0.1:9180/health/ready` | |
+
+**Realm `werwa`:**
+
+- **Vai:** 11 realm role trùng enum `roles` của `api/openapi.yaml`. Vai mặc định `default-roles-werwa` rỗng: không `offline_access`, không quyền tự quản tài khoản.
+- **Claim (I3):** `roles` là mảng phẳng các vai của người dùng; `org_id` lấy từ thuộc tính người dùng `org_id` (I7), khai báo trong User Profile, chỉ admin xem và sửa. `werwa-web` tắt `fullScopeAllowed` và chỉ map 11 vai, nên token không mang vai nào khác. Không dùng client scope `roles` (`realm_access`).
+- **Client:** `werwa-web` công khai, authorization code + PKCE S256, redirect `http://localhost:5173/*`, không implicit, không direct grant. `werwa-api` là resource server; access token có `aud: werwa-api`.
+- **MFA (I4):** browser flow `werwa browser`: mật khẩu rồi OTP, cả hai REQUIRED, nên người dùng chưa có OTP bị buộc cài khi đăng nhập. TOTP SHA-1, 6 số, 30 giây, không dùng lại mã. Direct grant (ROPC) của realm đi qua flow `werwa direct grant` luôn từ chối, kể cả `admin-cli`. Tắt `delete_credential` để người dùng không tự gỡ OTP. Token chưa mang mức xác thực (`acr` là `1`); MFA được bảo đảm bởi flow, không phải bởi claim.
+- **Phiên (I9, tham số khi tạo realm):** access token 5 phút (`WERWA_KC_ACCESS_TOKEN_LIFESPAN`), SSO idle 15 phút (`WERWA_KC_SSO_IDLE`), SSO tối đa 8 giờ (`WERWA_KC_SSO_MAX`).
+- **Khác:** không tự đăng ký, không quên mật khẩu, mật khẩu tối thiểu 12 ký tự, chống dò mật khẩu (khóa tạm sau 5 lần sai), ghi sự kiện đăng nhập 30 ngày và sự kiện admin (không ghi chi tiết để không lộ bí mật trong nhật ký).
+- **Issuer (I8):** cố định `http://localhost:8180/realms/werwa`, bật backchannel động: backend trong mạng `werwa-devnet-app` lấy JWKS qua `keycloak.werwa.devnet` mà vẫn kiểm đúng issuer. Devnet chạy HTTP; TLS làm ở môi trường XD.
+- **Admin realm `master` (I10):** `admin`, mật khẩu trong `keycloak/out/.env`, không OTP; chỉ mở ở `127.0.0.1`, không phải người dùng nền tảng.
+
+Kết quả trong `keycloak/out/` (gitignore): `.env` (mật khẩu DB và admin), `werwa-realm.json` (realm đã dựng, không có bí mật), `backend.env` (`SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI`, `..._JWK_SET_URI`, `..._AUDIENCES`).
+
+Lệnh: `up`, `status`, `down` (giữ dữ liệu), `reset` (xóa DB `keycloak`, giữ mật khẩu), `clean` (xóa cả `out/`). Người dùng thử có khóa OTP sinh sẵn làm ở PR sau.
+
 ## Kiểm thử
 
 | Mã | Kiểm | Tệp |
@@ -129,10 +153,16 @@ Luật ở `monitoring/rules/werwa-chain.yml`.
 | US-6.04-AC1 | 9 hợp đồng Safe 1.4.1 đúng mã băm bản chính thức. Mỗi Safe: ngưỡng và owner đúng bảng trên, SafeL2 1.4.1, đúng fallback handler, không guard, không module. Người ký Safe tổ chức là 3 EOA riêng biệt. Safe liên bên có ngưỡng bằng số thành viên, không có BIDV | `test/us-6.04-ac1.sh` |
 | P1–P4 | `werwa_app` đăng nhập DB `werwa`, tạo được 6 schema, không phải superuser, không tạo DB, không vào DB `postgres`; PostgreSQL 18 | `test/services.sh` |
 | N1–N5 | Stream `WERWA` đúng I2; hai lần cùng `Nats-Msg-Id` chỉ giữ một bản; `werwa_app` chỉ phát vào `werwa.>`; kết nối ẩn danh bị từ chối; consumer bền và sự kiện còn sau khi NATS khởi động lại | như trên |
+| K1 | Realm có đúng 11 vai trùng enum `roles` của OpenAPI; `werwa-web` chỉ đưa đúng 11 vai đó vào token | `test/keycloak.sh` |
+| K2 | Vai mặc định rỗng; mapper `roles`, `org_id`, audience `werwa-api`; `org_id` chỉ admin xem và sửa | như trên |
+| K3 | Mật khẩu và OTP đều REQUIRED; `CONFIGURE_TOTP` mặc định; TOTP SHA-1/6/30; `werwa-web` công khai, PKCE S256, không implicit, không direct grant; direct grant bị chặn với mọi client | như trên |
+| K4 | Bảng Keycloak ở DB `keycloak` của role `keycloak` (không superuser); `keycloak` và `werwa_app` không vào được DB của nhau | như trên |
+| K5 | Khởi động lại Keycloak: realm còn; `up` lần nữa không tạo lại, không lệch | như trên |
+| K6 | Issuer cố định nhìn từ máy và từ trong mạng `werwa-devnet-app`; JWKS trong mạng qua `keycloak.werwa.devnet` | như trên |
 | US-6.01-AC3 (hạ tầng) | Đủ 6 node thì không có cảnh báo. Tắt V3: trong 60 giây Alertmanager có `WerwaValidatorDown` (v3) và `WerwaOnlyThreeValidators`, không báo nhầm mất đồng thuận. Bật lại: trong 90 giây cảnh báo hết | `test/us-6.01-ac3.sh` |
 
 US-6.01-AC3: hạ tầng giao cảnh báo tới Alertmanager và webhook; phần hiện lên màn hình vận hành thuộc backend và frontend (I5 trong `docs/open-questions.md`).
 
 Sau khi mất đồng thuận, QBFT tăng thời gian chờ đổi vòng theo cấp số nhân, nên mạng cần khoảng 1–2 phút sau khi bật lại mới có khối mới (đo tại máy: 78 giây). Kiểm thử cho tối đa 240 giây.
 
-CI: `.github/workflows/infra.yml` chạy với PR đổi `infra/`.
+CI: `.github/workflows/infra.yml` chạy với PR đổi `infra/` hoặc `api/openapi.yaml` (K1 đọc enum vai từ đó).

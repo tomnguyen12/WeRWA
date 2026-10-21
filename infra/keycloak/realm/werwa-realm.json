@@ -1,0 +1,199 @@
+{
+  "realm": "werwa",
+  "displayName": "WeRWA",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "editUsernameAllowed": false,
+  "duplicateEmailsAllowed": false,
+
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 900,
+  "ssoSessionMaxLifespan": 28800,
+
+  "passwordPolicy": "length(12) and notUsername",
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "maxDeltaTimeSeconds": 43200,
+
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyCodeReusable": false,
+
+  "eventsEnabled": true,
+  "eventsExpiration": 2592000,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": false,
+
+  "roles": {
+    "realm": [
+      { "name": "ISSUER", "description": "Tổ chức phát hành (UBND)" },
+      { "name": "OPERATING_AGENCY", "description": "Cơ quan điều hành" },
+      { "name": "SYNDICATE", "description": "Tổ hợp quản lý phát hành" },
+      { "name": "REGISTRAR", "description": "Tổ chức quản lý sổ đăng ký (VSDC)" },
+      { "name": "PAYING_AGENT", "description": "Đại lý thanh toán, IPA (BIDV)" },
+      { "name": "TREASURY", "description": "Kho bạc" },
+      { "name": "CUSTODIAN", "description": "Ngân hàng lưu ký" },
+      { "name": "TRUSTEE", "description": "Đại diện người sở hữu trái phiếu" },
+      { "name": "SUPERVISOR", "description": "Cơ quan giám sát VIFC" },
+      { "name": "OPERATOR", "description": "Đơn vị vận hành nền tảng (Holco)" },
+      { "name": "INVESTOR", "description": "Nhà đầu tư tổ chức" },
+      { "name": "default-roles-werwa", "description": "Vai mặc định: rỗng, không cấp offline_access hay quyền tài khoản", "composite": false }
+    ]
+  },
+  "defaultRole": { "name": "default-roles-werwa" },
+
+  "scopeMappings": [
+    {
+      "client": "werwa-web",
+      "roles": ["ISSUER", "OPERATING_AGENCY", "SYNDICATE", "REGISTRAR", "PAYING_AGENT", "TREASURY",
+                "CUSTODIAN", "TRUSTEE", "SUPERVISOR", "OPERATOR", "INVESTOR"]
+    }
+  ],
+
+  "clients": [
+    {
+      "clientId": "werwa-web",
+      "name": "Giao diện WeRWA",
+      "description": "Client công khai của giao diện React: authorization code + PKCE S256",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "fullScopeAllowed": false,
+      "consentRequired": false,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "defaultClientScopes": ["basic", "acr", "profile", "email", "web-origins"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "org_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "org_id",
+            "claim.name": "org_id",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "aggregate.attrs": "false",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience werwa-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "werwa-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "werwa-api",
+      "name": "API WeRWA",
+      "description": "Resource server: backend kiểm aud = werwa-api; không đăng nhập trực tiếp",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "bearerOnly": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": [],
+      "optionalClientScopes": []
+    }
+  ],
+
+  "browserFlow": "werwa browser",
+  "directGrantFlow": "werwa direct grant",
+  "authenticationFlows": [
+    {
+      "alias": "werwa browser",
+      "description": "Mật khẩu rồi OTP, OTP bắt buộc với mọi người dùng (ADR-15, I4)",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        { "authenticator": "auth-cookie", "authenticatorFlow": false, "requirement": "ALTERNATIVE", "priority": 10, "userSetupAllowed": false },
+        { "flowAlias": "werwa browser forms", "authenticatorFlow": true, "requirement": "ALTERNATIVE", "priority": 20, "userSetupAllowed": false }
+      ]
+    },
+    {
+      "alias": "werwa browser forms",
+      "description": "Form mật khẩu và form OTP, cả hai REQUIRED",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        { "authenticator": "auth-username-password-form", "authenticatorFlow": false, "requirement": "REQUIRED", "priority": 10, "userSetupAllowed": false },
+        { "authenticator": "auth-otp-form", "authenticatorFlow": false, "requirement": "REQUIRED", "priority": 20, "userSetupAllowed": false }
+      ]
+    },
+    {
+      "alias": "werwa direct grant",
+      "description": "Chặn direct grant (ROPC) với mọi client của realm, kể cả admin-cli",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        { "authenticator": "deny-access-authenticator", "authenticatorFlow": false, "requirement": "REQUIRED", "priority": 10, "userSetupAllowed": false }
+      ]
+    }
+  ],
+
+  "requiredActions": [
+    { "alias": "CONFIGURE_TOTP", "name": "Configure OTP", "providerId": "CONFIGURE_TOTP", "enabled": true, "defaultAction": true, "priority": 10, "config": {} },
+    { "alias": "UPDATE_PASSWORD", "name": "Update Password", "providerId": "UPDATE_PASSWORD", "enabled": true, "defaultAction": false, "priority": 20, "config": {} },
+    { "alias": "UPDATE_PROFILE", "name": "Update Profile", "providerId": "UPDATE_PROFILE", "enabled": true, "defaultAction": false, "priority": 30, "config": {} },
+    { "alias": "VERIFY_PROFILE", "name": "Verify Profile", "providerId": "VERIFY_PROFILE", "enabled": true, "defaultAction": false, "priority": 40, "config": {} },
+    { "alias": "delete_account", "name": "Delete Account", "providerId": "delete_account", "enabled": false, "defaultAction": false, "priority": 90, "config": {} },
+    { "alias": "delete_credential", "name": "Delete Credential", "providerId": "delete_credential", "enabled": false, "defaultAction": false, "priority": 100, "config": {} }
+  ]
+}
