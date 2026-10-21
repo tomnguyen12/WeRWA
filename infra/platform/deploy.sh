@@ -67,7 +67,8 @@ log "triển khai DeployPlatform ($MODE), người gửi $DEPLOYER"
 (cd "$CONTRACTS" && forge script script/DeployPlatform.s.sol \
   --rpc-url "$RPC" "${SIGN_ARGS[@]}" ${FORGE_SOLC:+--use "$FORGE_SOLC"} \
   --legacy --with-gas-price 0 --broadcast --slow) >"$WORK/forge.log" 2>&1 \
-  || { tail -20 "$WORK/forge.log" >&2; die "forge script thất bại; xem $WORK/forge.log"; }
+  || { tail -20 "$WORK/forge.log" >&2
+       die "forge script thất bại: $(grep -m1 -E '^Error' "$WORK/forge.log" | cut -c1-300)"; }
 
 chain_id=$(cast chain-id --rpc-url "$O1A_RPC")
 run="$CONTRACTS/broadcast/DeployPlatform.s.sol/$chain_id/run-latest.json"
