@@ -71,6 +71,8 @@ SELECT 'CREATE DATABASE werwa OWNER werwa_app ENCODING ''UTF8'' TEMPLATE templat
  WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'werwa') \gexec
 REVOKE ALL ON DATABASE werwa FROM PUBLIC;
 GRANT CONNECT, CREATE, TEMPORARY ON DATABASE werwa TO werwa_app;
+-- Mặc định mọi role vào được DB postgres; chỉ để superuser vào.
+REVOKE CONNECT ON DATABASE postgres FROM PUBLIC;
 SQL
   log "PostgreSQL: DB werwa, role werwa_app"
 }
