@@ -61,6 +61,23 @@ Besu chỉ nhận giao dịch từ tài khoản trong danh sách. Module khác (
 
 Vùng chỉ là nhãn `werwa.region` trên container. Mất vùng A ở devnet là dừng `v1` và `o1-a`.
 
+## Safe 1.4.1
+
+`safe/safe.sh up` dựng Safe trên devnet; chạy lại an toàn.
+
+- **Hợp đồng Safe 1.4.1.** Bytecode lấy từ gói npm `@safe-global/safe-contracts@1.4.1`, kiểm integrity sha512. Triển khai qua Safe Singleton Factory với salt 0. Factory có sẵn trong genesis tại địa chỉ chuẩn `0x914d7Fec6aaC8cd542e72Bca78B30650d45643d7`, nên hợp đồng Safe nằm đúng địa chỉ và đúng mã băm code của bản chính thức (`safe/safe-1.4.1.json`, lấy từ `@safe-global/safe-deployments` 1.37.64). Lệch thì script dừng.
+- **Safe các bên theo ADR-05.** Mọi Safe dùng singleton `SafeL2`, `CompatibilityFallbackHandler`, không module, không guard.
+
+| Safe | Owner | Ngưỡng | Vai theo ADR-05 |
+|---|---|---|---|
+| `ubnd`, `vsdc`, `bidv`, `holco` | 3 người ký thử (EOA) của tổ chức | 2/3 (devnet; thật do tổ chức tự đặt) | ký của từng tổ chức |
+| `governance3of3` | Safe UBND, VSDC, Holco | 3/3 | triển khai/hủy series, nâng cấp, mở lại sau tạm dừng |
+| `enforcement2of2` | Safe VSDC, Holco | 2/2 | phong tỏa, khôi phục ví, tạm dừng |
+
+Kết quả nằm trong `devnet/out/safe/`: `safes.json` (địa chỉ, owner, ngưỡng), `safes.env` (biến `WERWA_*` cho `DeployPlatform`) và `signers/` (khóa người ký thử, chỉ cho devnet). Người ký không cần được cấp phép gửi giao dịch: chữ ký thu ngoài chuỗi, giao dịch do tài khoản chuyển tiếp gửi (đặc tả API, mục thu chữ ký multisig). Ở devnet, tài khoản gửi là `bootstrap`.
+
+Genesis có thêm factory, nên devnet tạo trước PR này phải chạy `devnet/devnet.sh clean` rồi `up`.
+
 ## Kiểm thử
 
 | Mã | Kiểm | Tệp |
@@ -74,6 +91,8 @@ Vùng chỉ là nhãn `werwa.region` trên container. Mất vùng A ở devnet l
 
 | US-6.01-AC1 | Lần lượt tắt V1, V2, V3, V4: mỗi lần mạng vẫn tạo 3 khối mới trong 30 giây. Mất vùng A (V1 và O1-a): đọc qua O1-b, mạng vẫn tạo khối | `test/us-6.01.sh` |
 | US-6.01-AC2 | Tắt V2 và V4: 20 giây không có khối mới. Bật lại: mạng tự chạy tiếp; khối trước sự cố giữ mã băm ở cả hai O1; giao dịch gửi trước sự cố vẫn ở đúng khối | như trên |
+
+| US-6.04-AC1 | 9 hợp đồng Safe 1.4.1 đúng mã băm bản chính thức. Mỗi Safe: ngưỡng và owner đúng bảng trên, SafeL2 1.4.1, đúng fallback handler, không guard, không module. Người ký Safe tổ chức là 3 EOA riêng biệt. Safe liên bên có ngưỡng bằng số thành viên, không có BIDV | `test/us-6.04-ac1.sh` |
 
 US-6.01-AC3 (cảnh báo trên màn hình vận hành khi còn 3 validator) không thuộc luồng `infra/` ở lượt này.
 
