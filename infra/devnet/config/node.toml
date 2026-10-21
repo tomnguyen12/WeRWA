@@ -1,0 +1,29 @@
+# Cấu hình chung cho mọi node Besu của devnet WeRWA (validator và O1).
+# Tham số riêng từng node (khóa, địa chỉ P2P, RPC) truyền qua dòng lệnh trong compose.yaml.
+# Các tệp trong /shared do `devnet.sh init` sinh ra, không commit.
+
+genesis-file = "/shared/genesis.json"
+data-path = "/data"
+node-private-key-file = "/keys/key"
+
+# Mạng có cấp phép: không tự tìm node, chỉ nối tới danh sách tĩnh.
+p2p-port = 30303
+discovery-enabled = false
+static-nodes-file = "/shared/static-nodes.json"
+
+# Cấp phép cục bộ: danh sách node được kết nối và tài khoản được gửi giao dịch.
+permissions-nodes-config-file-enabled = true
+permissions-nodes-config-file = "/perm/permissions_config.toml"
+permissions-accounts-config-file-enabled = true
+permissions-accounts-config-file = "/perm/permissions_config.toml"
+
+# Phí gas bằng 0 (ADR-01). Genesis đặt zeroBaseFee = true.
+min-gas-price = 0
+
+sync-mode = "FULL"
+host-allowlist = ["*"]
+logging = "INFO"
+
+metrics-enabled = true
+metrics-host = "0.0.0.0"
+metrics-port = 9545
