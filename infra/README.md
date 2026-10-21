@@ -92,6 +92,27 @@ Genesis có thêm factory, nên devnet tạo trước PR này phải chạy `dev
 Mật khẩu sinh vào `services/out/.env`. Biến kết nối cho backend chạy trên máy ở `services/out/backend.env` (`SPRING_DATASOURCE_*`, `WERWA_NATS_*`). Cả hai gitignore.
 
 Lệnh: `up`, `status`, `down` (giữ dữ liệu), `reset` (xóa dữ liệu, giữ mật khẩu), `clean` (xóa cả `out/`). Cần thêm `nats` (natscli 0.5.0) trên máy.
+## Giám sát
+
+`monitoring/monitoring.sh up` chạy Prometheus và Alertmanager sau khi devnet đã chạy. Dừng giám sát trước khi dừng devnet, vì giám sát dùng chung mạng `werwa-devnet-p2p`.
+
+- **Prometheus** (`127.0.0.1:9090`) lấy metric của 6 node Besu (cổng 9545) mỗi 5 giây, gắn nhãn `node`, `role`, `party`, `region`.
+- **Alertmanager** (`127.0.0.1:9093`) gom cảnh báo. Đặt `WERWA_ALERT_WEBHOOK` thì Alertmanager gửi webhook tới URL đó, kể cả khi cảnh báo hết; không đặt thì chỉ xem trên Alertmanager.
+
+| Cảnh báo | Khi nào | Mức |
+|---|---|---|
+| `WerwaValidatorDown` | một validator không phản hồi 10 giây | warning |
+| `WerwaOnlyThreeValidators` | còn đúng 3/4 validator (NFR: "cảnh báo khi còn 3 validator") | critical |
+| `WerwaConsensusLost` | dưới 3/4 validator, mạng dừng tạo khối | critical |
+| `WerwaBlockProductionStalled` | O1 không thấy khối mới trong 30 giây | critical |
+| `WerwaReaderDown` | một O1 không phản hồi | warning |
+| `WerwaReaderLagging` | O1 chậm hơn validator quá 5 khối trong 30 giây | warning |
+
+Luật ở `monitoring/rules/werwa-chain.yml`.
+
+**Giới hạn:**
+- "Validator hoạt động" ở đây là node trả lời metric, chưa phải node đang ký khối. Node vừa khởi động lại được tính là hoạt động trước khi nối lại đồng thuận. `WerwaBlockProductionStalled` bù cho trường hợp này.
+- Ở môi trường thật, V3 và V4 nằm ở hạ tầng của BIDV và VSDC. Holco chỉ lấy được metric của hai node này nếu hai bên mở cổng metric. Nếu không, phải đếm validator theo cách khác, ví dụ đếm chữ ký trong khối.
 
 ## Keycloak (định danh, ADR-15)
 
@@ -138,8 +159,9 @@ Lệnh: `up`, `status`, `down` (giữ dữ liệu), `reset` (xóa DB `keycloak`,
 | K4 | Bảng Keycloak ở DB `keycloak` của role `keycloak` (không superuser); `keycloak` và `werwa_app` không vào được DB của nhau | như trên |
 | K5 | Khởi động lại Keycloak: realm còn; `up` lần nữa không tạo lại, không lệch | như trên |
 | K6 | Issuer cố định nhìn từ máy và từ trong mạng `werwa-devnet-app`; JWKS trong mạng qua `keycloak.werwa.devnet` | như trên |
+| US-6.01-AC3 (hạ tầng) | Đủ 6 node thì không có cảnh báo. Tắt V3: trong 60 giây Alertmanager có `WerwaValidatorDown` (v3) và `WerwaOnlyThreeValidators`, không báo nhầm mất đồng thuận. Bật lại: trong 90 giây cảnh báo hết | `test/us-6.01-ac3.sh` |
 
-US-6.01-AC3 (cảnh báo trên màn hình vận hành khi còn 3 validator) không thuộc luồng `infra/` ở lượt này.
+US-6.01-AC3: hạ tầng giao cảnh báo tới Alertmanager và webhook; phần hiện lên màn hình vận hành thuộc backend và frontend (I5 trong `docs/open-questions.md`).
 
 Sau khi mất đồng thuận, QBFT tăng thời gian chờ đổi vòng theo cấp số nhân, nên mạng cần khoảng 1–2 phút sau khi bật lại mới có khối mới (đo tại máy: 78 giây). Kiểm thử cho tối đa 240 giây.
 

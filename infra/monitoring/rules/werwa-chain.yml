@@ -1,0 +1,48 @@
+# Cảnh báo mạng chuỗi (docs/nfr.md, mục Vận hành; US-6.01-AC3; ADR-02, ADR-12).
+# Nhãn severity: critical = cần xử lý ngay; warning = cần xem trong giờ làm việc.
+groups:
+  - name: werwa-chain
+    rules:
+      - alert: WerwaValidatorDown
+        expr: up{job="besu", role="validator"} == 0
+        for: 10s
+        labels: { severity: warning }
+        annotations:
+          summary: "Validator {{ $labels.node }} ({{ $labels.party }}) không phản hồi"
+
+      # NFR: "Cảnh báo khi còn 3 validator". QBFT 4 node cần 3/4; còn 3 thì không chịu thêm lỗi nào.
+      - alert: WerwaOnlyThreeValidators
+        expr: count(up{job="besu", role="validator"} == 1) == 3
+        for: 10s
+        labels: { severity: critical }
+        annotations:
+          summary: "Còn 3/4 validator: mạng vẫn tạo khối nhưng không chịu thêm lỗi nào"
+
+      - alert: WerwaConsensusLost
+        expr: (count(up{job="besu", role="validator"} == 1) or vector(0)) < 3
+        for: 10s
+        labels: { severity: critical }
+        annotations:
+          summary: "Dưới 3/4 validator: mạng dừng tạo khối"
+
+      - alert: WerwaBlockProductionStalled
+        expr: max(changes(ethereum_blockchain_height{job="besu", role="reader"}[30s])) == 0
+        for: 10s
+        labels: { severity: critical }
+        annotations:
+          summary: "Không có khối mới trong 30 giây (khối 2 giây, ADR-01)"
+
+      # Ứng dụng chỉ đọc qua O1 (ADR-12): O1 hỏng hoặc tụt sau thì bảng đọc chậm theo.
+      - alert: WerwaReaderDown
+        expr: up{job="besu", role="reader"} == 0
+        for: 10s
+        labels: { severity: warning }
+        annotations:
+          summary: "Node chỉ đọc {{ $labels.node }} không phản hồi"
+
+      - alert: WerwaReaderLagging
+        expr: scalar(max(ethereum_blockchain_height{job="besu", role="validator"})) - ethereum_blockchain_height{job="besu", role="reader"} > 5
+        for: 30s
+        labels: { severity: warning }
+        annotations:
+          summary: "Node chỉ đọc {{ $labels.node }} chậm hơn validator {{ $value }} khối"

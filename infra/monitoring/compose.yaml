@@ -1,0 +1,52 @@
+# Giám sát devnet WeRWA: Prometheus lấy metric 6 node Besu, Alertmanager gửi cảnh báo.
+# Chạy qua `./monitoring.sh up` sau khi devnet đã chạy (cần mạng werwa-devnet-p2p).
+
+name: werwa-monitoring
+
+services:
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.15.0}
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./rules:/etc/prometheus/rules:ro
+      - promdata:/prometheus
+    networks:
+      # IP tĩnh để không chiếm IP tĩnh của node khi node khởi động lại.
+      p2p: { ipv4_address: 172.30.10.31 }
+      monitoring: {}
+    ports: ["127.0.0.1:9090:9090"]
+
+  alertmanager:
+    image: ${ALERTMANAGER_IMAGE:-prom/alertmanager:v0.34.1}
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./out/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - amdata:/alertmanager
+    networks:
+      monitoring: {}
+      # Để gửi webhook tới backend chạy trong mạng ứng dụng.
+      app: {}
+    ports: ["127.0.0.1:9093:9093"]
+
+volumes:
+  promdata:
+  amdata:
+
+networks:
+  p2p:
+    name: werwa-devnet-p2p
+    external: true
+  app:
+    name: werwa-devnet-app
+    external: true
+  monitoring:
+    name: werwa-monitoring
