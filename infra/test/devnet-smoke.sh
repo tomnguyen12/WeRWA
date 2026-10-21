@@ -16,8 +16,9 @@ need() { command -v "$1" >/dev/null 2>&1 || die "thiếu lệnh $1"; }
 need cast; need jq; need docker
 
 FAILED=0
-pass() { log "ĐẠT  $1"; }
-fail() { log "TRƯỢT $1"; FAILED=1; }
+pass() { log "ĐẠT  $1"; [ -n "${GITHUB_ACTIONS:-}" ] && printf '::notice::ĐẠT %s\n' "$1" || true; }
+trap 'annotate "kiểm thử dừng ở dòng $LINENO: $BASH_COMMAND"' ERR
+fail() { log "TRƯỢT $1"; annotate "$1"; FAILED=1; }
 
 block_ts() { hex_to_dec "$(rpc "$O1A_RPC" eth_getBlockByNumber "[\"$(printf '0x%x' "$1")\",false]" | jq '.timestamp')"; }
 

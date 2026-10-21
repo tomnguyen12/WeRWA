@@ -13,7 +13,9 @@ V1_RPC="${V1_RPC:-http://127.0.0.1:8645}"
 V2_RPC="${V2_RPC:-http://127.0.0.1:8655}"
 
 log() { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
-die() { log "LỖI: $*"; exit 1; }
+# Trên GitHub Actions in thêm annotation để đọc được lỗi từ trang PR.
+annotate() { [ -n "${GITHUB_ACTIONS:-}" ] && printf '::error::%s\n' "$*" || true; }
+die() { log "LỖI: $*"; annotate "$*"; exit 1; }
 
 dc() {
   DEVNET_UID="${DEVNET_UID:-$(id -u)}" DEVNET_GID="${DEVNET_GID:-$(id -g)}" \
