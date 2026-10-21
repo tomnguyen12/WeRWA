@@ -73,11 +73,10 @@ else fail "S5 tài khoản ngoài danh sách không bị chặn: $out"; fi
 # S6 — node lạ (khóa mới, cùng genesis, cùng danh sách node tĩnh) không vào được mạng.
 ROGUE=werwa-devnet-rogue
 rogue_dir=$(mktemp -d)
-cleanup() { docker rm -f "$ROGUE" >/dev/null 2>&1 || true; rm -rf "$rogue_dir"; }
+cleanup() { docker rm -f "$ROGUE" >/dev/null 2>&1 || true; rm -rf "$rogue_dir" 2>/dev/null || true; }
 trap cleanup EXIT
-chmod 777 "$rogue_dir"
 ROGUE_RPC=http://127.0.0.1:8599
-docker run -d --name "$ROGUE" --network werwa-devnet-p2p --ip 172.30.10.99 -p 127.0.0.1:8599:8545 \
+docker run -d --name "$ROGUE" --user "$(id -u):$(id -g)" --network werwa-devnet-p2p --ip 172.30.10.99 -p 127.0.0.1:8599:8545 \
   -v "$DEVNET_OUT/shared/genesis.json:/shared/genesis.json:ro" \
   -v "$DEVNET_OUT/shared/static-nodes.json:/shared/static-nodes.json:ro" \
   -v "$rogue_dir:/data" "${BESU_IMAGE:-hyperledger/besu:26.10.0}" \
