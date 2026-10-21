@@ -1,0 +1,19 @@
+{
+  "name": "WERWA",
+  "description": "Sự kiện WeRWA werwa.<module>.<entity>.<event>.v<n>; chốt 21/10/2026 (I2)",
+  "subjects": ["werwa.>"],
+  "retention": "limits",
+  "storage": "file",
+  "discard": "old",
+  "num_replicas": 1,
+  "max_age": 2592000000000000,
+  "duplicate_window": 120000000000,
+  "max_consumers": -1,
+  "max_msgs": -1,
+  "max_msgs_per_subject": -1,
+  "max_bytes": -1,
+  "max_msg_size": -1,
+  "deny_delete": true,
+  "deny_purge": true,
+  "allow_rollup_hdrs": false
+}

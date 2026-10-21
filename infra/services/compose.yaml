@@ -1,0 +1,48 @@
+# Dịch vụ dùng chung cho backend trên devnet: PostgreSQL và NATS JetStream (ADR-10, ADR-11).
+# Chạy qua `./services.sh up`; script sinh mật khẩu vào out/.env trước (gitignore).
+#
+# Tham gia mạng werwa-devnet-app cùng V1, V2, O1 của devnet, để backend chạy trong container
+# thấy được cả node Besu lẫn hai dịch vụ này. Chạy được cả khi devnet chưa bật.
+
+name: werwa-services
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:18.6}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?chạy ./services.sh up để sinh mật khẩu}
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql
+    networks:
+      app: { aliases: [postgres.werwa.devnet] }
+    ports: ["127.0.0.1:5432:5432"]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  nats:
+    image: ${NATS_IMAGE:-nats:2.15.1}
+    restart: unless-stopped
+    command: ["--config", "/etc/nats/nats-server.conf"]
+    environment:
+      NATS_APP_PASSWORD: ${NATS_APP_PASSWORD:?chạy ./services.sh up để sinh mật khẩu}
+      NATS_ADMIN_PASSWORD: ${NATS_ADMIN_PASSWORD:?chạy ./services.sh up để sinh mật khẩu}
+    volumes:
+      - ./nats/nats-server.conf:/etc/nats/nats-server.conf:ro
+      - natsdata:/data
+    networks:
+      app: { aliases: [nats.werwa.devnet] }
+    ports: ["127.0.0.1:4222:4222", "127.0.0.1:8222:8222"]
+
+volumes:
+  pgdata:
+  natsdata:
+
+networks:
+  app:
+    name: werwa-devnet-app

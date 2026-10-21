@@ -78,6 +78,21 @@ Kết quả nằm trong `devnet/out/safe/`: `safes.json` (địa chỉ, owner, n
 
 Genesis có thêm factory, nên devnet tạo trước PR này phải chạy `devnet/devnet.sh clean` rồi `up`.
 
+## Dịch vụ cho backend
+
+`services/services.sh up` chạy PostgreSQL và NATS JetStream trên mạng `werwa-devnet-app`, chạy lại an toàn. Không cần bật devnet trước. Kiểm thử tích hợp của backend vẫn tự dựng dịch vụ bằng Testcontainers; bộ này dành cho chạy backend trên máy và cho devnet dùng chung.
+
+| Dịch vụ | Ảnh | Trên máy | Trong mạng `werwa-devnet-app` | Ghi chú |
+|---|---|---|---|---|
+| PostgreSQL | `postgres:18.6` | `127.0.0.1:5432` | `postgres.werwa.devnet:5432` | DB `werwa`, chủ là role `werwa_app` (không phải superuser). Sáu schema do Flyway của backend tạo |
+| NATS JetStream | `nats:2.15.1` | `127.0.0.1:4222`, giám sát `:8222` | `nats.werwa.devnet:4222` | Stream `WERWA` theo I2; người dùng `werwa_app` chỉ phát và nhận `werwa.>` |
+
+**Stream `WERWA` (I2, chốt 21/10):** nhận mọi chủ đề `werwa.>`, chủ đề trùng tên sự kiện. Lưu trên đĩa, giữ 30 ngày. Chống trùng 2 phút theo header `Nats-Msg-Id`, backend đặt bằng id CloudEvent. Không cho xóa từng sự kiện hay xóa sạch stream. Định nghĩa ở `services/nats/stream-werwa.json`; nếu stream trên máy chủ lệch tệp này, `services.sh` dừng.
+
+Mật khẩu sinh vào `services/out/.env`. Biến kết nối cho backend chạy trên máy ở `services/out/backend.env` (`SPRING_DATASOURCE_*`, `WERWA_NATS_*`). Cả hai gitignore.
+
+Lệnh: `up`, `status`, `down` (giữ dữ liệu), `reset` (xóa dữ liệu, giữ mật khẩu), `clean` (xóa cả `out/`). Cần thêm `nats` (natscli 0.5.0) trên máy.
+
 ## Kiểm thử
 
 | Mã | Kiểm | Tệp |
@@ -88,11 +103,11 @@ Genesis có thêm factory, nên devnet tạo trước PR này phải chạy `dev
 | S4 | Giao dịch giá gas 0 từ tài khoản được cấp phép lên khối; `baseFeePerGas` 0 | như trên |
 | S5 | Tài khoản ngoài danh sách bị từ chối (`-32007`) | như trên |
 | S6 | Node ngoài danh sách: 0 peer, không nhận được khối | như trên |
-
 | US-6.01-AC1 | Lần lượt tắt V1, V2, V3, V4: mỗi lần mạng vẫn tạo 3 khối mới trong 30 giây. Mất vùng A (V1 và O1-a): đọc qua O1-b, mạng vẫn tạo khối | `test/us-6.01.sh` |
 | US-6.01-AC2 | Tắt V2 và V4: 20 giây không có khối mới. Bật lại: mạng tự chạy tiếp; khối trước sự cố giữ mã băm ở cả hai O1; giao dịch gửi trước sự cố vẫn ở đúng khối | như trên |
-
 | US-6.04-AC1 | 9 hợp đồng Safe 1.4.1 đúng mã băm bản chính thức. Mỗi Safe: ngưỡng và owner đúng bảng trên, SafeL2 1.4.1, đúng fallback handler, không guard, không module. Người ký Safe tổ chức là 3 EOA riêng biệt. Safe liên bên có ngưỡng bằng số thành viên, không có BIDV | `test/us-6.04-ac1.sh` |
+| P1–P4 | `werwa_app` đăng nhập DB `werwa`, tạo được 6 schema, không phải superuser, không tạo DB, không vào DB `postgres`; PostgreSQL 18 | `test/services.sh` |
+| N1–N5 | Stream `WERWA` đúng I2; hai lần cùng `Nats-Msg-Id` chỉ giữ một bản; `werwa_app` chỉ phát vào `werwa.>`; kết nối ẩn danh bị từ chối; consumer bền và sự kiện còn sau khi NATS khởi động lại | như trên |
 
 US-6.01-AC3 (cảnh báo trên màn hình vận hành khi còn 3 validator) không thuộc luồng `infra/` ở lượt này.
 
