@@ -50,10 +50,10 @@ docs/decisions/     đề xuất đổi thiết kế (ADR-17 trở đi)
 api/openapi.yaml    API REST
 api/events/         lược đồ sự kiện + catalog.yaml
 api/abi/            ABI xuất từ contracts/ (sinh tự động, không sửa tay)
-contracts/          Foundry (chưa tạo)
+contracts/          Foundry, T-REX 4.1.3 (xem contracts/README.md)
 backend/            Spring Boot, một mô-đun mỗi phân hệ (chưa tạo)
 frontend/           React (chưa tạo)
-infra/              mạng Besu, compose, IaC (chưa tạo)
+infra/              devnet Besu QBFT, Safe 1.4.1, triển khai nền tảng (xem infra/README.md)
 ```
 
 Sáu mô-đun backend trùng sáu phân hệ và sáu schema PostgreSQL: `onboarding`, `issuance`, `distribution`, `governance`, `integration`, `onchain`. Mô-đun chỉ gọi nhau qua gói `api` công khai; còn lại đi bằng sự kiện.
