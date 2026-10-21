@@ -16,6 +16,12 @@ log() { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
 # Trên GitHub Actions in thêm annotation để đọc được lỗi từ trang PR.
 annotate() { [ -n "${GITHUB_ACTIONS:-}" ] && printf '::error::%s\n' "$*" || true; }
 die() { log "LỖI: $*"; annotate "$*"; exit 1; }
+need() { command -v "$1" >/dev/null 2>&1 || die "thiếu lệnh $1"; }
+
+# Kết quả kiểm thử: pass/fail ghi log (và annotation trên CI); FAILED=1 khi có mục trượt.
+FAILED=0
+pass() { log "ĐẠT  $1"; [ -n "${GITHUB_ACTIONS:-}" ] && printf '::notice::ĐẠT %s\n' "$1" || true; }
+fail() { log "TRƯỢT $1"; annotate "$1"; FAILED=1; }
 
 dc() {
   DEVNET_UID="${DEVNET_UID:-$(id -u)}" DEVNET_GID="${DEVNET_GID:-$(id -g)}" \
@@ -70,3 +76,22 @@ validators_at() {
 }
 
 node_address() { tr 'A-F' 'a-f' <"$DEVNET_OUT/nodes/$1/address"; }
+
+# peer_count <url> → số peer (thập phân), 0 nếu node không trả lời.
+peer_count() {
+  local r
+  r=$(rpc "$1" net_peerCount 2>/dev/null) || { echo 0; return 0; }
+  hex_to_dec "$r"
+}
+
+# wait_peers <url> <số-peer> <timeout-giây>
+wait_peers() {
+  local url="$1" want="$2" timeout="${3:-120}" t=0
+  until [ "$(peer_count "$url")" -ge "$want" ]; do
+    [ "$t" -ge "$timeout" ] && return 1
+    sleep 2; t=$((t + 2))
+  done
+}
+
+# block_hash <url> <số-khối> → mã băm khối
+block_hash() { rpc "$1" eth_getBlockByNumber "[\"$(printf '0x%x' "$2")\",false]" | jq -r '.hash'; }
