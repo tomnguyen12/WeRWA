@@ -1,0 +1,13 @@
+# Mẫu cấu hình Alertmanager; monitoring.sh sinh out/alertmanager.yml từ tệp này.
+# __WEBHOOK_CONFIGS__ được thay bằng webhook tới WERWA_ALERT_WEBHOOK nếu đặt, nếu không thì để trống
+# (cảnh báo vẫn xem được trên Alertmanager, chỉ không gửi đi đâu).
+route:
+  receiver: werwa-ops
+  group_by: [alertname, node]
+  group_wait: 5s
+  group_interval: 30s
+  repeat_interval: 4h
+
+receivers:
+  - name: werwa-ops
+__WEBHOOK_CONFIGS__

@@ -20,6 +20,8 @@ env:
   BESU_IMAGE: hyperledger/besu:26.10.0
   NATSCLI_VERSION: 0.5.0
   NATSCLI_SHA256: d9fc93e9e9ab0310deff7e719a8a0da6f9d66f26d473f039aaee70155507aecc
+  PROMETHEUS_IMAGE: prom/prometheus:v3.15.0
+  ALERTMANAGER_IMAGE: prom/alertmanager:v0.34.1
 
 jobs:
   devnet:
@@ -46,9 +48,18 @@ jobs:
         run: safe/safe.sh up
       - name: US-6.04-AC1 (ngưỡng Safe đúng bảng ADR-05)
         run: test/us-6.04-ac1.sh
+      - name: Giám sát (Prometheus, Alertmanager)
+        run: monitoring/monitoring.sh up
+      - name: US-6.01-AC3 phần hạ tầng (còn 3 validator thì có cảnh báo)
+        run: test/us-6.01-ac3.sh
       - name: Nhật ký node khi lỗi
         if: failure()
-        run: docker compose -p werwa-devnet logs --no-color --tail 300
+        run: |
+          docker compose -p werwa-devnet logs --no-color --tail 300
+          docker compose -p werwa-monitoring logs --no-color --tail 100 || true
+      - name: Dừng giám sát
+        if: always()
+        run: monitoring/monitoring.sh clean
       - name: Dừng devnet
         if: always()
         run: devnet/devnet.sh clean

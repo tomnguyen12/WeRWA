@@ -1,0 +1,30 @@
+# Prometheus cho devnet WeRWA: lấy metric của 6 node Besu (cổng 9545, node.toml).
+# Địa chỉ là IP tĩnh của node trên mạng werwa-devnet-p2p (devnet/compose.yaml).
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: besu
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["172.30.10.11:9545"]
+        labels: { node: v1, role: validator, party: holco, region: a }
+      - targets: ["172.30.10.12:9545"]
+        labels: { node: v2, role: validator, party: holco, region: b }
+      - targets: ["172.30.10.13:9545"]
+        labels: { node: v3, role: validator, party: bidv, region: bidv }
+      - targets: ["172.30.10.14:9545"]
+        labels: { node: v4, role: validator, party: vsdc, region: vsdc }
+      - targets: ["172.30.10.21:9545"]
+        labels: { node: o1-a, role: reader, party: holco, region: a }
+      - targets: ["172.30.10.22:9545"]
+        labels: { node: o1-b, role: reader, party: holco, region: b }
