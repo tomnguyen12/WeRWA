@@ -1,0 +1,139 @@
+# Devnet WeRWA: 4 validator QBFT và 2 node chỉ đọc O1 (ADR-01, ADR-02).
+# Chạy qua `./devnet.sh up`; script sinh khóa, genesis và danh sách cấp phép vào out/ trước.
+#
+#   V1  Holco vùng A   validator, nhận giao dịch từ ứng dụng
+#   V2  Holco vùng B   validator, nhận giao dịch từ ứng dụng
+#   V3  BIDV           validator, Holco chạy hộ ở devnet (ADR-02)
+#   V4  VSDC           validator, Holco chạy hộ ở devnet (ADR-02)
+#   O1-a, O1-b         node chỉ đọc mỗi vùng; ứng dụng chỉ đọc qua đây (ADR-12)
+#
+# Mạng `p2p` chỉ cho node Besu nói chuyện với nhau. Mạng `app` (tên cố định werwa-devnet-app)
+# là nơi ứng dụng, module ký và kiểm thử tham gia: chỉ V1, V2 (gửi giao dịch) và O1 (đọc) có mặt.
+
+name: werwa-devnet
+
+x-besu: &besu
+  image: ${BESU_IMAGE:-hyperledger/besu:26.10.0}
+  user: "${DEVNET_UID:-1000}:${DEVNET_GID:-1000}"
+  restart: unless-stopped
+  stop_grace_period: 30s
+  entrypoint: ["/opt/besu/bin/besu"]
+
+services:
+  v1:
+    <<: *besu
+    labels: { werwa.role: validator, werwa.party: holco, werwa.region: a }
+    command:
+      - --config-file=/config/node.toml
+      - --p2p-host=172.30.10.11
+      - --rpc-http-enabled
+      - --rpc-http-host=0.0.0.0
+      - --rpc-http-api=ETH,NET,WEB3
+    volumes:
+      - ./config/node.toml:/config/node.toml:ro
+      - ./out/shared:/shared:ro
+      - ./out/nodes/v1:/keys:ro
+      - ./out/perm/v1:/perm
+      - ./out/data/v1:/data
+    networks:
+      p2p: { ipv4_address: 172.30.10.11 }
+      app: { aliases: [v1.werwa.devnet] }
+    ports: ["127.0.0.1:8645:8545"]
+
+  v2:
+    <<: *besu
+    labels: { werwa.role: validator, werwa.party: holco, werwa.region: b }
+    command:
+      - --config-file=/config/node.toml
+      - --p2p-host=172.30.10.12
+      - --rpc-http-enabled
+      - --rpc-http-host=0.0.0.0
+      - --rpc-http-api=ETH,NET,WEB3
+    volumes:
+      - ./config/node.toml:/config/node.toml:ro
+      - ./out/shared:/shared:ro
+      - ./out/nodes/v2:/keys:ro
+      - ./out/perm/v2:/perm
+      - ./out/data/v2:/data
+    networks:
+      p2p: { ipv4_address: 172.30.10.12 }
+      app: { aliases: [v2.werwa.devnet] }
+    ports: ["127.0.0.1:8655:8545"]
+
+  v3:
+    <<: *besu
+    labels: { werwa.role: validator, werwa.party: bidv, werwa.region: bidv }
+    command:
+      - --config-file=/config/node.toml
+      - --p2p-host=172.30.10.13
+    volumes:
+      - ./config/node.toml:/config/node.toml:ro
+      - ./out/shared:/shared:ro
+      - ./out/nodes/v3:/keys:ro
+      - ./out/perm/v3:/perm
+      - ./out/data/v3:/data
+    networks:
+      p2p: { ipv4_address: 172.30.10.13 }
+
+  v4:
+    <<: *besu
+    labels: { werwa.role: validator, werwa.party: vsdc, werwa.region: vsdc }
+    command:
+      - --config-file=/config/node.toml
+      - --p2p-host=172.30.10.14
+    volumes:
+      - ./config/node.toml:/config/node.toml:ro
+      - ./out/shared:/shared:ro
+      - ./out/nodes/v4:/keys:ro
+      - ./out/perm/v4:/perm
+      - ./out/data/v4:/data
+    networks:
+      p2p: { ipv4_address: 172.30.10.14 }
+
+  o1-a:
+    <<: *besu
+    labels: { werwa.role: reader, werwa.party: holco, werwa.region: a }
+    command:
+      - --config-file=/config/node.toml
+      - --p2p-host=172.30.10.21
+      - --rpc-http-enabled
+      - --rpc-http-host=0.0.0.0
+      - --rpc-http-api=ETH,NET,WEB3,QBFT
+    volumes:
+      - ./config/node.toml:/config/node.toml:ro
+      - ./out/shared:/shared:ro
+      - ./out/nodes/o1-a:/keys:ro
+      - ./out/perm/o1-a:/perm
+      - ./out/data/o1-a:/data
+    networks:
+      p2p: { ipv4_address: 172.30.10.21 }
+      app: { aliases: [o1-a.werwa.devnet] }
+    ports: ["127.0.0.1:8545:8545"]
+
+  o1-b:
+    <<: *besu
+    labels: { werwa.role: reader, werwa.party: holco, werwa.region: b }
+    command:
+      - --config-file=/config/node.toml
+      - --p2p-host=172.30.10.22
+      - --rpc-http-enabled
+      - --rpc-http-host=0.0.0.0
+      - --rpc-http-api=ETH,NET,WEB3,QBFT
+    volumes:
+      - ./config/node.toml:/config/node.toml:ro
+      - ./out/shared:/shared:ro
+      - ./out/nodes/o1-b:/keys:ro
+      - ./out/perm/o1-b:/perm
+      - ./out/data/o1-b:/data
+    networks:
+      p2p: { ipv4_address: 172.30.10.22 }
+      app: { aliases: [o1-b.werwa.devnet] }
+    ports: ["127.0.0.1:8555:8545"]
+
+networks:
+  p2p:
+    name: werwa-devnet-p2p
+    ipam:
+      config: [{ subnet: 172.30.10.0/24 }]
+  app:
+    name: werwa-devnet-app
