@@ -68,7 +68,9 @@ contract DeployPlatform is Script {
 
     function run() external returns (Deployed memory d) {
         Config memory cfg = _configFromEnv();
-        vm.startBroadcast();
+        // Gửi giao dịch bằng chính người gọi run() (--sender, hoặc ví duy nhất được truyền). deploy() dùng
+        // msg.sender làm khóa quản lý tạm của ClaimIssuer, nên người gửi giao dịch và msg.sender phải trùng (I1).
+        vm.startBroadcast(msg.sender);
         d = deploy(cfg);
         vm.stopBroadcast();
         _log(d);
@@ -114,10 +116,10 @@ contract DeployPlatform is Script {
     /// @dev Bên cấp claim Holco. Khóa triển khai làm khóa quản lý tạm để thêm khóa ký (trong HSM),
     ///      rồi giao quyền quản lý cho Safe Holco và tự gỡ.
     function _deployClaimIssuer(Config memory cfg, Deployed memory d) internal {
-        ClaimIssuer issuer = new ClaimIssuer(address(this));
+        ClaimIssuer issuer = new ClaimIssuer(msg.sender);
         issuer.addKey(keccak256(abi.encode(cfg.holcoClaimSigner)), 3, 1);
         issuer.addKey(keccak256(abi.encode(cfg.holcoSafe)), 1, 1);
-        issuer.removeKey(keccak256(abi.encode(address(this))), 1);
+        issuer.removeKey(keccak256(abi.encode(msg.sender)), 1);
         d.holcoClaimIssuer = address(issuer);
         uint256[] memory topics = new uint256[](2);
         topics[0] = cfg.kycTopic;
