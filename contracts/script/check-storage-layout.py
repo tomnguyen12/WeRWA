@@ -44,7 +44,8 @@ def layout(target):
             "label": s["label"],
             "slot": int(s["slot"]),
             "offset": int(s["offset"]),
-            "type": re.sub(r"\)\d+_", ")_", label_t),
+            # Biến kiểu hợp đồng/giao diện lưu như address: đổi tên giao diện không đổi bố cục.
+            "type": "address" if label_t.startswith("contract ") else re.sub(r"\)\d+_", ")_", label_t),
             "slots": max(1, int(types.get(t, {}).get("numberOfBytes", "32")) // 32),
         })
     return entries

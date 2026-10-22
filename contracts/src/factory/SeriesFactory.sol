@@ -3,9 +3,7 @@ pragma solidity 0.8.17;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
-import {TokenProxy} from "@trex/proxy/TokenProxy.sol";
-import {ModularComplianceProxy} from "@trex/proxy/ModularComplianceProxy.sol";
-import {IModularCompliance} from "@trex/compliance/modular/IModularCompliance.sol";
+import {IERC3643Compliance, IERC3643Administrable, IERC3643SuiteDeployer} from "../erc3643/IERC3643.sol";
 
 import {ISeriesController} from "../ISeriesController.sol";
 import {SeriesController} from "../SeriesController.sol";
@@ -14,17 +12,9 @@ import {InvestorClassModule} from "../compliance/InvestorClassModule.sol";
 import {HoldingLimitModule} from "../compliance/HoldingLimitModule.sol";
 import {TransferGateModule} from "../compliance/TransferGateModule.sol";
 
-interface IOwnable {
-    function transferOwnership(address newOwner) external;
-}
-
-interface IAgentRole {
-    function addAgent(address agent) external;
-}
-
 /// @title SeriesFactory
 /// @notice Triển khai trọn bộ hợp đồng của một series trong một giao dịch (ADR-04; docs/design/04-hop-dong-thong-minh.md):
-///         SeriesController (BeaconProxy), modular compliance và token T-REX (proxy theo Implementation Authority),
+///         SeriesController (BeaconProxy), compliance và token ERC-3643 (qua tokenDeployer, ADR-0019),
 ///         ba module tuân thủ đã cấu hình. Controller là agent duy nhất của token; token và compliance thuộc timelock.
 ///         Chỉ GOVERNANCE (UBND + VSDC + Holco · 3/3) được gọi (ADR-05, máy Series cạnh 4).
 /// @dev Chạy sau TransparentUpgradeableProxy; ProxyAdmin thuộc timelock (C13). Giữ `__gap` cho nâng cấp.
@@ -51,8 +41,8 @@ contract SeriesFactory is Initializable {
     address public governance;
     /// @notice Timelock: chủ sở hữu token, compliance của mọi series.
     address public timelock;
-    /// @notice Implementation Authority của T-REX (dùng chung, thuộc timelock).
-    address public implementationAuthority;
+    /// @notice Bộ tạo token và compliance theo phương án của ADR-0019 (bản XD: TREXSuiteDeployer, phương án A).
+    IERC3643SuiteDeployer public tokenDeployer;
     /// @notice Sổ định danh dùng chung.
     address public identityRegistry;
     /// @notice Beacon của SeriesController (thuộc timelock).
@@ -90,18 +80,18 @@ contract SeriesFactory is Initializable {
     function initialize(
         address governance_,
         address timelock_,
-        address implementationAuthority_,
+        address tokenDeployer_,
         address identityRegistry_,
         address controllerBeacon_,
         address moduleDeployer_
     ) external initializer {
         if (
-            governance_ == address(0) || timelock_ == address(0) || implementationAuthority_ == address(0)
+            governance_ == address(0) || timelock_ == address(0) || tokenDeployer_ == address(0)
                 || identityRegistry_ == address(0) || controllerBeacon_ == address(0) || moduleDeployer_ == address(0)
         ) revert ZeroAddress();
         governance = governance_;
         timelock = timelock_;
-        implementationAuthority = implementationAuthority_;
+        tokenDeployer = IERC3643SuiteDeployer(tokenDeployer_);
         identityRegistry = identityRegistry_;
         controllerBeacon = controllerBeacon_;
         moduleDeployer = ModuleDeployer(moduleDeployer_);
@@ -121,10 +111,7 @@ contract SeriesFactory is Initializable {
         if (_series[terms.seriesId].controller != address(0)) revert SeriesExists();
 
         r.controller = address(new BeaconProxy(controllerBeacon, ""));
-        r.compliance = address(new ModularComplianceProxy(implementationAuthority));
-        r.token = address(
-            new TokenProxy(implementationAuthority, identityRegistry, r.compliance, cfg.name, cfg.symbol, 0, address(0))
-        );
+        (r.token, r.compliance) = tokenDeployer.deployTokenSet(identityRegistry, cfg.name, cfg.symbol);
         ModuleDeployer.Modules memory m = moduleDeployer.deploy();
         r.investorClassModule = m.investorClass;
         r.holdingLimitModule = m.holdingLimit;
@@ -136,9 +123,9 @@ contract SeriesFactory is Initializable {
             terms.seriesId, r.controller, r.token, r.compliance, m.investorClass, m.holdingLimit, m.transferGate
         );
 
-        _configureCompliance(IModularCompliance(r.compliance), m, r.controller, terms, cfg);
+        _configureCompliance(IERC3643Compliance(r.compliance), m, r.controller, terms, cfg);
 
-        IAgentRole(r.token).addAgent(r.controller);
+        IERC3643Administrable(r.token).addAgent(r.controller);
         SeriesController(r.controller).initialize(terms, r.token);
 
         // Factory không giữ quyền nào sau khi triển khai.
@@ -167,7 +154,7 @@ contract SeriesFactory is Initializable {
     }
 
     function _configureCompliance(
-        IModularCompliance compliance,
+        IERC3643Compliance compliance,
         ModuleDeployer.Modules memory m,
         address controller,
         ISeriesController.SeriesTerms calldata terms,
@@ -197,6 +184,6 @@ contract SeriesFactory is Initializable {
 
     function _transferOwnership(address target, address newOwner) private {
         // Token và compliance của T-REX dùng OwnableUpgradeable.
-        IOwnable(target).transferOwnership(newOwner);
+        IERC3643Administrable(target).transferOwnership(newOwner);
     }
 }

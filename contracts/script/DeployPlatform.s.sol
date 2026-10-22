@@ -26,6 +26,7 @@ import {SeriesFactory} from "../src/factory/SeriesFactory.sol";
 import {ModuleDeployer} from "../src/factory/ModuleDeployer.sol";
 import {WeRWATimelock} from "../src/governance/WeRWATimelock.sol";
 import {AuditAnchor} from "../src/AuditAnchor.sol";
+import {TREXSuiteDeployer} from "../src/adapters/trex/TREXSuiteDeployer.sol";
 
 /// @notice Triển khai toàn nền tảng WeRWA lên một mạng (devnet, mạng thử XD).
 ///         Không chứa khóa: người gửi giao dịch là khóa triển khai truyền qua `forge script --sender/--account`;
@@ -130,17 +131,14 @@ contract DeployPlatform is Script {
     function _deployWeRWA(Config memory cfg, Deployed memory d) internal {
         d.controllerBeacon = address(new UpgradeableBeacon(address(new SeriesController())));
         d.moduleDeployer = address(new ModuleDeployer(cfg.kycTopic, cfg.classTopic));
+        // ADR-0019: bản XD chạy phương án A (T-REX).
+        // Không đưa vào Deployed: infra/platform/deploy.sh đọc kết quả run() theo vị trí 12 trường.
+        // Địa chỉ đọc lại qua SeriesFactory.tokenDeployer().
+        address tokenDeployer = address(new TREXSuiteDeployer(d.implementationAuthority));
         d.proxyAdmin = address(new ProxyAdmin());
         bytes memory init = abi.encodeCall(
             SeriesFactory.initialize,
-            (
-                cfg.governance3of3,
-                d.timelock,
-                d.implementationAuthority,
-                d.identityRegistry,
-                d.controllerBeacon,
-                d.moduleDeployer
-            )
+            (cfg.governance3of3, d.timelock, tokenDeployer, d.identityRegistry, d.controllerBeacon, d.moduleDeployer)
         );
         d.seriesFactory = address(new TransparentUpgradeableProxy(address(new SeriesFactory()), d.proxyAdmin, init));
         // Neo nhật ký kiểm toán: OPERATOR là khóa vận hành Holco; GOVERNANCE xoay khóa (C3).

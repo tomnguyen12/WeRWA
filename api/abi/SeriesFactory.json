@@ -220,19 +220,6 @@
   },
   {
     "type": "function",
-    "name": "implementationAuthority",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "initialize",
     "inputs": [
       {
@@ -246,7 +233,7 @@
         "internalType": "address"
       },
       {
-        "name": "implementationAuthority_",
+        "name": "tokenDeployer_",
         "type": "address",
         "internalType": "address"
       },
@@ -387,6 +374,19 @@
         "name": "",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "tokenDeployer",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IERC3643SuiteDeployer"
       }
     ],
     "stateMutability": "view"

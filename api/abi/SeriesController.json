@@ -317,7 +317,7 @@
       {
         "name": "",
         "type": "address",
-        "internalType": "contract IIdentityRegistry"
+        "internalType": "contract IERC3643IdentityRegistry"
       }
     ],
     "stateMutability": "view"
@@ -1041,7 +1041,7 @@
       {
         "name": "",
         "type": "address",
-        "internalType": "contract IToken"
+        "internalType": "contract IERC3643Token"
       }
     ],
     "stateMutability": "view"

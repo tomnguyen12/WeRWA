@@ -28,7 +28,7 @@
     "slots": 1
   },
   {
-    "label": "implementationAuthority",
+    "label": "tokenDeployer",
     "slot": 2,
     "offset": 0,
     "type": "address",
@@ -52,7 +52,7 @@
     "label": "moduleDeployer",
     "slot": 5,
     "offset": 0,
-    "type": "contract ModuleDeployer",
+    "type": "address",
     "slots": 1
   },
   {

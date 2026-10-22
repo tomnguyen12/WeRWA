@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
+import {WeRWAModuleBase} from "../../src/compliance/WeRWAModuleBase.sol";
 import {ModuleTestBase} from "./ModuleTestBase.sol";
 import {HoldingLimitModule} from "../../src/compliance/HoldingLimitModule.sol";
 
@@ -192,11 +193,11 @@ contract HoldingLimitModuleTest is ModuleTestBase {
 
     // US-4.01-AC3: đổi tham số chỉ qua multisig 3 bên (chủ compliance).
     function test_US_4_01_AC3_configOnlyThroughCompliance() public {
-        vm.expectRevert("only bound compliance can call");
+        vm.expectRevert(WeRWAModuleBase.OnlyBoundCompliance.selector);
         limitModule.configure(1, 0);
-        vm.expectRevert("only bound compliance can call");
+        vm.expectRevert(WeRWAModuleBase.OnlyBoundCompliance.selector);
         limitModule.setExemptKinds(BIT_PLATFORM);
-        vm.expectRevert("only bound compliance can call");
+        vm.expectRevert(WeRWAModuleBase.OnlyBoundCompliance.selector);
         limitModule.setWalletKind(alice, HoldingLimitModule.WalletKind.PLATFORM_OMNIBUS);
 
         vm.prank(alice);

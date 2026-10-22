@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
+import {WeRWAModuleBase} from "../../src/compliance/WeRWAModuleBase.sol";
 import {ModuleTestBase} from "./ModuleTestBase.sol";
 import {InvestorClassModule} from "../../src/compliance/InvestorClassModule.sol";
 import {Identity} from "@onchain-id/solidity/contracts/Identity.sol";
@@ -217,7 +218,7 @@ contract InvestorClassModuleTest is ModuleTestBase {
 
     // US-4.01-AC3: đổi tham số chỉ qua multisig 3 bên (chủ compliance).
     function test_US_4_01_AC3_configOnlyThroughCompliance() public {
-        vm.expectRevert("only bound compliance can call");
+        vm.expectRevert(WeRWAModuleBase.OnlyBoundCompliance.selector);
         classModule.setInvestorClasses(_classes2());
         vm.prank(eligible);
         vm.expectRevert("Ownable: caller is not the owner");
