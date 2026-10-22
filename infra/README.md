@@ -33,6 +33,41 @@ Tắt theo thứ tự ngược lại: giám sát (dùng mạng p2p của devnet)
 
 **Mạng `werwa-devnet-app`:** mọi compose khai báo `external: true`; script nào chạy trước thì tạo mạng. Chỉ `werwa.sh clean` gỡ mạng này. Backend chạy trong container thì tham gia mạng này để thấy `o1-a.werwa.devnet`, `v1.werwa.devnet`, `postgres.werwa.devnet`, `nats.werwa.devnet`, `keycloak.werwa.devnet`.
 
+### Tệp env gộp cho backend (I11)
+
+`up` ghi hai tệp (quyền 600, gitignore), cùng nội dung, khác địa chỉ:
+
+| Tệp | Cho backend chạy | Địa chỉ |
+|---|---|---|
+| `out/werwa.env` | trên máy | `127.0.0.1`, `localhost` |
+| `out/werwa.docker.env` | trong container ở mạng `werwa-devnet-app` | `*.werwa.devnet` |
+
+```bash
+set -a; source "$(infra/werwa.sh env)"; set +a            # backend chạy trên máy
+docker run --env-file "$(infra/werwa.sh env --docker)" --network werwa-devnet-app …
+```
+
+Tên biến theo chuẩn Spring (I11). Property có sẵn của Spring giữ tên chuẩn. Phần riêng của WeRWA ứng với `@ConfigurationProperties(prefix = "werwa")` theo relaxed binding: thay dấu chấm bằng `_`, bỏ dấu gạch ngang, viết hoa. Danh sách là chuỗi cách nhau bằng dấu phẩy.
+
+| Biến | Property | Giá trị |
+|---|---|---|
+| `SPRING_DATASOURCE_URL`, `_USERNAME`, `_PASSWORD` | `spring.datasource.*` | DB `werwa`, role `werwa_app` |
+| `WERWA_NATS_URL`, `_USERNAME`, `_PASSWORD`, `_STREAM` | `werwa.nats.*` | người dùng `werwa_app`, stream `WERWA` |
+| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI`, `_JWKSETURI`, `_AUDIENCES` | `spring.security.oauth2.resourceserver.jwt.issuer-uri`, `jwk-set-uri`, `audiences` | issuer cố định `http://localhost:8180/realms/werwa` ở cả hai tệp (I8); JWKS theo nơi chạy; audience `werwa-api` |
+| `WERWA_OIDC_CLIENTID` | `werwa.oidc.client-id` | `werwa-web` |
+| `WERWA_CHAIN_ID` | `werwa.chain.id` | chain ID devnet |
+| `WERWA_CHAIN_READURLS` | `werwa.chain.read-urls` | O1-a, O1-b: chỉ đọc qua O1 (ADR-12) |
+| `WERWA_CHAIN_SUBMITURLS` | `werwa.chain.submit-urls` | V1, V2: gửi giao dịch |
+| `WERWA_CHAIN_DEPLOYEDATBLOCK` | `werwa.chain.deployed-at-block` | khối triển khai nền tảng, mốc bắt đầu cho indexer |
+| `WERWA_CHAIN_SIGNINGMODE` | `werwa.chain.signing-mode` | `devnet` hoặc `pkcs11` (I12) |
+| `WERWA_CONTRACTS_<TÊN>` | `werwa.contracts.<tên>` | mọi hợp đồng trong `devnet.json`, ví dụ `WERWA_CONTRACTS_SERIESFACTORY` ↔ `werwa.contracts.series-factory` |
+| `WERWA_SAFES_<TÊN>` | `werwa.safes.<tên>` | Safe các bên, ví dụ `WERWA_SAFES_GOVERNANCE3OF3` |
+| `WERWA_MONITORING_ALERTMANAGERURL` | `werwa.monitoring.alertmanager-url` | chỉ có khi bật giám sát |
+
+`backend.env` của `services/` và `keycloak/` dùng cùng tên biến (đã đổi `..._ISSUER_URI`, `..._JWK_SET_URI`, `WERWA_OIDC_CLIENT_ID` sang dạng không gạch dưới giữa từ, vì Spring không ghép `issuer_uri` thành `issuer-uri`).
+
+Alertmanager có thêm tên `alertmanager.werwa.devnet` trong mạng `werwa-devnet-app`, để backend đọc cảnh báo và Alertmanager gửi webhook vào backend (I5).
+
 Các script con bên dưới vẫn chạy riêng được.
 
 ## Devnet
@@ -186,7 +221,7 @@ Luật ở `monitoring/rules/werwa-chain.yml`.
 - **Issuer (I8):** cố định `http://localhost:8180/realms/werwa`, bật backchannel động: backend trong mạng `werwa-devnet-app` lấy JWKS qua `keycloak.werwa.devnet` mà vẫn kiểm đúng issuer. Devnet chạy HTTP; TLS làm ở môi trường XD.
 - **Admin realm `master` (I10):** `admin`, mật khẩu trong `keycloak/out/.env`, không OTP; chỉ mở ở `127.0.0.1`, không phải người dùng nền tảng.
 
-Kết quả trong `keycloak/out/` (gitignore): `.env` (mật khẩu DB và admin), `werwa-realm.json` (realm đã dựng, không có bí mật), `backend.env` (`SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI`, `..._JWK_SET_URI`, `..._AUDIENCES`).
+Kết quả trong `keycloak/out/` (gitignore): `.env` (mật khẩu DB và admin), `werwa-realm.json` (realm đã dựng, không có bí mật), `backend.env` (`SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI`, `..._JWKSETURI`, `..._AUDIENCES`, tên theo relaxed binding của Spring, I11).
 
 Lệnh: `up`, `status`, `down` (giữ dữ liệu), `reset` (xóa DB `keycloak`, giữ mật khẩu và khóa OTP người dùng thử), `clean` (xóa cả `out/`).
 
@@ -249,9 +284,10 @@ Khóa OTP là chuỗi Keycloak lưu nguyên; khóa HMAC là byte UTF-8 của chu
 | D7 | `tokenDeployer` trong `devnet.json` trùng `SeriesFactory.tokenDeployer()`, có code, dùng Implementation Authority chung, không có chủ sở hữu | `test/deploy-platform.sh` |
 | R1–R7 | `read-run.sh` ghép đúng tên và địa chỉ; thêm trường hay đổi thứ tự vẫn đúng; thiếu trường infra cần, ABI lệch bản ghi, ABI không có `run()` thì dừng; ABI thật của `DeployPlatform` có đủ trường infra cần. Chạy không cần chuỗi, trừ R7 cần đã build `contracts/` | `test/read-run.sh` |
 | W1 | Sau `werwa.sh up`: 4 validator tạo khối, hai O1 cùng mã băm; 6 Safe; timelock và `tokenDeployer` có code; `werwa_app` đăng nhập DB; stream `WERWA` có; issuer Keycloak đúng; Prometheus thấy 6 node; không có cảnh báo critical; devnet, services, Keycloak cùng ở mạng `werwa-devnet-app` do script tạo | `test/werwa.sh` |
-| W2 | `up` lần nữa không tạo lại gì: cùng hợp đồng, Safe, mật khẩu, khóa OTP; nền tảng, realm, người dùng thử báo đã có | như trên |
+| W2 | `up` lần nữa không tạo lại gì: cùng hợp đồng, Safe, mật khẩu, khóa OTP, tệp env gộp; nền tảng, realm, người dùng thử báo đã có | như trên |
 | W3 | `down` dừng mọi container; `up` lại: chuỗi chạy tiếp từ khối cũ, hợp đồng còn, người dùng thử đăng nhập bằng OTP cũ | như trên |
 | W4 | `clean` không để lại container, volume, mạng, `out/` (chỉ chạy với `--clean`) | như trên |
+| W5 | `out/werwa.env`, `out/werwa.docker.env`: đủ biến, tên theo relaxed binding (I11), quyền 600, gitignore; mọi giá trị dùng được thật: đăng nhập DB, kết nối NATS, discovery và JWKS của Keycloak, RPC đọc chỉ là O1 và mọi RPC trả đúng chain ID, mỗi hợp đồng và Safe có code, Alertmanager trả lời. Biến thể Docker thử từ một container trong mạng `werwa-devnet-app` | `test/werwa.sh` |
 
 US-6.01-AC3: hạ tầng giao cảnh báo tới Alertmanager và webhook; phần hiện lên màn hình vận hành thuộc backend và frontend (I5 trong `docs/open-questions.md`).
 

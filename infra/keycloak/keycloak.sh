@@ -153,12 +153,13 @@ seed_users() {
 
 write_backend_env() {
   (umask 077; cat >"$OUT/backend.env" <<EOF
-# Sinh bởi keycloak.sh — xác thực token OIDC cho backend chạy trên máy (I3, I8).
+# Sinh bởi keycloak.sh — xác thực token OIDC cho backend chạy trên máy (I3, I8). Tên biến theo relaxed
+# binding của Spring (I11): bỏ dấu gạch ngang, ví dụ issuer-uri ↔ ISSUERURI.
 # Issuer cố định; trong mạng werwa-devnet-app lấy JWKS qua $KC_INTERNAL thay cho 127.0.0.1:8180.
-SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=$KC_URL/realms/$REALM
-SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://127.0.0.1:8180/realms/$REALM/protocol/openid-connect/certs
+SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI=$KC_URL/realms/$REALM
+SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI=http://127.0.0.1:8180/realms/$REALM/protocol/openid-connect/certs
 SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES=werwa-api
-WERWA_OIDC_CLIENT_ID=werwa-web
+WERWA_OIDC_CLIENTID=werwa-web
 EOF
   )
 }

@@ -180,7 +180,7 @@ jobs:
           print(msg)
           print(f"::notice::{msg}")
           PY
-      - name: Kiểm dựng trọn (W1–W4)
+      - name: Kiểm dựng trọn và tệp env gộp (W1–W5)
         run: test/werwa.sh --clean
       - name: Nhật ký khi lỗi
         if: failure()

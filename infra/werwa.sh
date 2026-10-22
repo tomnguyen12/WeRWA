@@ -9,6 +9,14 @@
 #   ./werwa.sh reset                       xóa dữ liệu chuỗi, DB, realm và giám sát; giữ khóa, mật khẩu,
 #                                          khóa OTP. `up` sau đó triển khai lại nền tảng lên chuỗi mới
 #   ./werwa.sh clean                       xóa mọi thứ của devnet: container, volume, mạng, mọi out/
+#   ./werwa.sh env [--docker]              in đường dẫn tệp biến môi trường gộp cho backend, ví dụ
+#                                          set -a; source "$(infra/werwa.sh env)"; set +a
+#
+# Tệp env gộp (I11, quyền 600, gitignore), `up` ghi sau khi dựng xong:
+#   out/werwa.env          backend chạy trên máy: địa chỉ 127.0.0.1, localhost
+#   out/werwa.docker.env   backend chạy trong mạng werwa-devnet-app: tên *.werwa.devnet
+# Tên biến theo chuẩn Spring: property có sẵn của Spring giữ tên chuẩn; phần riêng ứng với
+# @ConfigurationProperties(prefix = "werwa") theo relaxed binding (bỏ dấu gạch ngang, viết hoa).
 #
 # Các script con (devnet/, safe/, platform/, services/, keycloak/, monitoring/) vẫn chạy riêng được;
 # werwa.sh chỉ gọi chúng theo đúng thứ tự. Tắt theo thứ tự ngược lại: giám sát dùng mạng p2p của devnet,
@@ -30,6 +38,12 @@ NATSCLI_VERSION=0.5.0
 P2P_NETWORK=werwa-devnet-p2p
 PROJECTS=(werwa-monitoring werwa-keycloak werwa-services werwa-devnet)
 OUT_DIRS=(devnet/out services/out keycloak/out monitoring/out out)
+
+ENV_OUT="$INFRA/out"
+ENV_HOST="$ENV_OUT/werwa.env"
+ENV_DOCKER="$ENV_OUT/werwa.docker.env"
+# Issuer cố định (I8), trùng KC_URL của infra/keycloak/lib.sh.
+KC_ISSUER="http://localhost:8180/realms/werwa"
 
 step() { log "── $* ──"; }
 run() { local name="$1"; shift; "$@" || die "bước \"$name\" thất bại: $*"; }
@@ -74,8 +88,86 @@ cmd_up() {
   else
     log "bỏ qua giám sát (--without monitoring)"
   fi
+  step "tệp env gộp cho backend"; write_env "$monitoring"
   log "devnet WeRWA sẵn sàng sau $(( $(date +%s) - t0 )) giây"
+  log "biến cho backend: $ENV_HOST (backend trong Docker: $ENV_DOCKER)"
   cmd_status
+}
+
+# ── tệp env gộp (I11) ─────────────────────────────────────────────────────────
+# render_env <host|docker> <có giám sát 1|0>: in nội dung tệp env cho một biến thể.
+svc_secret() { grep -E "^$1=" "$INFRA/services/out/.env" | cut -d= -f2-; }
+
+render_env() {
+  local v="$1" mon="$2" plat="$DEVNET_OUT/platform/devnet.json" safes="$DEVNET_OUT/safe/safes.json"
+  local pg nats kc_jwks read submit am where
+  if [ "$v" = host ]; then
+    where="chạy trên máy"
+    pg=127.0.0.1:5432; nats=127.0.0.1:4222; kc_jwks=http://127.0.0.1:8180; am=http://127.0.0.1:9093
+    read="$O1A_RPC,$O1B_RPC"; submit="$V1_RPC,$V2_RPC"
+  else
+    where="chạy trong mạng $APP_NETWORK"
+    pg=postgres.werwa.devnet:5432; nats=nats.werwa.devnet:4222; kc_jwks=http://keycloak.werwa.devnet:8080
+    am=http://alertmanager.werwa.devnet:9093
+    read=http://o1-a.werwa.devnet:8545,http://o1-b.werwa.devnet:8545
+    submit=http://v1.werwa.devnet:8545,http://v2.werwa.devnet:8545
+  fi
+  cat <<ENVEOF
+# Sinh bởi infra/werwa.sh — biến cho backend WeRWA ($where).
+# Chỉ cho devnet: có mật khẩu, không commit, không dùng ở môi trường khác. Tên biến theo I11.
+
+# PostgreSQL (DB werwa, role werwa_app; sáu schema do Flyway tạo)
+SPRING_DATASOURCE_URL=jdbc:postgresql://$pg/werwa
+SPRING_DATASOURCE_USERNAME=werwa_app
+SPRING_DATASOURCE_PASSWORD=$(svc_secret WERWA_APP_DB_PASSWORD)
+
+# NATS JetStream (stream WERWA, I2) → werwa.nats.*
+WERWA_NATS_URL=nats://$nats
+WERWA_NATS_USERNAME=werwa_app
+WERWA_NATS_PASSWORD=$(svc_secret NATS_APP_PASSWORD)
+WERWA_NATS_STREAM=WERWA
+
+# OIDC (Keycloak realm werwa, I3, I8): issuer cố định ở mọi biến thể, JWKS theo nơi chạy
+SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI=$KC_ISSUER
+SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI=$kc_jwks/realms/werwa/protocol/openid-connect/certs
+SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES=werwa-api
+WERWA_OIDC_CLIENTID=werwa-web
+
+# Chuỗi → werwa.chain.*: đọc chỉ qua O1 (ADR-12), gửi giao dịch qua V1, V2; danh sách theo thứ tự ưu tiên
+WERWA_CHAIN_ID=$(jq -r .chainId "$plat")
+WERWA_CHAIN_READURLS=$read
+WERWA_CHAIN_SUBMITURLS=$submit
+WERWA_CHAIN_DEPLOYEDATBLOCK=$(jq -r .deployedAtBlock "$plat")
+WERWA_CHAIN_SIGNINGMODE=$(jq -r .signingMode "$plat")
+
+# Hợp đồng dùng chung (devnet/out/platform/devnet.json) → werwa.contracts.<tên>
+ENVEOF
+  jq -r '.contracts | to_entries[] | "WERWA_CONTRACTS_\(.key | ascii_upcase)=\(.value)"' "$plat"
+  echo
+  echo "# Safe các bên (ADR-05, devnet/out/safe/safes.json) → werwa.safes.<tên>"
+  jq -r '.safes | to_entries[] | "WERWA_SAFES_\(.key | ascii_upcase)=\(.value.address)"' "$safes"
+  if [ "$mon" = 1 ]; then
+    echo
+    echo "# Giám sát (US-6.01-AC3, I5) → werwa.monitoring.*"
+    echo "WERWA_MONITORING_ALERTMANAGERURL=$am"
+  fi
+}
+
+write_env() {
+  local mon="${1:-1}"
+  [ -f "$DEVNET_OUT/platform/devnet.json" ] || die "chưa có devnet.json; chạy ./werwa.sh up"
+  [ -f "$INFRA/services/out/.env" ] || die "chưa có services/out/.env; chạy ./werwa.sh up"
+  mkdir -p "$ENV_OUT"
+  (umask 077
+   render_env host "$mon" >"$ENV_HOST.tmp" && mv "$ENV_HOST.tmp" "$ENV_HOST"
+   render_env docker "$mon" >"$ENV_DOCKER.tmp" && mv "$ENV_DOCKER.tmp" "$ENV_DOCKER")
+}
+
+cmd_env() {
+  local f="$ENV_HOST"
+  [ "${1:-}" = --docker ] && f="$ENV_DOCKER"
+  [ -f "$f" ] || die "chưa có $f; chạy ./werwa.sh up"
+  echo "$f"
 }
 
 # ── status ────────────────────────────────────────────────────────────────────
@@ -157,5 +249,6 @@ case "${1:-}" in
   down) cmd_down ;;
   reset) cmd_reset ;;
   clean) cmd_clean ;;
-  *) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  env) shift; cmd_env "$@" ;;
+  *) sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
