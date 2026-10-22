@@ -5,10 +5,13 @@
 #   W1  mọi phần khỏe: 4 validator tạo khối, hai O1 cùng mã băm khối; 6 Safe; nền tảng đã triển khai (timelock,
 #       tokenDeployer có code); werwa_app đăng nhập DB werwa; stream WERWA có; issuer Keycloak đúng; Prometheus
 #       thấy 6 node; không có cảnh báo critical; devnet, services, Keycloak cùng ở mạng werwa-devnet-app
-#   W2  `up` lần nữa không tạo lại gì: cùng địa chỉ hợp đồng và Safe, cùng mật khẩu và khóa OTP; nền tảng,
+#   W2  `up` lần nữa không tạo lại gì: cùng địa chỉ hợp đồng và Safe, cùng mật khẩu, khóa OTP và tệp env gộp; nền tảng,
 #       realm, người dùng thử đều báo đã có; chuỗi chạy tiếp
 #   W3  `down` dừng mọi container; `up` lại: chuỗi chạy tiếp từ khối cũ, hợp đồng còn, người dùng thử đăng
 #       nhập được bằng khóa OTP cũ
+#   W5  tệp env gộp (I11): out/werwa.env và out/werwa.docker.env có đủ biến, tên theo relaxed binding của Spring,
+#       quyền 600, gitignore; mọi giá trị dùng được thật: DB, NATS, OIDC (issuer, JWKS), RPC đọc chỉ là O1 và
+#       trả đúng chain ID, mỗi hợp đồng và Safe có code, Alertmanager trả lời; biến thể Docker thử từ trong mạng
 #   W4  (chỉ khi chạy với --clean) `clean` không để lại container, volume, mạng hay out/ nào của devnet WeRWA
 #
 #   test/werwa.sh            W1–W3 (W3 dừng rồi bật lại devnet)
@@ -41,7 +44,7 @@ fingerprint() {
   {
     jq -S '{chainId, deployer, contracts}' "$PLAT"
     jq -S '.safes | map_values(.address)' "$SAFES"
-    sha256sum "$INFRA/services/out/.env" "$INFRA/keycloak/out/.env" "$USERS_FILE" "$DEVNET_OUT/shared/genesis.json" 2>/dev/null | cut -d' ' -f1
+    sha256sum "$INFRA/services/out/.env" "$INFRA/keycloak/out/.env" "$USERS_FILE" "$INFRA/out/werwa.env" "$INFRA/out/werwa.docker.env" "$DEVNET_OUT/shared/genesis.json" 2>/dev/null | cut -d' ' -f1
   } | sha256sum | cut -d' ' -f1
 }
 
@@ -77,6 +80,100 @@ for c in v1 v2 o1-a o1-b postgres nats keycloak; do grep -q -- "$c" <<<"$on_app"
 check "W1 devnet, services, Keycloak cùng ở mạng $APP_NETWORK" "${miss:-đủ}" "đủ"
 check "W1 mạng $APP_NETWORK do script tạo (không thuộc project Compose nào)" \
   "$(docker network inspect "$APP_NETWORK" | jq -r '.[0].Labels["com.docker.compose.project"] // "không"')" "không"
+
+# ── W5 tệp env gộp (I11) ─────────────────────────────────────────────────────
+# Mọi giá trị được thử dùng thật: biến thể máy từ máy chạy kiểm thử, biến thể Docker từ một container trong
+# mạng werwa-devnet-app (ảnh PostgreSQL đã có sẵn: psql cho DB, /dev/tcp của bash cho HTTP và NATS).
+ENV_HOST=$("$WERWA" env); ENV_DOCKER=$("$WERWA" env --docker)
+ev() { grep -E "^$2=" "$1" | cut -d= -f2-; }
+PROBE_IMAGE="${POSTGRES_IMAGE:-postgres:18.6}"
+in_net() { docker run --rm -i --network "$APP_NETWORK" "$PROBE_IMAGE" bash -s -- "$@"; }
+# http_in_net <method> <url> [body] → thân phản hồi HTTP, gọi từ trong mạng ứng dụng.
+http_in_net() {
+  in_net "$1" "$2" "${3:-}" <<'SH' | tr -d '\r' | sed '1,/^$/d'
+m="$1"; u="${2#http://}"; b="$3"; hp="${u%%/*}"; p="/${u#*/}"; [ "$u" = "$hp" ] && p=/
+h="${hp%%:*}"; port="${hp##*:}"
+exec 3<>"/dev/tcp/$h/$port"
+printf '%s %s HTTP/1.0\r\nHost: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s' "$m" "$p" "$hp" "${#b}" "$b" >&3
+cat <&3
+SH
+}
+rpc_chain_id() { curl -sf --max-time 5 -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' "$1" | jq -r .result; }
+CHAIN_HEX=$(printf '0x%x' "$(jq -r .chainId "$PLAT")")
+REQUIRED_KEYS=(SPRING_DATASOURCE_URL SPRING_DATASOURCE_USERNAME SPRING_DATASOURCE_PASSWORD
+  WERWA_NATS_URL WERWA_NATS_USERNAME WERWA_NATS_PASSWORD WERWA_NATS_STREAM
+  SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI
+  SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES WERWA_OIDC_CLIENTID
+  WERWA_CHAIN_ID WERWA_CHAIN_READURLS WERWA_CHAIN_SUBMITURLS WERWA_CHAIN_DEPLOYEDATBLOCK WERWA_CHAIN_SIGNINGMODE
+  WERWA_MONITORING_ALERTMANAGERURL)
+
+for f in "$ENV_HOST" "$ENV_DOCKER"; do
+  n=$(basename "$f")
+  miss=""; for k in "${REQUIRED_KEYS[@]}"; do [ -n "$(ev "$f" "$k")" ] || miss="$miss $k"; done
+  check "W5 $n có đủ biến bắt buộc" "${miss:-đủ}" "đủ"
+  check "W5 $n: mỗi hợp đồng trong devnet.json có một biến WERWA_CONTRACTS_*" \
+    "$(grep -c '^WERWA_CONTRACTS_' "$f")" "$(jq '.contracts | length' "$PLAT")"
+  check "W5 $n: mỗi Safe có một biến WERWA_SAFES_*" "$(grep -c '^WERWA_SAFES_' "$f")" "$(jq '.safes | length' "$SAFES")"
+  # Tên theo relaxed binding của Spring (I11): chỉ chữ hoa, số, gạch dưới; không có tên kiểu *_URI, *_SET_* tách
+  # từ property có gạch ngang (issuer-uri phải là ISSUERURI).
+  bad=$( { grep -E '^[^#].*=' "$f" | cut -d= -f1 | grep -vE '^[A-Z0-9_]+$'
+          grep -oE '^[A-Z0-9_]*(_ISSUER_URI|_JWK_SET_URI|_CLIENT_ID|_READ_URLS|_SUBMIT_URLS|_DEPLOYED_AT_BLOCK|_SIGNING_MODE|_ALERTMANAGER_URL)=' "$f"
+        } | tr '\n' ' ' || true)
+  check "W5 $n: tên biến theo relaxed binding (I11)" "${bad:-đúng}" "đúng"
+  check "W5 $n quyền 600" "$(stat -c '%a' "$f")" 600
+  if git -C "$INFRA" check-ignore -q "$f"; then pass "W5 $n bị git bỏ qua"; else fail "W5 $n không bị git bỏ qua"; fi
+done
+check "W5 issuer giống nhau ở hai biến thể (I8)" \
+  "$(ev "$ENV_DOCKER" SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI)" "$(ev "$ENV_HOST" SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI)"
+
+# Biến thể máy
+H=$ENV_HOST
+jdbc=$(ev "$H" SPRING_DATASOURCE_URL); hostport=${jdbc#jdbc:postgresql://}; hostport=${hostport%%/*}
+check "W5 werwa.env: PostgreSQL đăng nhập được bằng URL, user, mật khẩu trong tệp" \
+  "$(docker run --rm --network host -e PGPASSWORD="$(ev "$H" SPRING_DATASOURCE_PASSWORD)" "$PROBE_IMAGE" \
+      psql -h "${hostport%%:*}" -p "${hostport##*:}" -U "$(ev "$H" SPRING_DATASOURCE_USERNAME)" -d werwa -tAXc 'select current_user' 2>&1 | tr -d '\r')" \
+  "$(ev "$H" SPRING_DATASOURCE_USERNAME)"
+if nats --server "$(ev "$H" WERWA_NATS_URL)" --user "$(ev "$H" WERWA_NATS_USERNAME)" --password "$(ev "$H" WERWA_NATS_PASSWORD)" \
+     --timeout 3s rtt >/dev/null 2>&1; then pass "W5 werwa.env: NATS kết nối được bằng user, mật khẩu trong tệp"
+else fail "W5 werwa.env: NATS không kết nối được"; fi
+iss=$(ev "$H" SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI)
+check "W5 werwa.env: discovery của issuer trả đúng issuer" "$(curl -sf "$iss/.well-known/openid-configuration" | jq -r .issuer)" "$iss"
+check "W5 werwa.env: JWKS có khóa ký" "$(curl -sf "$(ev "$H" SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI)" | jq '[.keys[] | select(.use == "sig")] | length > 0')" true
+check "W5 werwa.env: WERWA_CHAIN_ID đúng chain" "$(ev "$H" WERWA_CHAIN_ID)" "$(jq -r .chainId "$PLAT")"
+o1_ports=$(for n in o1-a o1-b; do dc port "$n" 8545; done | sed 's/^/http:\/\//' | sort | tr '\n' ',')
+check "W5 werwa.env: WERWA_CHAIN_READURLS là đúng hai O1 (ADR-12), không có validator" \
+  "$(tr ',' '\n' <<<"$(ev "$H" WERWA_CHAIN_READURLS)" | sort | tr '\n' ',')" "$o1_ports"
+for u in $(tr ',' ' ' <<<"$(ev "$H" WERWA_CHAIN_READURLS),$(ev "$H" WERWA_CHAIN_SUBMITURLS)"); do
+  check "W5 werwa.env: $u trả đúng chain ID" "$(rpc_chain_id "$u")" "$CHAIN_HEX"
+done
+nocode=""
+while IFS='=' read -r k a; do has_code "$a" || nocode="$nocode $k"; done < <(grep -E '^WERWA_(CONTRACTS|SAFES)_' "$H")
+check "W5 werwa.env: mọi WERWA_CONTRACTS_*, WERWA_SAFES_* có code trên chuỗi" "${nocode:-đủ}" "đủ"
+check "W5 werwa.env: Alertmanager trả lời" "$(curl -s -o /dev/null -w '%{http_code}' "$(ev "$H" WERWA_MONITORING_ALERTMANAGERURL)/-/ready")" 200
+
+# Biến thể Docker, gọi từ trong mạng werwa-devnet-app
+D=$ENV_DOCKER
+jdbc=$(ev "$D" SPRING_DATASOURCE_URL); hostport=${jdbc#jdbc:postgresql://}; hostport=${hostport%%/*}
+check "W5 werwa.docker.env: PostgreSQL đăng nhập được từ trong mạng" \
+  "$(docker run --rm --network "$APP_NETWORK" -e PGPASSWORD="$(ev "$D" SPRING_DATASOURCE_PASSWORD)" "$PROBE_IMAGE" \
+      psql -h "${hostport%%:*}" -p "${hostport##*:}" -U "$(ev "$D" SPRING_DATASOURCE_USERNAME)" -d werwa -tAXc 'select current_user' 2>&1 | tr -d '\r')" \
+  "$(ev "$D" SPRING_DATASOURCE_USERNAME)"
+nu=$(ev "$D" WERWA_NATS_URL); nu=${nu#nats://}
+check "W5 werwa.docker.env: NATS trả lời từ trong mạng" \
+  "$(in_net "${nu%%:*}" "${nu##*:}" <<<'exec 3<>"/dev/tcp/$1/$2"; head -c 4 <&3' 2>/dev/null)" "INFO"
+check "W5 werwa.docker.env: JWKS có khóa ký, gọi từ trong mạng" \
+  "$(http_in_net GET "$(ev "$D" SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI)" | jq '[.keys[] | select(.use == "sig")] | length > 0')" true
+grep -q 'o1-' <<<"$(ev "$D" WERWA_CHAIN_READURLS)" && ! grep -qE '//v[0-9]' <<<"$(ev "$D" WERWA_CHAIN_READURLS)" \
+  && pass "W5 werwa.docker.env: WERWA_CHAIN_READURLS chỉ có O1 (ADR-12)" || fail "W5 werwa.docker.env: WERWA_CHAIN_READURLS có node không phải O1"
+for u in $(tr ',' ' ' <<<"$(ev "$D" WERWA_CHAIN_READURLS),$(ev "$D" WERWA_CHAIN_SUBMITURLS)"); do
+  check "W5 werwa.docker.env: $u trả đúng chain ID từ trong mạng" \
+    "$(http_in_net POST "$u" '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' | jq -r .result)" "$CHAIN_HEX"
+done
+check "W5 werwa.docker.env: Alertmanager trả lời từ trong mạng" \
+  "$(http_in_net GET "$(ev "$D" WERWA_MONITORING_ALERTMANAGERURL)/-/ready" | head -c 2)" "OK"
+check "W5 hai biến thể cùng mật khẩu, hợp đồng, Safe" \
+  "$(grep -E '^(SPRING_DATASOURCE_PASSWORD|WERWA_NATS_PASSWORD|WERWA_CONTRACTS_|WERWA_SAFES_|WERWA_CHAIN_ID)' "$D" | sha256sum)" \
+  "$(grep -E '^(SPRING_DATASOURCE_PASSWORD|WERWA_NATS_PASSWORD|WERWA_CONTRACTS_|WERWA_SAFES_|WERWA_CHAIN_ID)' "$H" | sha256sum)"
 
 # ── W2 ────────────────────────────────────────────────────────────────────────
 fp1=$(fingerprint)

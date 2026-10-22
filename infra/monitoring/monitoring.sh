@@ -39,6 +39,7 @@ cmd_up() {
   need docker; need curl; need jq
   docker network inspect werwa-devnet-p2p >/dev/null 2>&1 || die "chưa có mạng werwa-devnet-p2p; chạy devnet/devnet.sh up trước"
   render_alertmanager
+  ensure_app_network
   mc up -d
   wait_http "$PROM/-/ready" 90 || die "Prometheus không sẵn sàng"
   wait_http "$AM/-/ready" 90 || die "Alertmanager không sẵn sàng"
