@@ -78,6 +78,23 @@ Kết quả nằm trong `devnet/out/safe/`: `safes.json` (địa chỉ, owner, n
 
 Genesis có thêm factory, nên devnet tạo trước PR này phải chạy `devnet/devnet.sh clean` rồi `up`.
 
+## Triển khai nền tảng
+
+`platform/deploy.sh` chạy `contracts/script/DeployPlatform.s.sol` lên devnet, dùng `devnet/out/safe/safes.env` làm tham số. Địa chỉ ghi vào `devnet/out/platform/devnet.json`. Chạy lại khi đã triển khai thì script không làm gì.
+
+| Chế độ | Khi nào | Khóa triển khai | Khóa vận hành, khóa ký claim Holco |
+|---|---|---|---|
+| `pkcs11` | có `WERWA_SIGNER_RPC` | khóa `deployer` trong SoftHSM; forge gửi `eth_sendTransaction` qua module ký (`--unlocked`) | địa chỉ trong `WERWA_KEYS_FILE` (mặc định `devnet/out/keys.json`) |
+| `devnet` | chưa có module ký | tài khoản thử `deployer` của devnet (tệp trong `out/`) | địa chỉ giữ chỗ, không có khóa riêng: không ai mint hay cấp claim được |
+
+`keys.json` mà module SoftHSM cần xuất:
+
+```json
+{ "deployer": "0x…", "holcoOperator": "0x…", "holcoClaimSigner": "0x…" }
+```
+
+Module ký phải chuyển tiếp các lệnh JSON-RPC khác tới V1, để forge mô phỏng được giao dịch trước khi gửi. Ba địa chỉ trên cần có trong `devnet/out/allowlist.d/`, hoặc chí ít là `deployer` và `holcoOperator`, vì hai khóa này gửi giao dịch.
+
 ## Dịch vụ cho backend
 
 `services/services.sh up` chạy PostgreSQL và NATS JetStream trên mạng `werwa-devnet-app`, chạy lại an toàn. Không cần bật devnet trước. Kiểm thử tích hợp của backend vẫn tự dựng dịch vụ bằng Testcontainers; bộ này dành cho chạy backend trên máy và cho devnet dùng chung.
@@ -193,6 +210,7 @@ Khóa OTP là chuỗi Keycloak lưu nguyên; khóa HMAC là byte UTF-8 của chu
 | K11 | Khởi động lại Keycloak: người dùng và khóa OTP còn, đăng nhập lại được | như trên |
 | K12 | `out/users.json` quyền 600 và bị git bỏ qua | như trên |
 | US-6.01-AC3 (hạ tầng) | Đủ 6 node thì không có cảnh báo. Tắt V3: trong 60 giây Alertmanager có `WerwaValidatorDown` (v3) và `WerwaOnlyThreeValidators`, không báo nhầm mất đồng thuận. Bật lại: trong 90 giây cảnh báo hết | `test/us-6.01-ac3.sh` |
+| D1–D6 | Sau `DeployPlatform`: mọi hợp đồng dùng chung thuộc timelock; chỉ Safe 3/3 lên lịch, Safe UBND/VSDC/Holco hủy lịch, ai cũng thực thi, chờ 1 giờ; SeriesFactory sau proxy của ProxyAdmin, GOVERNANCE là Safe 3/3; bên cấp claim Holco đúng khóa và chủ đề; agent sổ định danh là khóa vận hành; AuditAnchor đúng vai; khóa triển khai không còn quyền gì | `test/deploy-platform.sh` |
 
 US-6.01-AC3: hạ tầng giao cảnh báo tới Alertmanager và webhook; phần hiện lên màn hình vận hành thuộc backend và frontend (I5 trong `docs/open-questions.md`).
 

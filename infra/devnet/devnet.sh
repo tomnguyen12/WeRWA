@@ -28,7 +28,8 @@ VALIDATORS=(v1 v2 v3 v4)
 # Tài khoản thử của devnet, được cấp phép gửi giao dịch. Module khác thêm địa chỉ qua out/allowlist.d/*.txt.
 #   smoke      kiểm thử khói và US-6.01
 #   bootstrap  dựng Safe 1.4.1 và Safe các bên (infra/safe/safe.sh); không giữ vai nào trên hợp đồng
-TEST_ACCOUNTS=(smoke bootstrap)
+#   deployer   khóa triển khai DeployPlatform khi chưa có module ký PKCS#11 (infra/platform/deploy.sh)
+TEST_ACCOUNTS=(smoke bootstrap deployer)
 
 declare -A NODE_IP=(
   [v1]=172.30.10.11 [v2]=172.30.10.12 [v3]=172.30.10.13 [v4]=172.30.10.14
