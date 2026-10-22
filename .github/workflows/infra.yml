@@ -5,11 +5,15 @@ on:
   pull_request:
     paths:
       - 'infra/**'
+      - 'api/openapi.yaml'
+      - 'contracts/script/DeployPlatform.s.sol'
       - '.github/workflows/infra.yml'
   push:
     branches: [main]
     paths:
       - 'infra/**'
+      - 'api/openapi.yaml'
+      - 'contracts/script/DeployPlatform.s.sol'
       - '.github/workflows/infra.yml'
 
 permissions:
@@ -18,6 +22,11 @@ permissions:
 env:
   FOUNDRY_VERSION: v1.8.5
   BESU_IMAGE: hyperledger/besu:26.10.0
+  NATSCLI_VERSION: 0.5.0
+  NATSCLI_SHA256: d9fc93e9e9ab0310deff7e719a8a0da6f9d66f26d473f039aaee70155507aecc
+  KEYCLOAK_IMAGE: quay.io/keycloak/keycloak:26.8.1
+  PROMETHEUS_IMAGE: prom/prometheus:v3.15.0
+  ALERTMANAGER_IMAGE: prom/alertmanager:v0.34.1
 
 jobs:
   devnet:
@@ -29,6 +38,8 @@ jobs:
         working-directory: infra
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: ${{ env.FOUNDRY_VERSION }}
@@ -44,9 +55,87 @@ jobs:
         run: safe/safe.sh up
       - name: US-6.04-AC1 (ngưỡng Safe đúng bảng ADR-05)
         run: test/us-6.04-ac1.sh
+      - name: Triển khai nền tảng (contracts/script/DeployPlatform.s.sol)
+        run: platform/deploy.sh
+      - name: Kiểm sau triển khai (quyền sở hữu, vai, timelock)
+        run: test/deploy-platform.sh
+      - name: Giám sát (Prometheus, Alertmanager)
+        run: monitoring/monitoring.sh up
+      - name: US-6.01-AC3 phần hạ tầng (còn 3 validator thì có cảnh báo)
+        run: test/us-6.01-ac3.sh
       - name: Nhật ký node khi lỗi
         if: failure()
-        run: docker compose -p werwa-devnet logs --no-color --tail 300
+        run: |
+          docker compose -p werwa-devnet logs --no-color --tail 300
+          docker compose -p werwa-monitoring logs --no-color --tail 100 || true
+      - name: Dừng giám sát
+        if: always()
+        run: monitoring/monitoring.sh clean
       - name: Dừng devnet
         if: always()
         run: devnet/devnet.sh clean
+
+  services:
+    name: dịch vụ backend · PostgreSQL, NATS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cài natscli (ghim phiên bản và mã băm)
+        run: |
+          curl -sSfL -o nats.zip "https://github.com/nats-io/natscli/releases/download/v${NATSCLI_VERSION}/nats-${NATSCLI_VERSION}-linux-amd64.zip"
+          echo "${NATSCLI_SHA256}  nats.zip" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          unzip -q -j nats.zip "nats-${NATSCLI_VERSION}-linux-amd64/nats" -d "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Dựng PostgreSQL và NATS JetStream
+        run: services/services.sh up
+      - name: Kiểm dịch vụ (P1–P4, N1–N5)
+        run: test/services.sh
+      - name: Nhật ký khi lỗi
+        if: failure()
+        run: docker compose -p werwa-services logs --no-color --tail 200
+      - name: Dừng dịch vụ
+        if: always()
+        run: services/services.sh clean
+
+  keycloak:
+    name: Keycloak · realm werwa
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: infra
+    env:
+      # SSO idle ngắn để K10 kiểm được hết idle trong vài phút; mặc định 900 giây (I9).
+      WERWA_KC_SSO_IDLE: '60'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cài natscli (ghim phiên bản và mã băm; services.sh cần)
+        run: |
+          curl -sSfL -o nats.zip "https://github.com/nats-io/natscli/releases/download/v${NATSCLI_VERSION}/nats-${NATSCLI_VERSION}-linux-amd64.zip"
+          echo "${NATSCLI_SHA256}  nats.zip" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          unzip -q -j nats.zip "nats-${NATSCLI_VERSION}-linux-amd64/nats" -d "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Kéo ảnh Keycloak
+        run: docker pull "$KEYCLOAK_IMAGE"
+      - name: Dựng PostgreSQL và NATS JetStream
+        run: services/services.sh up
+      - name: Dựng Keycloak, tạo realm werwa và người dùng thử
+        run: keycloak/keycloak.sh up
+      - name: Kiểm Keycloak (K1–K6)
+        run: test/keycloak.sh
+      - name: Người dùng thử và đăng nhập có OTP (US-4.07-AC1, K7–K12)
+        run: test/keycloak-users.sh
+      - name: Nhật ký khi lỗi
+        if: failure()
+        run: docker compose -p werwa-keycloak logs --no-color --tail 300
+      - name: Dừng dịch vụ
+        if: always()
+        run: |
+          keycloak/keycloak.sh clean || true
+          services/services.sh clean

@@ -1,0 +1,43 @@
+# Keycloak cho devnet (ADR-15): realm werwa, OIDC, OTP bắt buộc (I3, I4).
+# Chạy qua `./keycloak.sh up`; script sinh mật khẩu vào out/.env (gitignore) và tạo DB `keycloak`
+# trên PostgreSQL của infra/services trước.
+#
+# Chạy chế độ production (`start`, không `start-dev`). Devnet mở HTTP; TLS làm ở môi trường XD.
+# Issuer cố định theo KC_HOSTNAME; backchannel động để backend trong mạng werwa-devnet-app lấy
+# JWKS qua keycloak.werwa.devnet mà token vẫn mang đúng issuer (I8).
+
+name: werwa-keycloak
+
+services:
+  keycloak:
+    image: ${KEYCLOAK_IMAGE:-quay.io/keycloak/keycloak:26.8.1}
+    restart: unless-stopped
+    command: ["start"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres.werwa.devnet:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?chạy ./keycloak.sh up để sinh mật khẩu}
+      KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost:8180}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      # Admin của realm master: chỉ mở ở 127.0.0.1, không phải người dùng nền tảng (I10).
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?chạy ./keycloak.sh up để sinh mật khẩu}
+      TZ: UTC
+    networks:
+      app: { aliases: [keycloak.werwa.devnet] }
+    ports: ["127.0.0.1:8180:8080", "127.0.0.1:9180:9000"]
+    healthcheck:
+      # Ảnh Keycloak không có curl: hỏi cổng quản trị 9000 bằng /dev/tcp của bash.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+networks:
+  app:
+    name: werwa-devnet-app
+    external: true

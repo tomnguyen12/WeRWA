@@ -1,0 +1,101 @@
+{
+  "$comment": "Tổ chức thử của devnet (I6). org_id cố định, không phải bí mật, để dữ liệu mẫu bảng organization của backend khớp claim org_id. Mỗi tổ chức có 2 người dùng <code>-maker và <code>-checker (duyệt 4 mắt), mang đúng vai của tổ chức. Mật khẩu và khóa OTP sinh vào out/users.json.",
+  "organizations": [
+    {
+      "id": "01a15bc1-f400-7c28-a7a8-d5d4cc19328b",
+      "code": "ubnd",
+      "legalName": "UBND TP.HCM (thử)",
+      "roles": [
+        "ISSUER"
+      ]
+    },
+    {
+      "id": "01a15bc1-f401-70b2-9cfa-eb63c4f24ecc",
+      "code": "operating-agency",
+      "legalName": "Cơ quan điều hành (thử)",
+      "roles": [
+        "OPERATING_AGENCY"
+      ]
+    },
+    {
+      "id": "01a15bc1-f402-7188-aa1d-f504e6afe7e1",
+      "code": "syndicate",
+      "legalName": "Tổ hợp quản lý phát hành (thử)",
+      "roles": [
+        "SYNDICATE"
+      ]
+    },
+    {
+      "id": "01a15bc1-f403-7f0b-8fb9-a75cdc4b5b00",
+      "code": "vsdc",
+      "legalName": "VSDC (thử)",
+      "roles": [
+        "REGISTRAR"
+      ]
+    },
+    {
+      "id": "01a15bc1-f404-72f3-86c3-4f3f7c24f440",
+      "code": "bidv",
+      "legalName": "BIDV (thử)",
+      "roles": [
+        "PAYING_AGENT"
+      ]
+    },
+    {
+      "id": "01a15bc1-f405-7f16-adca-5a6b16465e6f",
+      "code": "treasury",
+      "legalName": "Kho bạc (thử)",
+      "roles": [
+        "TREASURY"
+      ]
+    },
+    {
+      "id": "01a15bc1-f406-76b6-ac98-237eb9f37341",
+      "code": "custodian",
+      "legalName": "Ngân hàng lưu ký (thử)",
+      "roles": [
+        "CUSTODIAN"
+      ]
+    },
+    {
+      "id": "01a15bc1-f407-79bc-8f1d-6af20348c738",
+      "code": "trustee",
+      "legalName": "Trustee (thử)",
+      "roles": [
+        "TRUSTEE"
+      ]
+    },
+    {
+      "id": "01a15bc1-f408-7d65-ace1-f4c87b5c1cdc",
+      "code": "supervisor",
+      "legalName": "Cơ quan giám sát VIFC (thử)",
+      "roles": [
+        "SUPERVISOR"
+      ]
+    },
+    {
+      "id": "01a15bc1-f409-7589-aef1-774ceddccf3f",
+      "code": "holco",
+      "legalName": "Holco (thử)",
+      "roles": [
+        "OPERATOR"
+      ]
+    },
+    {
+      "id": "01a15bc1-f40a-7520-aeb5-19bb9d2faaa5",
+      "code": "investor-a",
+      "legalName": "Nhà đầu tư A (thử)",
+      "roles": [
+        "INVESTOR"
+      ]
+    },
+    {
+      "id": "01a15bc1-f40b-7c54-aa64-c99f087b0103",
+      "code": "investor-b",
+      "legalName": "Nhà đầu tư B (thử)",
+      "roles": [
+        "INVESTOR"
+      ]
+    }
+  ]
+}
