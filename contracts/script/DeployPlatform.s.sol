@@ -62,7 +62,6 @@ contract DeployPlatform is Script {
         address holcoClaimIssuer;
         address controllerBeacon;
         address moduleDeployer;
-        address tokenDeployer;
         address proxyAdmin;
         address seriesFactory;
         address auditAnchor;
@@ -133,11 +132,13 @@ contract DeployPlatform is Script {
         d.controllerBeacon = address(new UpgradeableBeacon(address(new SeriesController())));
         d.moduleDeployer = address(new ModuleDeployer(cfg.kycTopic, cfg.classTopic));
         // ADR-0019: bản XD chạy phương án A (T-REX).
-        d.tokenDeployer = address(new TREXSuiteDeployer(d.implementationAuthority));
+        // Không đưa vào Deployed: infra/platform/deploy.sh đọc kết quả run() theo vị trí 12 trường.
+        // Địa chỉ đọc lại qua SeriesFactory.tokenDeployer().
+        address tokenDeployer = address(new TREXSuiteDeployer(d.implementationAuthority));
         d.proxyAdmin = address(new ProxyAdmin());
         bytes memory init = abi.encodeCall(
             SeriesFactory.initialize,
-            (cfg.governance3of3, d.timelock, d.tokenDeployer, d.identityRegistry, d.controllerBeacon, d.moduleDeployer)
+            (cfg.governance3of3, d.timelock, tokenDeployer, d.identityRegistry, d.controllerBeacon, d.moduleDeployer)
         );
         d.seriesFactory = address(new TransparentUpgradeableProxy(address(new SeriesFactory()), d.proxyAdmin, init));
         // Neo nhật ký kiểm toán: OPERATOR là khóa vận hành Holco; GOVERNANCE xoay khóa (C3).
