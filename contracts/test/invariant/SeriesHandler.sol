@@ -291,6 +291,19 @@ contract SeriesHandler is Test {
             catch {}
     }
 
+    /// @notice ADR-0020: ghi đồng ý hủy vị thế phong tỏa, và bật/tắt điều kiện đồng ý.
+    function recordConsent(uint256 seed, uint64 qty) external tracked("recordConsent") {
+        address w = holders[bound(seed, 0, holders.length - 1)];
+        qty = uint64(bound(qty, 1, 400));
+        vm.prank(roles.enforcement);
+        try controller.recordRedemptionConsent(w, qty, keccak256("order"), keccak256("consent")) {} catch {}
+    }
+
+    function setConsentRequirement(bool required) external tracked("setConsentRequirement") {
+        vm.prank(roles.governance);
+        try controller.setRedemptionConsentRequirement(required, keccak256("basis")) {} catch {}
+    }
+
     /// @notice Đẩy series sang bước kế tiếp theo đúng luồng, để chiến dịch fuzz đi tới các trạng thái sâu
     ///         (ACTIVE, MATURED, CLOSED) thay vì dừng ở đầu máy trạng thái.
     function advance(uint256 seed) external tracked("advance") {

@@ -255,8 +255,11 @@ contract SeriesControllerServicingTest is SeriesFixture {
         assertEq(token.totalSupply(), 0);
     }
 
-    // ADR-0018 (b): bật BURN_AFTER_PAYOUT khi vận hành, hủy cả phần phong tỏa, ghi FrozenPositionRedeemed.
+    // ADR-0018 (b) với ADR-0020 phương án 1 (không cần đồng ý): bật BURN_AFTER_PAYOUT khi vận hành,
+    // hủy cả phần phong tỏa, ghi FrozenPositionRedeemed.
     function test_ADR0018_burnAfterPayout_switchedAtMaturity() public {
+        vm.prank(governance3of3);
+        controller.setRedemptionConsentRequirement(false, keccak256("Y kien phap ly: khong can dong y"));
         vm.prank(enforcement2of2);
         controller.freeze(bob, 300, ORDER);
         _toMatured();
@@ -287,8 +290,10 @@ contract SeriesControllerServicingTest is SeriesFixture {
         assertEq(uint8(_state()), uint8(SeriesState.CLOSED));
     }
 
-    // ADR-0018 (b) đặt trước khi đáo hạn: một lần burnRedeemed là đủ.
+    // ADR-0018 (b) đặt trước khi đáo hạn, ADR-0020 phương án 1: một lần burnRedeemed là đủ.
     function test_ADR0018_burnAfterPayout_setBeforeMaturity() public {
+        vm.prank(governance3of3);
+        controller.setRedemptionConsentRequirement(false, bytes32(0));
         vm.prank(governance3of3);
         controller.setFrozenRedemptionPolicy(ISeriesController.FrozenRedemptionPolicy.BURN_AFTER_PAYOUT, bytes32(0));
         vm.prank(enforcement2of2);
@@ -478,5 +483,120 @@ contract SeriesControllerServicingTest is SeriesFixture {
         vm.prank(enforcement2of2);
         vm.expectRevert(ISeriesController.ExceedsBalance.selector);
         controller.forcedTransfer(bob, carol, 1, ORDER);
+    }
+
+    // =====================================================================
+    // ADR-0020: đồng ý của cơ quan ra lệnh trước khi hủy vị thế phong tỏa
+    // =====================================================================
+
+    event RedemptionConsentRequirementSet(bool required, bytes32 basisHash);
+    event RedemptionConsentRecorded(address indexed wallet, uint64 quantity, bytes32 orderHash, bytes32 consentHash);
+
+    function _burnAfterPayout() internal {
+        vm.prank(governance3of3);
+        controller.setFrozenRedemptionPolicy(ISeriesController.FrozenRedemptionPolicy.BURN_AFTER_PAYOUT, bytes32(0));
+    }
+
+    function _only(address w) internal pure returns (address[] memory h) {
+        h = new address[](1);
+        h[0] = w;
+    }
+
+    // Mặc định phương án 2: chưa có đồng ý thì BURN_AFTER_PAYOUT không hủy phần phong tỏa.
+    function test_ADR0020_defaultRequiresConsent() public {
+        assertTrue(controller.requireRedemptionConsent());
+        _burnAfterPayout();
+        vm.prank(enforcement2of2);
+        controller.freeze(bob, 300, ORDER);
+        _toMatured();
+        vm.expectEmit(true, false, false, true, address(controller));
+        emit Redeemed(bob, 2200, 300);
+        vm.prank(holcoOperator);
+        controller.burnRedeemed(_only(bob));
+        assertEq(token.balanceOf(bob), 300);
+        assertEq(token.getFrozenTokens(bob), 300);
+    }
+
+    // Phương án 2: đồng ý một phần thì chỉ hủy phần đã đồng ý; phần còn lại giữ trên sổ.
+    function test_ADR0020_partialConsentBurnsOnlyConsented() public {
+        _burnAfterPayout();
+        vm.prank(enforcement2of2);
+        controller.freeze(bob, 300, ORDER);
+        vm.expectEmit(true, false, false, true, address(controller));
+        emit RedemptionConsentRecorded(bob, 120, ORDER, keccak256("Van ban dong y 1"));
+        vm.prank(enforcement2of2);
+        controller.recordRedemptionConsent(bob, 120, ORDER, keccak256("Van ban dong y 1"));
+        assertEq(controller.consentedQuantity(bob), 120);
+        _toMatured();
+
+        vm.expectEmit(true, false, false, true, address(controller));
+        emit FrozenPositionRedeemed(bob, 120, PAYOUT);
+        vm.prank(holcoOperator);
+        controller.burnRedeemed(_only(bob));
+        assertEq(token.balanceOf(bob), 180);
+        assertEq(token.getFrozenTokens(bob), 180);
+        assertEq(controller.consentedQuantity(bob), 0); // đồng ý đã dùng hết
+
+        // Đồng ý thêm (lệnh khác, cộng dồn) rồi hủy nốt, đóng series.
+        vm.prank(enforcement2of2);
+        controller.recordRedemptionConsent(bob, 100, keccak256("order 2"), keccak256("Van ban dong y 2"));
+        vm.prank(enforcement2of2);
+        controller.recordRedemptionConsent(bob, 100, keccak256("order 3"), keccak256("Van ban dong y 3"));
+        assertEq(controller.consentedQuantity(bob), 200);
+        vm.prank(holcoOperator);
+        controller.burnRedeemed(_holders());
+        assertEq(token.totalSupply(), 0);
+        assertEq(controller.consentedQuantity(bob), 20); // phần đồng ý thừa còn lại
+        vm.prank(holcoOperator);
+        controller.close();
+        assertEq(uint8(_state()), uint8(SeriesState.CLOSED));
+    }
+
+    // Phương án 2 với HOLD_UNTIL_RELEASED: đồng ý không làm hủy phần phong tỏa.
+    function test_ADR0020_consentIgnoredUnderHoldPolicy() public {
+        vm.prank(enforcement2of2);
+        controller.freeze(bob, 300, ORDER);
+        vm.prank(enforcement2of2);
+        controller.recordRedemptionConsent(bob, 300, ORDER, keccak256("dong y"));
+        _toMatured();
+        vm.prank(holcoOperator);
+        controller.burnRedeemed(_only(bob));
+        assertEq(token.balanceOf(bob), 300);
+        assertEq(controller.consentedQuantity(bob), 300);
+    }
+
+    function test_ADR0020_setRequirement_rules() public {
+        vm.expectEmit(false, false, false, true, address(controller));
+        emit RedemptionConsentRequirementSet(false, keccak256("basis"));
+        vm.prank(governance3of3);
+        controller.setRedemptionConsentRequirement(false, keccak256("basis"));
+        assertFalse(controller.requireRedemptionConsent());
+
+        vm.prank(enforcement2of2);
+        vm.expectRevert(ISeriesController.Unauthorized.selector);
+        controller.setRedemptionConsentRequirement(true, bytes32(0));
+
+        _toMatured();
+        vm.prank(holcoOperator);
+        controller.burnRedeemed(_holders());
+        vm.prank(holcoOperator);
+        controller.close();
+        vm.prank(governance3of3);
+        vm.expectRevert(ISeriesController.BadState.selector);
+        controller.setRedemptionConsentRequirement(true, bytes32(0));
+    }
+
+    function test_ADR0020_recordConsent_rules() public {
+        vm.prank(holcoOperator);
+        vm.expectRevert(ISeriesController.Unauthorized.selector);
+        controller.recordRedemptionConsent(bob, 1, ORDER, bytes32(0));
+        vm.prank(enforcement2of2);
+        vm.expectRevert(ISeriesController.ExceedsFrozen.selector);
+        controller.recordRedemptionConsent(bob, 0, ORDER, bytes32(0));
+
+        _deploySeries();
+        vm.prank(enforcement2of2);
+        vm.expectRevert(ISeriesController.BadState.selector);
+        controller.recordRedemptionConsent(bob, 1, ORDER, bytes32(0));
     }
 }

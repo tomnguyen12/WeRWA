@@ -245,10 +245,24 @@
     "slots": 1
   },
   {
-    "label": "__gap",
+    "label": "requireRedemptionConsent",
     "slot": 26,
     "offset": 0,
-    "type": "uint256[27]",
-    "slots": 27
+    "type": "bool",
+    "slots": 1
+  },
+  {
+    "label": "_consentedQuantity",
+    "slot": 27,
+    "offset": 0,
+    "type": "mapping(address => uint64)",
+    "slots": 1
+  },
+  {
+    "label": "__gap",
+    "slot": 28,
+    "offset": 0,
+    "type": "uint256[25]",
+    "slots": 25
   }
 ]
