@@ -9,7 +9,7 @@
 #   UBND · 1, VSDC · 1, BIDV · 1, Holco                                              → Safe tổ chức
 # Ngưỡng Safe tổ chức do tổ chức tự đặt; devnet dùng 2/3 (duyệt 21/10/2026).
 
-set -euo pipefail
+set -Eeuo pipefail   # -E: trap ERR cả trong hàm, để lỗi có annotation
 INFRA="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$INFRA/devnet/lib.sh"
 
@@ -51,7 +51,8 @@ check_common() {
   sing=$(slot_addr "$a" 0)
   fh=$(slot_addr "$a" "$FALLBACK_SLOT")
   guard=$(slot_addr "$a" "$GUARD_SLOT")
-  mods=$(call "$a" "getModulesPaginated(address,uint256)(address[],address)" "$SENTINEL" 10 | head -1)
+  # sed đọc hết đầu ra; `head -1` đóng ống sớm, cast nhận SIGPIPE và pipefail làm hàm dừng không báo lỗi.
+  mods=$(call "$a" "getModulesPaginated(address,uint256)(address[],address)" "$SENTINEL" 10 | sed -n 1p)
   if [ "$v" = 1.4.1 ] && [ "$sing" = "$SAFE_L2" ] && [ "$fh" = "$HANDLER" ] \
      && [ "$guard" = 0x0000000000000000000000000000000000000000 ] && [ "$mods" = "[]" ]; then
     pass "US-6.04-AC1 $name: SafeL2 1.4.1, fallback handler đúng, không guard, không module"
