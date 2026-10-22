@@ -57,7 +57,9 @@ jobs:
         run: test/us-6.04-ac1.sh
       - name: Triển khai nền tảng (contracts/script/DeployPlatform.s.sol)
         run: platform/deploy.sh
-      - name: Kiểm sau triển khai (quyền sở hữu, vai, timelock)
+      - name: Đọc kết quả DeployPlatform theo tên trường (R1–R7)
+        run: test/read-run.sh
+      - name: Kiểm sau triển khai (quyền sở hữu, vai, timelock, tokenDeployer)
         run: test/deploy-platform.sh
       - name: Giám sát (Prometheus, Alertmanager)
         run: monitoring/monitoring.sh up

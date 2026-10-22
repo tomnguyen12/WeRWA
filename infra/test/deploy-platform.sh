@@ -9,6 +9,8 @@
 #   D4  bên cấp claim Holco: khóa quản lý là Safe Holco, khóa ký claim là khóa ký của Holco; được tin cậy cho 2 chủ đề
 #   D5  sổ định danh: agent là khóa vận hành Holco; sổ lưu trữ gắn với sổ định danh
 #   D6  AuditAnchor: OPERATOR là khóa vận hành Holco, GOVERNANCE là Safe 3/3
+#   D7  tokenDeployer (ADR-0019, phương án A): đúng địa chỉ SeriesFactory dùng, có code, dùng Implementation
+#       Authority chung của nền tảng; không có chủ sở hữu nên khóa triển khai không giữ quyền gì
 
 set -euo pipefail
 INFRA="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -83,6 +85,14 @@ check "D5 sổ lưu trữ gắn với sổ định danh" "$linked" "$IR"
 A=$(c auditAnchor)
 check "D6 AuditAnchor.operator là khóa vận hành Holco" "$(call "$A" 'operator()(address)')" "$OPERATOR"
 check "D6 AuditAnchor.governance là Safe 3/3" "$(call "$A" 'governance()(address)')" "$GOV"
+
+# D7
+TD=$(c tokenDeployer)
+check "D7 devnet.json có tokenDeployer, trùng SeriesFactory.tokenDeployer" "$(call "$F" 'tokenDeployer()(address)')" "$TD"
+if [ "$(cast code --rpc-url "$O1A_RPC" "$TD")" != 0x ]; then pass "D7 tokenDeployer có code"; else fail "D7 tokenDeployer không có code"; fi
+check "D7 tokenDeployer dùng Implementation Authority chung" "$(call "$TD" 'implementationAuthority()(address)')" "$(c implementationAuthority)"
+if call "$TD" 'owner()(address)' >/dev/null 2>&1; then fail "D7 tokenDeployer có owner(): cần kiểm ai giữ quyền"
+else pass "D7 tokenDeployer không có chủ sở hữu"; fi
 
 [ "$FAILED" = 0 ] || die "kiểm sau triển khai trượt"
 log "kiểm sau triển khai DeployPlatform: tất cả đạt"

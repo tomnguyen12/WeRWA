@@ -82,6 +82,8 @@ Genesis có thêm factory, nên devnet tạo trước PR này phải chạy `dev
 
 `platform/deploy.sh` chạy `contracts/script/DeployPlatform.s.sol` lên devnet, dùng `devnet/out/safe/safes.env` làm tham số. Địa chỉ ghi vào `devnet/out/platform/devnet.json`. Chạy lại khi đã triển khai thì script không làm gì.
 
+**Đọc kết quả theo tên trường.** Bản ghi broadcast của forge chỉ lưu giá trị của struct `Deployed` mà `run()` trả về, không có tên. `platform/read-run.sh` lấy tên trường từ ABI forge vừa biên dịch (`contracts/out/DeployPlatform.s.sol/DeployPlatform.json`) và ghép với giá trị theo đúng thứ tự trong ABI. Contracts thêm hoặc đổi thứ tự trường thì infra không hỏng, trường mới tự có trong `devnet.json`. Script dừng khi thiếu trường infra cần (12 trường hiện có), khi ABI lệch bản ghi (chưa build lại) hoặc khi giá trị không phải địa chỉ. `tokenDeployer` (ADR-0019) không nằm trong `Deployed` nên đọc lại qua `SeriesFactory.tokenDeployer()`; nếu sau này contracts đưa vào `Deployed` thì lấy thẳng từ kết quả.
+
 | Chế độ | Khi nào | Khóa triển khai | Khóa vận hành, khóa ký claim Holco |
 |---|---|---|---|
 | `pkcs11` | có `WERWA_SIGNER_RPC` | khóa `deployer` trong SoftHSM; forge gửi `eth_sendTransaction` qua module ký (`--unlocked`) | địa chỉ trong `WERWA_KEYS_FILE` (mặc định `devnet/out/keys.json`) |
@@ -211,6 +213,8 @@ Khóa OTP là chuỗi Keycloak lưu nguyên; khóa HMAC là byte UTF-8 của chu
 | K12 | `out/users.json` quyền 600 và bị git bỏ qua | như trên |
 | US-6.01-AC3 (hạ tầng) | Đủ 6 node thì không có cảnh báo. Tắt V3: trong 60 giây Alertmanager có `WerwaValidatorDown` (v3) và `WerwaOnlyThreeValidators`, không báo nhầm mất đồng thuận. Bật lại: trong 90 giây cảnh báo hết | `test/us-6.01-ac3.sh` |
 | D1–D6 | Sau `DeployPlatform`: mọi hợp đồng dùng chung thuộc timelock; chỉ Safe 3/3 lên lịch, Safe UBND/VSDC/Holco hủy lịch, ai cũng thực thi, chờ 1 giờ; SeriesFactory sau proxy của ProxyAdmin, GOVERNANCE là Safe 3/3; bên cấp claim Holco đúng khóa và chủ đề; agent sổ định danh là khóa vận hành; AuditAnchor đúng vai; khóa triển khai không còn quyền gì | `test/deploy-platform.sh` |
+| D7 | `tokenDeployer` trong `devnet.json` trùng `SeriesFactory.tokenDeployer()`, có code, dùng Implementation Authority chung, không có chủ sở hữu | `test/deploy-platform.sh` |
+| R1–R7 | `read-run.sh` ghép đúng tên và địa chỉ; thêm trường hay đổi thứ tự vẫn đúng; thiếu trường infra cần, ABI lệch bản ghi, ABI không có `run()` thì dừng; ABI thật của `DeployPlatform` có đủ trường infra cần. Chạy không cần chuỗi, trừ R7 cần đã build `contracts/` | `test/read-run.sh` |
 
 US-6.01-AC3: hạ tầng giao cảnh báo tới Alertmanager và webhook; phần hiện lên màn hình vận hành thuộc backend và frontend (I5 trong `docs/open-questions.md`).
 

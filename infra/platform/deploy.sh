@@ -16,6 +16,7 @@
 #            chỉ cho devnet). Khóa vận hành và khóa ký claim chỉ là địa chỉ giữ chỗ, không có khóa riêng,
 #            nên không ai mint hay cấp claim được cho tới khi triển khai lại ở chế độ pkcs11.
 #
+# Địa chỉ đọc theo tên trường của struct `Deployed` (read-run.sh), cộng `tokenDeployer` đọc qua SeriesFactory.
 # Sau khi chạy, `test/deploy-platform.sh` kiểm quyền sở hữu và vai trên chuỗi.
 
 set -euo pipefail
@@ -29,8 +30,6 @@ CONTRACTS="$REPO/contracts"
 WORK="$DEVNET_OUT/platform"
 SAFES_ENV="$DEVNET_OUT/safe/safes.env"
 KEYS_FILE="${WERWA_KEYS_FILE:-$DEVNET_OUT/keys.json}"
-FIELDS=(timelock implementationAuthority identityRegistry identityRegistryStorage claimTopicsRegistry
-  trustedIssuersRegistry holcoClaimIssuer controllerBeacon moduleDeployer proxyAdmin seriesFactory auditAnchor)
 
 [ -f "$SAFES_ENV" ] || die "thiếu $SAFES_ENV; chạy safe/safe.sh up"
 [ -f "$CONTRACTS/lib/trex/package.json" ] || die "thiếu submodule của contracts/; chạy git submodule update --init --recursive"
@@ -73,14 +72,14 @@ log "triển khai DeployPlatform ($MODE), người gửi $DEPLOYER"
 chain_id=$(cast chain-id --rpc-url "$O1A_RPC")
 run="$CONTRACTS/broadcast/DeployPlatform.s.sol/$chain_id/run-latest.json"
 [ -f "$run" ] || die "không thấy $run"
-tuple=$(jq -r '.returns.d.value' "$run" | tr -d '() ')
-IFS=, read -r -a addrs <<<"$tuple"
-[ "${#addrs[@]}" = "${#FIELDS[@]}" ] || die "kết quả DeployPlatform có ${#addrs[@]} địa chỉ, mong đợi ${#FIELDS[@]}"
-
-contracts='{}'
-for i in "${!FIELDS[@]}"; do
-  contracts=$(jq --arg k "${FIELDS[$i]}" --arg v "${addrs[$i]}" '.[$k] = $v' <<<"$contracts")
-done
+# Ghép tên trường (từ ABI) với giá trị (từ bản ghi broadcast), không phụ thuộc vị trí trường.
+contracts=$("$PLATFORM_DIR/read-run.sh" "$CONTRACTS/out/DeployPlatform.s.sol/DeployPlatform.json" "$run") \
+  || die "không đọc được kết quả DeployPlatform (xem lỗi read-run ở trên)"
+# tokenDeployer (ADR-0019) không nằm trong Deployed; đọc lại qua SeriesFactory nếu kết quả chưa có.
+if ! jq -e 'has("tokenDeployer")' <<<"$contracts" >/dev/null; then
+  td=$(cast call --rpc-url "$O1A_RPC" "$(jq -r .seriesFactory <<<"$contracts")" 'tokenDeployer()(address)')
+  contracts=$(jq --arg v "$td" '.tokenDeployer = $v' <<<"$contracts")
+fi
 jq -n --argjson chainId "$chain_id" --arg mode "$MODE" --arg deployer "$DEPLOYER" \
   --arg operator "$WERWA_HOLCO_OPERATOR" --arg claimSigner "$WERWA_HOLCO_CLAIM_SIGNER" \
   --argjson delay "$WERWA_TIMELOCK_DELAY" --argjson contracts "$contracts" \
