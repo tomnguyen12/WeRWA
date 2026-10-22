@@ -23,6 +23,8 @@ flowchart LR
 | `./werwa.sh reset` | Xóa dữ liệu chuỗi, DB, realm, giám sát; giữ khóa, mật khẩu, khóa OTP. `up` sau đó triển khai lại nền tảng lên chuỗi mới |
 | `./werwa.sh clean` | Xóa mọi thứ: container, volume, mạng, mọi `out/` |
 
+**Tài nguyên:** trọn bộ 11 container dùng khoảng 2,9 GiB RAM ngay sau `up` (đo trên CI 22/10; tăng dần theo dữ liệu). `up` từ trạng thái sạch mất khoảng 4,5 phút trên CI, phần lớn là triển khai nền tảng; các lần sau nhanh hơn vì phần đã có được giữ nguyên.
+
 Tắt theo thứ tự ngược lại: giám sát (dùng mạng p2p của devnet), Keycloak (lưu trên PostgreSQL của services), services, devnet.
 
 **Công cụ cần:** Docker có Compose v2, `curl`, `jq`, `openssl`, `base32`, `python3`, Foundry 1.8.5 (`forge`, `cast`), natscli 0.5.0, submodule của `contracts/` (`git submodule update --init --recursive`). `up` kiểm một lần, báo đủ danh sách công cụ thiếu. Lệch phiên bản Foundry hoặc natscli thì dừng; đặt `WERWA_SKIP_VERSION_CHECK=1` nếu chấp nhận.
