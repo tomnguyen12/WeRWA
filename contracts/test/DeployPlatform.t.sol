@@ -8,6 +8,7 @@ import {WeRWATimelock} from "../src/governance/WeRWATimelock.sol";
 import {ClaimIssuer} from "@onchain-id/solidity/contracts/ClaimIssuer.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AuditAnchor} from "../src/AuditAnchor.sol";
+import {TREXSuiteDeployer} from "../src/adapters/trex/TREXSuiteDeployer.sol";
 
 /// @notice Script triển khai chạy trọn qua run() dưới broadcast (đúng đường của `forge script --broadcast`),
 ///         giao mọi quyền sở hữu cho timelock; khóa triển khai không giữ quyền gì (I1).
@@ -54,6 +55,10 @@ contract DeployPlatformTest is Test {
         }
         assertEq(Ownable(d.proxyAdmin).owner(), d.timelock);
         assertEq(SeriesFactory(d.seriesFactory).governance(), governance3of3);
+        // ADR-0019: factory tạo token qua tokenDeployer (phương án A: TREXSuiteDeployer trên IA dùng chung).
+        assertEq(address(SeriesFactory(d.seriesFactory).tokenDeployer()), d.tokenDeployer);
+        assertEq(TREXSuiteDeployer(d.tokenDeployer).implementationAuthority(), d.implementationAuthority);
+        assertEq(SeriesFactory(d.seriesFactory).identityRegistry(), d.identityRegistry);
         assertTrue(WeRWATimelock(payable(d.timelock)).hasRole(keccak256("PROPOSER_ROLE"), governance3of3));
         assertEq(WeRWATimelock(payable(d.timelock)).getMinDelay(), 3600);
 
