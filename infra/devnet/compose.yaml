@@ -137,3 +137,4 @@ networks:
       config: [{ subnet: 172.30.10.0/24 }]
   app:
     name: werwa-devnet-app
+    external: true

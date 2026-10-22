@@ -2,6 +2,37 @@
 
 Mạng Besu QBFT có cấp phép cho devnet, theo ADR-01 (nền tảng chuỗi), ADR-02 (topology), ADR-12 (đường đọc) và ADR-16 (hạ tầng) trong `docs/design/01-quyet-dinh-cong-nghe.md`.
 
+## Dựng trọn devnet bằng một lệnh
+
+Cho đội backend và frontend: `infra/werwa.sh up` dựng đủ mọi phần theo đúng thứ tự, chạy lại an toàn.
+
+```mermaid
+flowchart LR
+  P[Kiểm công cụ] --> N[Mạng werwa-devnet-app]
+  N --> D[devnet Besu] --> S[Safe các bên] --> F[DeployPlatform]
+  N --> V[PostgreSQL, NATS] --> K[Keycloak]
+  D --> M[Giám sát]
+```
+
+| Lệnh | Việc |
+|---|---|
+| `./werwa.sh up` | Kiểm công cụ, rồi dựng mạng dùng chung, devnet, Safe, nền tảng, PostgreSQL và NATS, Keycloak, giám sát. Phần đã có thì giữ nguyên |
+| `./werwa.sh up --without monitoring` | Như trên, bỏ Prometheus và Alertmanager (máy yếu) |
+| `./werwa.sh status` | Bảng gộp: khối, validator, Safe, hợp đồng, PostgreSQL, NATS, Keycloak, cảnh báo đang bật |
+| `./werwa.sh down` | Dừng mọi phần, giữ dữ liệu. `up` lại thì chuỗi chạy tiếp, người dùng thử vẫn đăng nhập bằng OTP cũ |
+| `./werwa.sh reset` | Xóa dữ liệu chuỗi, DB, realm, giám sát; giữ khóa, mật khẩu, khóa OTP. `up` sau đó triển khai lại nền tảng lên chuỗi mới |
+| `./werwa.sh clean` | Xóa mọi thứ: container, volume, mạng, mọi `out/` |
+
+Tắt theo thứ tự ngược lại: giám sát (dùng mạng p2p của devnet), Keycloak (lưu trên PostgreSQL của services), services, devnet.
+
+**Công cụ cần:** Docker có Compose v2, `curl`, `jq`, `openssl`, `base32`, `python3`, Foundry 1.8.5 (`forge`, `cast`), natscli 0.5.0, submodule của `contracts/` (`git submodule update --init --recursive`). `up` kiểm một lần, báo đủ danh sách công cụ thiếu. Lệch phiên bản Foundry hoặc natscli thì dừng; đặt `WERWA_SKIP_VERSION_CHECK=1` nếu chấp nhận.
+
+**Chế độ ký (I12):** mặc định `devnet`: khóa triển khai là tài khoản thử, khóa vận hành và khóa ký claim Holco chỉ là địa chỉ giữ chỗ, nên chưa mint hay cấp claim được. Đặt `WERWA_SIGNER_RPC` (module ký SoftHSM) thì `platform/deploy.sh` chuyển sang `pkcs11`.
+
+**Mạng `werwa-devnet-app`:** mọi compose khai báo `external: true`; script nào chạy trước thì tạo mạng. Chỉ `werwa.sh clean` gỡ mạng này. Backend chạy trong container thì tham gia mạng này để thấy `o1-a.werwa.devnet`, `v1.werwa.devnet`, `postgres.werwa.devnet`, `nats.werwa.devnet`, `keycloak.werwa.devnet`.
+
+Các script con bên dưới vẫn chạy riêng được.
+
 ## Devnet
 
 | Node | Bên | Vai | RPC trên máy chạy devnet |
@@ -215,6 +246,10 @@ Khóa OTP là chuỗi Keycloak lưu nguyên; khóa HMAC là byte UTF-8 của chu
 | D1–D6 | Sau `DeployPlatform`: mọi hợp đồng dùng chung thuộc timelock; chỉ Safe 3/3 lên lịch, Safe UBND/VSDC/Holco hủy lịch, ai cũng thực thi, chờ 1 giờ; SeriesFactory sau proxy của ProxyAdmin, GOVERNANCE là Safe 3/3; bên cấp claim Holco đúng khóa và chủ đề; agent sổ định danh là khóa vận hành; AuditAnchor đúng vai; khóa triển khai không còn quyền gì | `test/deploy-platform.sh` |
 | D7 | `tokenDeployer` trong `devnet.json` trùng `SeriesFactory.tokenDeployer()`, có code, dùng Implementation Authority chung, không có chủ sở hữu | `test/deploy-platform.sh` |
 | R1–R7 | `read-run.sh` ghép đúng tên và địa chỉ; thêm trường hay đổi thứ tự vẫn đúng; thiếu trường infra cần, ABI lệch bản ghi, ABI không có `run()` thì dừng; ABI thật của `DeployPlatform` có đủ trường infra cần. Chạy không cần chuỗi, trừ R7 cần đã build `contracts/` | `test/read-run.sh` |
+| W1 | Sau `werwa.sh up`: 4 validator tạo khối, hai O1 cùng mã băm; 6 Safe; timelock và `tokenDeployer` có code; `werwa_app` đăng nhập DB; stream `WERWA` có; issuer Keycloak đúng; Prometheus thấy 6 node; không có cảnh báo critical; devnet, services, Keycloak cùng ở mạng `werwa-devnet-app` do script tạo | `test/werwa.sh` |
+| W2 | `up` lần nữa không tạo lại gì: cùng hợp đồng, Safe, mật khẩu, khóa OTP; nền tảng, realm, người dùng thử báo đã có | như trên |
+| W3 | `down` dừng mọi container; `up` lại: chuỗi chạy tiếp từ khối cũ, hợp đồng còn, người dùng thử đăng nhập bằng OTP cũ | như trên |
+| W4 | `clean` không để lại container, volume, mạng, `out/` (chỉ chạy với `--clean`) | như trên |
 
 US-6.01-AC3: hạ tầng giao cảnh báo tới Alertmanager và webhook; phần hiện lên màn hình vận hành thuộc backend và frontend (I5 trong `docs/open-questions.md`).
 
