@@ -107,6 +107,7 @@ EOF
 cmd_up() {
   need docker; need curl; need jq; need openssl; need nats
   ensure_secrets
+  ensure_app_network
   sc up -d
   wait_postgres; provision_postgres
   wait_nats; provision_stream

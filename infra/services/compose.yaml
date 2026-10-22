@@ -46,3 +46,4 @@ volumes:
 networks:
   app:
     name: werwa-devnet-app
+    external: true

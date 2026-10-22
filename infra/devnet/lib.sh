@@ -12,6 +12,14 @@ O1B_RPC="${O1B_RPC:-http://127.0.0.1:8555}"
 V1_RPC="${V1_RPC:-http://127.0.0.1:8645}"
 V2_RPC="${V2_RPC:-http://127.0.0.1:8655}"
 
+# Mạng werwa-devnet-app dùng chung cho devnet, services, Keycloak, backend: mọi compose khai báo external,
+# script nào chạy trước thì tạo. Chỉ infra/werwa.sh clean gỡ mạng này.
+APP_NETWORK=werwa-devnet-app
+ensure_app_network() {
+  docker network inspect "$APP_NETWORK" >/dev/null 2>&1 \
+    || docker network create --label org.werwa.network=app "$APP_NETWORK" >/dev/null
+}
+
 log() { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
 # Trên GitHub Actions in thêm annotation để đọc được lỗi từ trang PR.
 annotate() { [ -n "${GITHUB_ACTIONS:-}" ] && printf '::error::%s\n' "$*" || true; }

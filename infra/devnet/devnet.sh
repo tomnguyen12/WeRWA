@@ -110,6 +110,7 @@ cmd_init() {
 
 cmd_up() {
   cmd_init
+  ensure_app_network
   dc up -d
   log "chờ O1-a trả lời…"
   wait_rpc "$O1A_RPC" 180 || die "O1-a không trả lời; xem: docker compose -p $COMPOSE_PROJECT logs o1-a"

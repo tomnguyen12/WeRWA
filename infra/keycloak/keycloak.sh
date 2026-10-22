@@ -168,6 +168,7 @@ cmd_up() {
   need_services
   ensure_secrets
   provision_db
+  ensure_app_network
   kc up -d
   wait_keycloak
   render_realm
