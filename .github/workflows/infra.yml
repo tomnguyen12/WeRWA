@@ -176,7 +176,9 @@ jobs:
               m = re.search(r"([\d.]+)(B|KiB|MiB|GiB) /", line)
               if m:
                   total += float(m.group(1)) * units[m.group(2)]; n += 1
-          print(f"Bộ nhớ {n} container sau `werwa.sh up`: {total / 1024**3:.2f} GiB")
+          msg = f"Bộ nhớ {n} container sau `werwa.sh up`: {total / 1024**3:.2f} GiB"
+          print(msg)
+          print(f"::notice::{msg}")
           PY
       - name: Kiểm dựng trọn (W1–W4)
         run: test/werwa.sh --clean
