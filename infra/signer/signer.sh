@@ -6,6 +6,8 @@
 #                                            Mặc định: operate nếu đã có devnet/out/platform/devnet.json,
 #                                            ngược lại deploy
 #   ./signer.sh mode deploy|operate          đổi chế độ WeHSM (khởi động lại container wehsm)
+#   ./signer.sh deploy-platform              triển khai nền tảng qua WeHSM theo hai giai đoạn (WeHSM 0007):
+#                                            chế độ deploy → platform/deploy.sh (pkcs11) → chế độ operate
 #   ./signer.sh status                       container, chế độ, địa chỉ khóa
 #   ./signer.sh down                         dừng, giữ partition và khóa
 #   ./signer.sh clean                        dừng, xóa partition (mất khóa), out/, keys.json và allowlist.d/wehsm.txt
@@ -169,6 +171,22 @@ cmd_up() {
   log "biến cho platform/deploy.sh: $OUT/signer.env"
 }
 
+# Triển khai nền tảng qua WeHSM: deployer chỉ được ký trong lúc chạy deploy.sh, xong thì tắt ngay.
+cmd_deploy_platform() {
+  [ -f "$OUT/signer.env" ] || die "chưa dựng; chạy ./signer.sh up"
+  if [ -f "$PLATFORM_JSON" ]; then
+    [ "$(jq -r .signingMode "$PLATFORM_JSON")" = pkcs11 ] \
+      || die "nền tảng đã triển khai ở chế độ $(jq -r .signingMode "$PLATFORM_JSON"); chạy werwa.sh reset để triển khai lại qua WeHSM"
+    log "nền tảng đã triển khai qua WeHSM: $PLATFORM_JSON"
+  else
+    start_wehsm deploy
+    (set -a; source "$OUT/signer.env"; set +a; "$SIGNER_DIR/../platform/deploy.sh") \
+      || { sc stop wehsm >/dev/null 2>&1 || true
+           die "platform/deploy.sh thất bại; đã dừng WeHSM để deployer không còn bật"; }
+  fi
+  start_wehsm operate
+}
+
 cmd_status() {
   sc ps --format 'table {{.Service}}\t{{.State}}\t{{.Status}}'
   echo "chế độ: $(cat "$OUT/mode" 2>/dev/null || echo -)"
@@ -178,6 +196,7 @@ cmd_status() {
 case "${1:-}" in
   up) shift; cmd_up "$@" ;;
   mode) [ -f "$OUT/signer.env" ] || die "chưa dựng; chạy ./signer.sh up"; start_wehsm "${2:-}" ;;
+  deploy-platform) cmd_deploy_platform ;;
   status) cmd_status ;;
   down) sc down ;;
   clean)
@@ -185,5 +204,5 @@ case "${1:-}" in
     rm -rf "$OUT" "$KEYS_JSON" "$ALLOWLIST"
     log "đã xóa partition, khóa, out/ của signer; keys.json và allowlist.d/wehsm.txt"
     ;;
-  *) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

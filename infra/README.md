@@ -29,7 +29,7 @@ Tắt theo thứ tự ngược lại: giám sát (dùng mạng p2p của devnet)
 
 **Công cụ cần:** Docker có Compose v2, `curl`, `jq`, `openssl`, `base32`, `python3`, Foundry 1.8.5 (`forge`, `cast`), natscli 0.5.0, submodule của `contracts/` (`git submodule update --init --recursive`). `up` kiểm một lần, báo đủ danh sách công cụ thiếu. Lệch phiên bản Foundry hoặc natscli thì dừng; đặt `WERWA_SKIP_VERSION_CHECK=1` nếu chấp nhận.
 
-**Chế độ ký (I12):** mặc định `devnet`: khóa triển khai là tài khoản thử, khóa vận hành và khóa ký claim Holco chỉ là địa chỉ giữ chỗ, nên chưa mint hay cấp claim được. Đặt `WERWA_SIGNER_RPC` (module ký SoftHSM) thì `platform/deploy.sh` chuyển sang `pkcs11`.
+**Chế độ ký (I12):** mặc định `devnet`: khóa triển khai là tài khoản thử, khóa vận hành và khóa ký claim Holco chỉ là địa chỉ giữ chỗ, nên chưa mint hay cấp claim được. `./werwa.sh up --signer wehsm` dựng WeHSM và node HSM rồi triển khai qua WeHSM (chế độ `pkcs11`): ba khóa Holco nằm trong HSM, mint và cấp claim được. Xem mục "Ký qua WeHSM (S7)".
 
 **Mạng `werwa-devnet-app`:** mọi compose khai báo `external: true`; script nào chạy trước thì tạo mạng. Chỉ `werwa.sh clean` gỡ mạng này. Backend chạy trong container thì tham gia mạng này để thấy `o1-a.werwa.devnet`, `v1.werwa.devnet`, `postgres.werwa.devnet`, `nats.werwa.devnet`, `keycloak.werwa.devnet`.
 
@@ -120,7 +120,7 @@ Mọi thứ sinh ra nằm trong `devnet/out/` (gitignore): khóa node, khóa tà
 
 ### Cấp phép tài khoản cho module khác
 
-Besu chỉ nhận giao dịch từ tài khoản trong danh sách. Module khác (ví dụ module ký SoftHSM) cấp phép cho tài khoản của mình như sau:
+Besu chỉ nhận giao dịch từ tài khoản trong danh sách. Module khác (ví dụ WeHSM, `signer/signer.sh` tự làm bước này) cấp phép cho tài khoản của mình như sau:
 
 1. Ghi địa chỉ vào `devnet/out/allowlist.d/<tên-module>.txt`, mỗi dòng một địa chỉ, `#` để chú thích.
 2. Chạy `devnet/devnet.sh allowlist`. Script sinh lại tệp cấp phép và khởi động lại từng node một, chờ mạng tạo khối rồi mới sang node kế tiếp, nên mạng luôn còn 3/4 validator.
@@ -154,16 +154,14 @@ Genesis có thêm factory, nên devnet tạo trước PR này phải chạy `dev
 
 | Chế độ | Khi nào | Khóa triển khai | Khóa vận hành, khóa ký claim Holco |
 |---|---|---|---|
-| `pkcs11` | có `WERWA_SIGNER_RPC` | khóa `deployer` trong SoftHSM; forge gửi `eth_sendTransaction` qua module ký (`--unlocked`) | địa chỉ trong `WERWA_KEYS_FILE` (mặc định `devnet/out/keys.json`) |
+| `pkcs11` | có `WERWA_SIGNER_RPC` | khóa `deployer` trong node HSM; forge gửi `eth_sendTransaction` qua WeHSM (`--unlocked`) | khóa trong node HSM; địa chỉ trong `WERWA_KEYS_FILE` (mặc định `devnet/out/keys.json`) |
 | `devnet` | chưa có module ký | tài khoản thử `deployer` của devnet (tệp trong `out/`) | địa chỉ giữ chỗ, không có khóa riêng: không ai mint hay cấp claim được |
 
-`keys.json` mà module SoftHSM cần xuất:
+Chế độ `pkcs11` chạy qua `signer/signer.sh deploy-platform` (mục "Ký qua WeHSM" dưới đây) hoặc `werwa.sh up --signer wehsm`. WeHSM chuyển các lệnh đọc của forge tới O1, không tới V1 (ADR-12; WeHSM OQ-06), và chỉ gửi giao dịch đã ký tới V1. `keys.json` do `wehsm keys export` ghi:
 
 ```json
 { "deployer": "0x…", "holcoOperator": "0x…", "holcoClaimSigner": "0x…" }
 ```
-
-Module ký phải chuyển tiếp các lệnh JSON-RPC khác tới V1, để forge mô phỏng được giao dịch trước khi gửi. Ba địa chỉ trên cần có trong `devnet/out/allowlist.d/`, hoặc chí ít là `deployer` và `holcoOperator`, vì hai khóa này gửi giao dịch.
 
 ## Ký qua WeHSM (S7)
 
@@ -187,6 +185,13 @@ Module ký phải chuyển tiếp các lệnh JSON-RPC khác tới V1, để for
 **Chế độ** (`signer.sh mode deploy|operate`, khởi động lại container `wehsm`):
 - `deploy`: `deployer` được ký, chưa có `devnet.json`. Chỉ dùng trong lúc chạy `platform/deploy.sh`.
 - `operate`: `deployer` bị từ chối; `holcoOperator` ký theo chính sách `werwa-xd.json` của WeHSM, tên hợp đồng đổi ra địa chỉ qua `devnet.json`.
+
+**Triển khai nền tảng qua WeHSM** (`signer.sh deploy-platform`, WeHSM 0007):
+1. Chuyển WeHSM sang `deploy`.
+2. Chạy `platform/deploy.sh` với `signer/out/signer.env`, chế độ `pkcs11`.
+3. Chuyển WeHSM sang `operate` với `devnet.json` vừa ghi. Nếu `deploy.sh` lỗi, WeHSM bị dừng để `deployer` không còn bật.
+
+`werwa.sh up --signer wehsm` làm cả `signer.sh up` và `deploy-platform` thay cho bước triển khai thường. Lần `up` sau không cần cờ: nền tảng đã triển khai qua WeHSM thì WeHSM tự bật lại. Tệp env gộp có thêm `WERWA_SIGNER_URL`, `WERWA_SIGNER_TOKEN` cho mô-đun Onchain của backend (I13, chờ duyệt).
 
 Mất kết nối HSM thì WeHSM thoát mã 70 và được `restart: unless-stopped` khởi động lại. Script tạo gói client (`signer/hsm-client.sh`) chép từ WeHSM commit `0b058a8`, vì CI WeRWA không tải được repo WeHSM riêng tư.
 
@@ -316,6 +321,7 @@ Khóa OTP là chuỗi Keycloak lưu nguyên; khóa HMAC là byte UTF-8 của chu
 | W4 | `clean` không để lại container, volume, mạng, `out/` (chỉ chạy với `--clean`) | như trên |
 | W5 | `out/werwa.env`, `out/werwa.docker.env`: đủ biến, tên theo relaxed binding (I11), quyền 600, gitignore; mọi giá trị dùng được thật: đăng nhập DB, kết nối NATS, discovery và JWKS của Keycloak, RPC đọc chỉ là O1 và mọi RPC trả đúng chain ID, mỗi hợp đồng và Safe có code, Alertmanager trả lời. Biến thể Docker thử từ một container trong mạng `werwa-devnet-app` | `test/werwa.sh` |
 | H1–H9 | WeHSM: ba khóa trong HSM khớp `eth_accounts`; thiếu token thì 401; Besu cấp phép `deployer`, `holcoOperator`; node HSM không mở cổng; `deployer` ký qua HSM tạo được hợp đồng; tệp khóa riêng duy nhất trong container là khóa mTLS; cắt phiên HSM thì lệnh ký trả -32011, WeHSM thoát mã 70 và tự lên lại; nhật ký ký toàn vẹn | `test/signer.sh` |
+| E1–E6 | Triển khai và vận hành qua WeHSM: `devnet.json` chế độ `pkcs11`, khóa trùng `keys.json`; **US-6.04-AC4**: `holcoOperator` ký qua PKCS#11 tới node HSM, `AuditAnchor.anchor` lên khối; khóa ký claim trong HSM ký được và được `ClaimIssuer` tin; chế độ `operate` từ chối `deployer` (`KEY_DISABLED`) và hàm ngoài chính sách (`FUNCTION_NOT_ALLOWED`); nhật ký có hai giai đoạn, toàn vẹn | `test/signer-deploy.sh` |
 
 US-6.01-AC3: hạ tầng giao cảnh báo tới Alertmanager và webhook; phần hiện lên màn hình vận hành thuộc backend và frontend (I5 trong `docs/open-questions.md`).
 
