@@ -10,7 +10,8 @@
 #   H6  ký qua HSM: deployer tạo một hợp đồng qua eth_sendTransaction; giao dịch lên khối, đọc qua O1,
 #       người gửi đúng deployer
 #   H7  không có tệp khóa ký trong container WeHSM, gói client chỉ có khóa mTLS
-#   H8  cắt phiên trên node HSM: WeHSM thoát mã 70, được khởi động lại và /health xanh trở lại
+#   H8  cắt phiên trên node HSM: lệnh ký kế tiếp trả -32011, WeHSM thoát mã 70, được khởi động lại
+#       và /health xanh trở lại
 #   H9  nhật ký ký nối mã băm toàn vẹn (`wehsm audit verify`)
 
 set -euo pipefail
@@ -94,23 +95,24 @@ else fail "H7 khóa trong gói client không phải P-256"; fi
 cid=$(sc ps -q wehsm)
 since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 restarts=$(docker inspect -f '{{.RestartCount}}' "$cid")
-sc exec -T hsm-node hsm-node disrupt >/dev/null 2>&1 || true
-# Phiên đang mở bị cắt; WeHSM phát hiện ở lần gọi HSM kế tiếp (health hoặc ký) rồi thoát mã 70.
-for _ in $(seq 1 5); do curl -s -o /dev/null "$W/health" || true; sleep 1; done
+sc exec -T hsm-node hsm-node disrupt >/dev/null || fail "H8 hsm-node disrupt không cắt được phiên nào"
+# WeHSM phát hiện mất phiên ở lần gọi HSM kế tiếp (như e2e của WeHSM): trả -32011 rồi thoát mã 70.
+HASH=0x$(printf '%064x' 1)
+resp=$(wrpc personal_sign "[\"$HASH\",\"$CLAIM\"]" || true)
+hsm_err=$(jq -r ".error.code // empty" <<<"$resp" 2>/dev/null || true)
 exit70=""; t=0
-while [ "$t" -lt 90 ]; do
+while [ "$t" -lt 60 ]; do
   exit70=$(docker events --since "$since" --until "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --filter "container=$cid" --filter event=die --format '{{index .Actor.Attributes "exitCode"}}' | head -1)
   [ -n "$exit70" ] && break
-  curl -s -o /dev/null "$W/health" || true
-  sleep 3; t=$((t + 3))
+  sleep 2; t=$((t + 2))
 done
 healthy=0
 for _ in $(seq 1 60); do curl -sf "$W/health" >/dev/null 2>&1 && { healthy=1; break; }; sleep 2; done
 now_restarts=$(docker inspect -f '{{.RestartCount}}' "$cid")
-if [ "$exit70" = 70 ] && [ "$now_restarts" -gt "$restarts" ] && [ "$healthy" = 1 ]; then
-  pass "H8 mất phiên HSM: WeHSM thoát mã 70, tự khởi động lại ($restarts → $now_restarts), /health xanh trở lại"
-else fail "H8 mất phiên HSM: mã thoát '$exit70', khởi động lại $restarts → $now_restarts, health=$healthy"; fi
+if [ "$hsm_err" = -32011 ] && [ "$exit70" = 70 ] && [ "$now_restarts" -gt "$restarts" ] && [ "$healthy" = 1 ]; then
+  pass "H8 mất phiên HSM: lệnh ký trả -32011, WeHSM thoát mã 70, tự khởi động lại ($restarts → $now_restarts), /health xanh trở lại"
+else fail "H8 mất phiên HSM: lỗi ký '$hsm_err', mã thoát '$exit70', khởi động lại $restarts → $now_restarts, health=$healthy"; fi
 
 # H9
 verify=$(sc exec -T wehsm wehsm audit verify /var/lib/wehsm/audit.jsonl 2>&1) && rc=0 || rc=$?
