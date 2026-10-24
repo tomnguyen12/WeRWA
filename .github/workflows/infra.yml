@@ -221,6 +221,8 @@ jobs:
         run: signer/signer.sh up --mode deploy
       - name: Kiểm WeHSM (H1–H9)
         run: test/signer.sh
+      - name: Safe các bên (đầu vào của DeployPlatform)
+        run: safe/safe.sh up
       - name: Triển khai nền tảng qua WeHSM (deploy → DeployPlatform pkcs11 → operate)
         run: signer/signer.sh deploy-platform
       - name: Kiểm sau triển khai ở chế độ pkcs11 (D1–D6)
