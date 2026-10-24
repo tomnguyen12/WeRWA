@@ -193,3 +193,39 @@ jobs:
         if: always()
         run: ./werwa.sh clean
 
+  signer:
+    name: WeHSM · ký qua HSM trên devnet
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Ảnh WeHSM là package GHCR riêng tư của tomnguyen12; WeRWA được cấp quyền Read trong Manage Actions access.
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v5
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+      - name: Đăng nhập ghcr.io (đọc ảnh WeHSM)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Kéo ảnh Besu
+        run: docker pull "$BESU_IMAGE"
+      - name: Dựng devnet
+        run: devnet/devnet.sh up
+      - name: Dựng node HSM và WeHSM (chế độ deploy)
+        run: signer/signer.sh up --mode deploy
+      - name: Kiểm WeHSM (H1–H9)
+        run: test/signer.sh
+      - name: Nhật ký khi lỗi
+        if: failure()
+        run: |
+          docker compose -p werwa-signer logs --no-color --tail 200 || true
+          docker compose -p werwa-devnet logs --no-color --tail 50 || true
+      - name: Dọn
+        if: always()
+        run: |
+          signer/signer.sh clean || true
+          devnet/devnet.sh clean
