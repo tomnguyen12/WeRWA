@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
 import vn.werwa.platform.config.WerwaProperties.SigningMode;
 
@@ -95,7 +96,7 @@ class WerwaPropertiesBindingTest {
 
     private static WerwaProperties bind(Map<String, Object> env) {
         MutablePropertySources sources = new MutablePropertySources();
-        sources.addLast(new SystemEnvironmentPropertySource("env", env));
+        sources.addLast(new SystemEnvironmentPropertySource(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, env));
         return new Binder(ConfigurationPropertySources.from(sources))
                 .bind("werwa", WerwaProperties.class)
                 .get();

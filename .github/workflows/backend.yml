@@ -38,7 +38,7 @@ jobs:
         run: |
           out=""
           for a in org/springframework/boot/spring-boot-starter-parent org/springframework/modulith/spring-modulith-bom; do
-            v=$(curl -sS "https://repo1.maven.org/maven2/$a/maven-metadata.xml" | grep -o '<version>[^<]*' | sed 's/<version>//' | tail -12 | tr '\n' ' ')
+            v=$(curl -sS "https://repo1.maven.org/maven2/$a/maven-metadata.xml" | grep -o '<version>[^<]*' | sed 's/<version>//' | grep -E '^(4\.0\.|2\.0\.)' | tr '\n' ' ')
             out="$out$a: $v%0A"
           done
           echo "::notice title=versions::$out"
