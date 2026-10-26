@@ -217,6 +217,28 @@
         </testResources>
         <plugins>
             <plugin>
+                <!-- web3j-maven-plugin chỉ nhận ABI thuần với đuôi .abi: chép api/abi/*.json sang target/abi/*.abi -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>abi-for-web3j</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <copy todir="${project.build.directory}/abi">
+                                    <fileset dir="${project.basedir}/../api/abi" includes="*.json" excludes="manifest.json"/>
+                                    <globmapper from="*.json" to="*.abi"/>
+                                </copy>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <!-- Lớp Java gọi hợp đồng sinh từ api/abi (ADR-11, B3) -->
                 <groupId>org.web3j</groupId>
                 <artifactId>web3j-maven-plugin</artifactId>
@@ -236,13 +258,10 @@
                                 <directory>${project.basedir}/src/main/solidity-none</directory>
                             </soliditySourceFiles>
                             <abiSourceFiles>
-                                <directory>${project.basedir}/../api/abi</directory>
+                                <directory>${project.build.directory}/abi</directory>
                                 <includes>
-                                    <include>*.json</include>
+                                    <include>*.abi</include>
                                 </includes>
-                                <excludes>
-                                    <exclude>manifest.json</exclude>
-                                </excludes>
                             </abiSourceFiles>
                             <outputDirectory>
                                 <java>${project.build.directory}/generated-sources/web3j</java>
