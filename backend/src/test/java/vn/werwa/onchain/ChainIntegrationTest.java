@@ -81,10 +81,11 @@ public abstract class ChainIntegrationTest extends IntegrationTest {
     @DynamicPropertySource
     static void chainProperties(DynamicPropertyRegistry registry) {
         // Đọc và gửi cùng một node thật nhưng khác dạng địa chỉ, vì cấu hình cấm trùng (chỉ đọc qua O1, ADR-12).
-        String read = "http://localhost:" + BESU.getMappedPort(8545);
+        String read = "http://127.0.0.1:" + BESU.getMappedPort(8545);
+        String submit = "http://localhost:" + BESU.getMappedPort(8545);
         registry.add("werwa.chain.id", () -> CHAIN_ID);
         registry.add("werwa.chain.read-urls", () -> DEAD_READER + "," + read);
-        registry.add("werwa.chain.submit-urls", () -> DEAD_VALIDATOR + "," + rpcUrl());
+        registry.add("werwa.chain.submit-urls", () -> DEAD_VALIDATOR + "," + submit);
         registry.add("werwa.chain.deployed-at-block", () -> DEPLOYED_AT_BLOCK);
         registry.add("werwa.chain.signing-mode", () -> "devnet");
         registry.add("werwa.onchain.workers-enabled", () -> "true");
