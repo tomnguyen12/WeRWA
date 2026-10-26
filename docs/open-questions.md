@@ -35,6 +35,8 @@ Gặp điểm dưới đây khi viết code: làm theo **giả định đang dù
 
 Thêm dòng mới ở đây kèm ngày, người hỏi, chỗ trong code bị ảnh hưởng.
 
+Ngày 26/10/2026 Tommy duyệt các quyết định D1–D9 của phiên backend (quy trình và lộ trình nhóm PR B0–B13 ở `backend/README.md` khi tạo). D7, D8 cần phiên infra làm thêm.
+
 Ngày 20/10/2026 Tommy duyệt các đề xuất C1–C18 của phiên contracts. Còn mở: câu hỏi pháp lý về GPL-3.0 (mục "Chờ Tommy quyết") và về việc hủy vị thế phong tỏa (ADR-0018).
 
 | Ngày | Câu hỏi | Ảnh hưởng | Trạng thái |
@@ -70,3 +72,12 @@ Ngày 20/10/2026 Tommy duyệt các đề xuất C1–C18 của phiên contracts
 | 22/10/2026 · I11 · phiên infra | Tên biến môi trường infra giao cho backend: theo chuẩn Spring. Phần Spring có sẵn dùng đúng tên property chuẩn (`SPRING_DATASOURCE_*`, `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_*`). Phần riêng của WeRWA theo quy tắc relaxed binding của Spring cho `@ConfigurationProperties(prefix = "werwa")`: thay dấu chấm bằng `_`, bỏ dấu gạch ngang, viết hoa (ví dụ `werwa.chain.deployed-at-block` ↔ `WERWA_CHAIN_DEPLOYEDATBLOCK`); danh sách là chuỗi cách nhau bằng dấu phẩy | `infra/werwa.sh` (B3.2, tệp env gộp); cấu hình của backend | Tommy chốt 22/10 |
 | 22/10/2026 · I12 · phiên infra | `infra/werwa.sh up` bật giám sát mặc định (US-6.01-AC3), có `--without monitoring` cho máy yếu. Chế độ ký của DeployPlatform mặc định `devnet` (chưa mint được); có `WERWA_SIGNER_RPC` thì `pkcs11` | `infra/werwa.sh` | Tommy duyệt 22/10 |
 | 24/10/2026 · I13 · phiên infra | Biến cho mô-đun Onchain của backend khi devnet dùng WeHSM: `WERWA_SIGNER_URL` (máy: `http://127.0.0.1:8745`; trong mạng: `http://wehsm.werwa.devnet:8545`) và `WERWA_SIGNER_TOKEN`, ứng với `werwa.signer.url`, `werwa.signer.token` theo I11. Backend gửi `eth_sendTransaction` (Basic auth `wehsm:<token>`) cho khóa `holcoOperator`; `WERWA_CHAIN_SUBMITURLS` (V1, V2) vẫn giữ cho giao dịch đã ký sẵn từ Safe. Chỉ có trong tệp env gộp khi nền tảng triển khai qua WeHSM | `infra/werwa.sh` (tệp env gộp); backend mô-đun `onchain` | Tommy duyệt 26/10; phần backend (mô-đun `onchain` dùng `werwa.signer.*`) làm ở phiên backend riêng |
+| 26/10/2026 · D1 · phiên backend | Công cụ build của `backend/`: Maven | `backend/pom.xml`, CI `backend.yml` | Tommy duyệt 26/10 |
+| 26/10/2026 · D2 · phiên backend | Gói gốc Java: `vn.werwa.<module>` | Toàn bộ `backend/` | Tommy duyệt 26/10 |
+| 26/10/2026 · D3 · phiên backend | Mã kỹ thuật dùng chung (lỗi `problem+json`, `Idempotency-Key`, `If-Match`, UUIDv7, kiểu tiền và ppm, bảo mật JWT) đặt ở gói `vn.werwa.platform`, khai báo là mô-đun dùng chung của Spring Modulith: không chứa nghiệp vụ, không có schema. Sáu mô-đun phân hệ giữ nguyên | `backend/` (nhóm B0, B1) | Tommy duyệt 26/10 |
+| 26/10/2026 · D4 · phiên backend | Sự kiện giữa các mô-đun trong cùng khối đều đi qua NATS: sổ phát hành sự kiện của Spring Modulith làm outbox (ghi cùng giao dịch DB), relay đẩy ra JetStream theo I2; bên nhận dùng consumer bền và bảng inbox chống trùng theo id CloudEvent. Không nghe sự kiện trực tiếp trong khối | Mọi mô-đun (nhóm B2) | Tommy duyệt 26/10 |
+| 26/10/2026 · D5 · phiên backend | Truy cập DB bằng Spring Data JDBC, không dùng JPA/Hibernate | Mọi mô-đun | Tommy duyệt 26/10 |
+| 26/10/2026 · D6 · phiên backend | Contract-first: interface của controller sinh từ `api/openapi.yaml` khi build; kiểm thử kiểm request/response theo đặc tả | Mọi API (nhóm B1) | Tommy duyệt 26/10 |
+| 26/10/2026 · D7 · phiên backend | Kho tài liệu (US-2.04): backend dùng cổng lưu trữ chuẩn S3; devnet thêm MinIO; kiểm thử dùng MinIO qua Testcontainers | `issuance` (nhóm B6); cần phiên infra thêm MinIO vào devnet và tệp env gộp | Tommy duyệt 26/10; chờ phiên infra |
+| 26/10/2026 · D8 · phiên backend | Tài khoản chuyển tiếp gửi giao dịch Safe đã đủ chữ ký: thêm khóa `relayer` trong WeHSM, không có quyền gì trên hợp đồng; backend gửi qua `werwa.signer.*` như I13. Devnet hiện dùng `bootstrap` | `onchain`, `governance` (nhóm B3, B4); cần phiên infra thêm khóa `relayer` và cấp phép tài khoản gửi | Tommy duyệt 26/10; chờ phiên infra |
+| 26/10/2026 · D9 · phiên backend | Kiểm thử tích hợp chạy Besu một node qua Testcontainers, triển khai nền tảng bằng `DeployPlatform` với Foundry 1.8.5 ghim trên CI | CI `backend.yml`, kiểm thử tích hợp (nhóm B0, B3) | Tommy duyệt 26/10 |
