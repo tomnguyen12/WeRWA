@@ -78,6 +78,30 @@ flowchart LR
 
 `Idempotency-Key` theo người dùng (Q6), giữ 24 giờ ở `platform.idempotency_key`; trả lại kèm `Idempotent-Replayed: true`; kết quả 5xx không lưu. Webhook ngân hàng (`/v1/inbound/**`, mTLS) đóng tới B8. Vai tổ chức đọc từ tệp seed devnet tới B5 (Q5).
 
+## Sự kiện giữa mô-đun (B2)
+
+Mọi sự kiện giữa mô-đun đi qua NATS JetStream, kể cả trong cùng khối (D4). Không dùng `@ApplicationModuleListener` hay `@EventListener` giữa các mô-đun.
+
+```mermaid
+flowchart LR
+  A[Mô-đun: events.publish trong giao dịch] --> B[(platform.event_publication)]
+  B -- sau commit --> C[OutboxRelay: CloudEvents, Nats-Msg-Id]
+  C --> D[[Stream WERWA]]
+  D --> E[Consumer bền mô-đun__loại]
+  E --> F[Giao dịch: inbox + EventHandler] -- commit --> G[ack]
+  F -. lỗi .-> H[Gửi lại theo Q10] -. hết lần .-> I[(platform.event_dead_letter)]
+  C -. NATS lỗi .-> J[Phát lại mỗi 30 giây]
+```
+
+| Cần | Dùng |
+|---|---|
+| Phát sự kiện | `events.publish(type, subject, data)` trong giao dịch; `type` phải có trong `api/events/catalog.yaml` và thuộc mô-đun phát |
+| Nhận sự kiện | Bean cài `EventHandler`: `consumer()` là tên mô-đun, `eventType()`, `handle(InboundEvent)`; đọc dữ liệu bằng `event.data(Kiểu.class)` |
+| Kiểm sự kiện khớp lược đồ trong test | `EventSchemas.validate(type, cloudEventBytes)` |
+| Kiểm thử tích hợp | Kế thừa `IntegrationTest`: PostgreSQL và NATS thật, stream tạo từ tệp của infra |
+
+Consumer mới đọc từ đầu stream (giữ 30 ngày); inbox chặn xử lý trùng. Thêm bên nhận cho loại sự kiện đã có thì bên đó sẽ nhận cả sự kiện cũ còn trong stream.
+
 ## Quy trình làm việc
 
 ```mermaid
