@@ -169,10 +169,12 @@ Module ký phải chuyển tiếp các lệnh JSON-RPC khác tới V1, để for
 
 `signer/signer.sh up` dựng hai container trên mạng `werwa-devnet-app`, cần devnet đang chạy. Dịch vụ ký là **WeHSM** (repo `tomnguyen12/WeHSM`, hướng dẫn `docs/tich-hop-werwa-s7.md`); SoftHSM chỉ là node HSM giả lập ở XD.
 
+Ảnh ghim theo digest của WeHSM `v0.2.0` (gồm luật ONCHAINID 0009: có hiệu lực khi `devnet.json` có `idFactory`, chưa có thì lời gọi tới `idFactory` bị từ chối).
+
 | Container | Ảnh (ghim digest) | Địa chỉ | Vai |
 |---|---|---|---|
-| `hsm-node` | `ghcr.io/tomnguyen12/wehsm-hsm-node@sha256:d70c8a0d…` | `hsm.werwa.devnet:1792`, không mở ra máy chủ | Node HSM giả lập Luna: SoftHSM2 sau mTLS. Đ1 thay bằng Luna Network HSM |
-| `wehsm` | `ghcr.io/tomnguyen12/wehsm@sha256:011454a1…` | `127.0.0.1:8745`; trong mạng `wehsm.werwa.devnet:8545` | Kiểm chính sách ký, ghép giao dịch, nhờ HSM ký qua PKCS#11. Đọc qua O1, chỉ gửi raw tx tới V1 (ADR-12) |
+| `hsm-node` | `ghcr.io/tomnguyen12/wehsm-hsm-node@sha256:cecd835e…` | `hsm.werwa.devnet:1792`, không mở ra máy chủ | Node HSM giả lập Luna: SoftHSM2 sau mTLS. Đ1 thay bằng Luna Network HSM |
+| `wehsm` | `ghcr.io/tomnguyen12/wehsm@sha256:d7a7ad5d…` | `127.0.0.1:8745`; trong mạng `wehsm.werwa.devnet:8545` | Kiểm chính sách ký, ghép giao dịch, nhờ HSM ký qua PKCS#11. Đọc qua O1, chỉ gửi raw tx tới V1 (ADR-12) |
 
 `up` làm lần lượt:
 1. Sinh PIN, token vào `signer/out/secrets/`.

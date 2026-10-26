@@ -13,7 +13,7 @@ name: werwa-signer
 
 services:
   hsm-node:
-    image: ${WEHSM_HSM_NODE_IMAGE:-ghcr.io/tomnguyen12/wehsm-hsm-node@sha256:d70c8a0d82397ba984cfb131e0906ab0bf21b478f88c334afce2a1532d1c700f}
+    image: ${WEHSM_HSM_NODE_IMAGE:-ghcr.io/tomnguyen12/wehsm-hsm-node@sha256:cecd835ee6b272aa0313016245f07ac733e2b9af5f28c3037978b8131fb81463}
     user: "${SIGNER_UID:-1000}:${SIGNER_GID:-1000}"
     restart: unless-stopped
     environment:
@@ -27,7 +27,7 @@ services:
       app: { aliases: [hsm.werwa.devnet] }
 
   wehsm:
-    image: ${WEHSM_IMAGE:-ghcr.io/tomnguyen12/wehsm@sha256:011454a116349d4648266093e9ae57a43636e9aa9ee25ce24a58d83cdb371218}
+    image: ${WEHSM_IMAGE:-ghcr.io/tomnguyen12/wehsm@sha256:d7a7ad5d7ea2808209b5a02117a2e84c3aefd6f14bb2897d78aa58fbd6993985}
     user: "${SIGNER_UID:-1000}:${SIGNER_GID:-1000}"
     command: ["serve"]
     restart: unless-stopped
