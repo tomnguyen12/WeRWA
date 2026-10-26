@@ -26,7 +26,7 @@
         <java.version>21</java.version>
         <spring-modulith.version>2.1.2</spring-modulith.version>
         <openapi-generator.version>7.14.0</openapi-generator.version>
-        <jnats.version>2.21.0</jnats.version>
+        <jnats.version>2.26.4</jnats.version>
         <json-schema-validator.version>1.5.8</json-schema-validator.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>

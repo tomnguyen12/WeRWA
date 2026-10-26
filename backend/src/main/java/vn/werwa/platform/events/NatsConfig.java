@@ -137,7 +137,11 @@ class NatsConfig {
         StreamGuard(JetStreamManagement jsm, String name, String expectedJson) {
             this.jsm = jsm;
             this.name = name;
-            this.expected = StreamConfiguration.instance(expectedJson);
+            try {
+                this.expected = StreamConfiguration.instance(expectedJson);
+            } catch (io.nats.client.support.JsonParseException e) {
+                throw new IllegalStateException("tệp cấu hình stream không đọc được", e);
+            }
         }
 
         void verify() throws IOException, JetStreamApiException {
