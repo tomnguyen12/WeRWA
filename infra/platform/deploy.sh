@@ -8,10 +8,11 @@
 #   WERWA_TIMELOCK_DELAY        giây; mặc định 3600 (C15)
 #
 # Khóa ký — hai chế độ:
-#   pkcs11   khi có WERWA_SIGNER_RPC: forge gửi eth_sendTransaction tới module ký của SoftHSM (`--unlocked`).
+#   pkcs11   khi có WERWA_SIGNER_RPC: forge gửi eth_sendTransaction tới WeHSM (`--unlocked`); khóa nằm trong node HSM.
 #            Địa chỉ khóa lấy từ WERWA_KEYS_FILE (mặc định devnet/out/keys.json):
 #              { "deployer": "0x…", "holcoOperator": "0x…", "holcoClaimSigner": "0x…" }
-#            Module ký phải chuyển tiếp các lệnh JSON-RPC khác tới V1 để forge mô phỏng được giao dịch.
+#            Module ký (WeHSM, infra/signer) chuyển các lệnh đọc tới O1 (ADR-12) để forge mô phỏng giao dịch;
+#            chạy qua `signer/signer.sh deploy-platform` để bật rồi tắt deployer đúng lúc.
 #   devnet   khi chưa có module ký: khóa triển khai là tài khoản thử `deployer` của devnet (tệp trong out/,
 #            chỉ cho devnet). Khóa vận hành và khóa ký claim chỉ là địa chỉ giữ chỗ, không có khóa riêng,
 #            nên không ai mint hay cấp claim được cho tới khi triển khai lại ở chế độ pkcs11.

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Dựng trọn devnet WeRWA bằng một lệnh, cho đội backend và frontend.
 #
-#   ./werwa.sh up [--without monitoring]   kiểm công cụ, rồi dựng lần lượt: mạng dùng chung, devnet Besu,
-#                                          Safe các bên, DeployPlatform, PostgreSQL và NATS, Keycloak,
+#   ./werwa.sh up [--without monitoring] [--signer devnet|wehsm]
+#                                          kiểm công cụ, rồi dựng lần lượt: mạng dùng chung, devnet Besu,
+#                                          Safe các bên, (WeHSM), DeployPlatform, PostgreSQL và NATS, Keycloak,
 #                                          giám sát. Chạy lại an toàn: phần đã có thì giữ nguyên
 #   ./werwa.sh status                      bảng gộp trạng thái mọi phần
 #   ./werwa.sh down                        dừng mọi phần, giữ dữ liệu (chuỗi, DB, người dùng thử)
@@ -22,8 +23,9 @@
 # werwa.sh chỉ gọi chúng theo đúng thứ tự. Tắt theo thứ tự ngược lại: giám sát dùng mạng p2p của devnet,
 # Keycloak lưu trên PostgreSQL của services.
 #
-# Chế độ ký của DeployPlatform: mặc định `devnet` (tài khoản thử, chưa mint được); đặt WERWA_SIGNER_RPC
-# (module ký SoftHSM) thì platform/deploy.sh chuyển sang `pkcs11`.
+# Chế độ ký của DeployPlatform (I12): mặc định `devnet` (tài khoản thử, chưa mint được). `--signer wehsm`
+# dựng WeHSM và node HSM (infra/signer) rồi triển khai qua WeHSM, chế độ `pkcs11`: khóa Holco nằm trong HSM,
+# mint và cấp claim được. Nền tảng đã triển khai qua WeHSM thì `up` tự bật lại WeHSM, không cần cờ.
 #
 # Công cụ cần: docker (Compose v2), curl, jq, openssl, base32, python3, forge và cast (Foundry 1.8.5),
 # nats (natscli 0.5.0); submodule của contracts/. Lệch phiên bản Foundry, natscli thì dừng; đặt
@@ -36,8 +38,8 @@ source "$INFRA/devnet/lib.sh"
 FOUNDRY_VERSION=1.8.5
 NATSCLI_VERSION=0.5.0
 P2P_NETWORK=werwa-devnet-p2p
-PROJECTS=(werwa-monitoring werwa-keycloak werwa-services werwa-devnet)
-OUT_DIRS=(devnet/out services/out keycloak/out monitoring/out out)
+PROJECTS=(werwa-monitoring werwa-keycloak werwa-services werwa-signer werwa-devnet)
+OUT_DIRS=(devnet/out services/out keycloak/out monitoring/out signer/out out)
 
 ENV_OUT="$INFRA/out"
 ENV_HOST="$ENV_OUT/werwa.env"
@@ -69,18 +71,35 @@ preflight() {
 }
 
 cmd_up() {
-  local monitoring=1
-  case "${1:-}" in
-    "") ;;
-    --without) [ "${2:-}" = monitoring ] || die "chỉ hỗ trợ --without monitoring"; monitoring=0 ;;
-    *) die "tham số lạ: $*" ;;
-  esac
+  local monitoring=1 signer="" plat="$DEVNET_OUT/platform/devnet.json"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --without) [ "${2:-}" = monitoring ] || die "chỉ hỗ trợ --without monitoring"; monitoring=0; shift 2 ;;
+      --signer) signer="${2:-}"; [ "$signer" = devnet ] || [ "$signer" = wehsm ] || die "--signer devnet|wehsm"; shift 2 ;;
+      *) die "tham số lạ: $*" ;;
+    esac
+  done
+  # Không có cờ: theo lần dựng trước (nền tảng đã triển khai qua WeHSM, hoặc WeHSM đã dựng và chưa clean),
+  # mặc định devnet (I12).
+  if [ -z "$signer" ]; then
+    signer=devnet
+    { [ -f "$plat" ] && [ "$(jq -r .signingMode "$plat")" = pkcs11 ]; } && signer=wehsm
+    { [ ! -f "$plat" ] && [ -f "$INFRA/signer/out/signer.env" ]; } && signer=wehsm
+  fi
+  if [ "$signer" = wehsm ] && [ -f "$plat" ] && [ "$(jq -r .signingMode "$plat")" != pkcs11 ]; then
+    die "nền tảng đã triển khai ở chế độ $(jq -r .signingMode "$plat"); chạy ./werwa.sh reset rồi up --signer wehsm"
+  fi
   local t0; t0=$(date +%s)
   step "kiểm công cụ"; preflight
   step "mạng dùng chung"; ensure_app_network
   step "devnet Besu";            run devnet     "$INFRA/devnet/devnet.sh" up
   step "Safe các bên";           run safe       "$INFRA/safe/safe.sh" up
-  step "triển khai nền tảng";    run platform   "$INFRA/platform/deploy.sh"
+  if [ "$signer" = wehsm ]; then
+    step "WeHSM và node HSM";    run signer     "$INFRA/signer/signer.sh" up
+    step "triển khai nền tảng qua WeHSM"; run platform "$INFRA/signer/signer.sh" deploy-platform
+  else
+    step "triển khai nền tảng";  run platform   "$INFRA/platform/deploy.sh"
+  fi
   step "PostgreSQL, NATS";       run services   "$INFRA/services/services.sh" up
   step "Keycloak";               run keycloak   "$INFRA/keycloak/keycloak.sh" up
   if [ "$monitoring" = 1 ]; then
@@ -146,6 +165,14 @@ ENVEOF
   echo
   echo "# Safe các bên (ADR-05, devnet/out/safe/safes.json) → werwa.safes.<tên>"
   jq -r '.safes | to_entries[] | "WERWA_SAFES_\(.key | ascii_upcase)=\(.value.address)"' "$safes"
+  if [ -f "$INFRA/signer/out/signer.env" ] && [ "$(jq -r .signingMode "$plat")" = pkcs11 ]; then
+    local signer_url=http://127.0.0.1:8745
+    [ "$v" = docker ] && signer_url=http://wehsm.werwa.devnet:8545
+    echo
+    echo "# Ký giao dịch qua WeHSM (ADR-06, I13): eth_sendTransaction với Basic auth wehsm:<token> → werwa.signer.*"
+    echo "WERWA_SIGNER_URL=$signer_url"
+    echo "WERWA_SIGNER_TOKEN=$(cat "$INFRA/signer/out/secrets/wehsm/token")"
+  fi
   if [ "$mon" = 1 ]; then
     echo
     echo "# Giám sát (US-6.01-AC3, I5) → werwa.monitoring.*"
@@ -193,6 +220,9 @@ cmd_status() {
   row "PostgreSQL" "$pg" "127.0.0.1:5432, DB werwa"
   row "NATS JetStream" "$(ok_http 'http://127.0.0.1:8222/healthz?js-enabled-only=true')" "127.0.0.1:4222, stream WERWA"
   row "Keycloak" "$(ok_http http://127.0.0.1:9180/health/ready)" "http://localhost:8180/realms/werwa"
+  if [ -f "$INFRA/signer/out/mode" ]; then
+    row "WeHSM" "$(ok_http http://127.0.0.1:8745/health)" "http://127.0.0.1:8745, chế độ $(cat "$INFRA/signer/out/mode")"
+  else row "WeHSM" "không dùng" "chế độ ký devnet (up --signer wehsm để dùng)"; fi
   row "Prometheus" "$(ok_http http://127.0.0.1:9090/-/ready)" "http://127.0.0.1:9090"
   if alerts=$(curl -sf --max-time 3 'http://127.0.0.1:9093/api/v2/alerts?active=true&silenced=false&inhibited=false' 2>/dev/null); then
     row "Alertmanager" "sẵn sàng" "$(jq length <<<"$alerts") cảnh báo đang bật $(jq -r '[.[].labels.alertname] | unique | join(", ")' <<<"$alerts")"
@@ -208,6 +238,7 @@ cmd_down() {
   soft "$INFRA/monitoring/monitoring.sh" down
   has_env keycloak && soft "$INFRA/keycloak/keycloak.sh" down
   has_env services && soft "$INFRA/services/services.sh" down
+  [ -d "$INFRA/signer/out" ] && soft "$INFRA/signer/signer.sh" down
   soft "$INFRA/devnet/devnet.sh" down
   log "đã dừng; dữ liệu còn nguyên, chạy ./werwa.sh up để bật lại"
 }
@@ -217,6 +248,8 @@ cmd_reset() {
   # Keycloak reset xóa DB keycloak qua PostgreSQL của services, nên làm khi services còn chạy.
   has_env keycloak && soft "$INFRA/keycloak/keycloak.sh" reset
   has_env services && soft "$INFRA/services/services.sh" reset
+  # Khóa trong HSM giữ nguyên; WeHSM dừng để lần up sau chạy lại từ chế độ deploy trên chuỗi mới.
+  [ -d "$INFRA/signer/out" ] && soft "$INFRA/signer/signer.sh" down
   soft "$INFRA/devnet/devnet.sh" reset
   # Chuỗi mới không còn Safe và hợp đồng: bỏ kết quả cũ để `up` tạo lại.
   rm -rf "$DEVNET_OUT/safe" "$DEVNET_OUT/platform"
@@ -227,6 +260,7 @@ cmd_clean() {
   soft "$INFRA/monitoring/monitoring.sh" clean
   has_env keycloak && soft "$INFRA/keycloak/keycloak.sh" clean
   has_env services && soft "$INFRA/services/services.sh" clean
+  [ -d "$INFRA/signer/out" ] && soft "$INFRA/signer/signer.sh" clean
   soft "$INFRA/devnet/devnet.sh" clean
   # Phần còn sót (script con hỏng giữa chừng, tệp thiếu): gỡ theo nhãn project của Compose.
   local p ids

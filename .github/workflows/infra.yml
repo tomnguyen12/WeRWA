@@ -196,7 +196,7 @@ jobs:
   signer:
     name: WeHSM · ký qua HSM trên devnet
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     # Ảnh WeHSM là package GHCR riêng tư của tomnguyen12; WeRWA được cấp quyền Read trong Manage Actions access.
     permissions:
       contents: read
@@ -206,6 +206,8 @@ jobs:
         working-directory: infra
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: ${{ env.FOUNDRY_VERSION }}
@@ -219,6 +221,16 @@ jobs:
         run: signer/signer.sh up --mode deploy
       - name: Kiểm WeHSM (H1–H9)
         run: test/signer.sh
+      - name: Safe các bên (đầu vào của DeployPlatform)
+        run: safe/safe.sh up
+      - name: Triển khai nền tảng qua WeHSM (deploy → DeployPlatform pkcs11 → operate)
+        run: signer/signer.sh deploy-platform
+      - name: Kiểm sau triển khai ở chế độ pkcs11 (D1–D6)
+        run: test/deploy-platform.sh
+      - name: US-6.04-AC4 phần infra, chính sách hai giai đoạn (E1–E6)
+        run: test/signer-deploy.sh
+      - name: Bảng trạng thái có WeHSM
+        run: ./werwa.sh status
       - name: Nhật ký khi lỗi
         if: failure()
         run: |
