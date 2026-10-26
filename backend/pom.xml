@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Backend WeRWA: một khối triển khai, Spring Modulith, 6 mô-đun phân hệ + mô-đun dùng chung platform.
-  Quyết định: ADR-10, ADR-11; D1 (Maven), D2 (gói vn.werwa), D5 (Spring Data JDBC), Q2 (Spring Boot 4.0.x, Modulith 2.0.x).
-  B0 chỉ khai báo thư viện đã dùng; web3j, jnats, bảo mật, OpenAPI thêm ở nhóm PR dùng tới chúng (B1–B3).
+  Quyết định: ADR-10, ADR-11; D1 (Maven), D2 (gói vn.werwa), D5 (Spring Data JDBC), Q4 (Spring Boot 4.1.x, Modulith 2.1.x).
+  Chỉ khai báo thư viện đã dùng; web3j, jnats thêm ở nhóm PR dùng tới chúng (B2, B3).
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -12,7 +12,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.9</version>
+        <version>4.1.2</version>
         <relativePath/>
     </parent>
 
@@ -24,7 +24,9 @@
 
     <properties>
         <java.version>21</java.version>
-        <spring-modulith.version>2.0.9</spring-modulith.version>
+        <spring-modulith.version>2.1.2</spring-modulith.version>
+        <openapi-generator.version>7.14.0</openapi-generator.version>
+        <json-schema-validator.version>1.5.8</json-schema-validator.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -44,6 +46,19 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Chú thích Jackson dùng trong mô hình sinh từ OpenAPI -->
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -110,10 +125,82 @@
             <artifactId>spring-modulith-docs</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- Kiểm response khớp lược đồ OpenAPI 3.1 (JSON Schema 2020-12) -->
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>${json-schema-validator.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <!-- Hợp đồng API: backend kiểm vai theo x-werwa-roles lúc chạy (B1.0) -->
+                <directory>../api</directory>
+                <includes>
+                    <include>openapi.yaml</include>
+                </includes>
+                <targetPath>contract</targetPath>
+            </resource>
+            <resource>
+                <!-- Vai của tổ chức thử devnet (I6), nguồn tạm tới B5 (Q5) -->
+                <directory>../infra/keycloak/seed</directory>
+                <includes>
+                    <include>orgs.json</include>
+                </includes>
+                <targetPath>seed</targetPath>
+            </resource>
+        </resources>
         <plugins>
+            <plugin>
+                <!-- Contract-first (D6): interface controller và mô hình sinh từ api/openapi.yaml -->
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>${openapi-generator.version}</version>
+                <executions>
+                    <execution>
+                        <id>werwa-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/../api/openapi.yaml</inputSpec>
+                            <generatorName>spring</generatorName>
+                            <apiPackage>vn.werwa.platform.openapi.api</apiPackage>
+                            <modelPackage>vn.werwa.platform.openapi.model</modelPackage>
+                            <generateSupportingFiles>false</generateSupportingFiles>
+                            <generateApiDocumentation>false</generateApiDocumentation>
+                            <generateModelDocumentation>false</generateModelDocumentation>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
+                            <configOptions>
+                                <interfaceOnly>true</interfaceOnly>
+                                <skipDefaultInterface>true</skipDefaultInterface>
+                                <useTags>true</useTags>
+                                <useSpringBoot3>true</useSpringBoot3>
+                                <useJakartaEe>true</useJakartaEe>
+                                <useBeanValidation>true</useBeanValidation>
+                                <performBeanValidation>false</performBeanValidation>
+                                <openApiNullable>false</openApiNullable>
+                                <annotationLibrary>none</annotationLibrary>
+                                <documentationProvider>none</documentationProvider>
+                                <dateLibrary>java8</dateLibrary>
+                                <useResponseEntity>true</useResponseEntity>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
