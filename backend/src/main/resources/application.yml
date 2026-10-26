@@ -1,0 +1,24 @@
+# Cấu hình chung. Giá trị theo môi trường lấy từ biến môi trường (I11):
+#   set -a; source "$(infra/werwa.sh env)"; set +a
+spring:
+  application:
+    name: werwa-backend
+  flyway:
+    # Lịch sử Flyway nằm ở schema platform (Q1). Bảy schema tạo trong V1.
+    default-schema: platform
+    schemas: platform
+    locations: classpath:db/migration
+  jackson:
+    time-zone: UTC
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${WERWA_HTTP_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, modulith

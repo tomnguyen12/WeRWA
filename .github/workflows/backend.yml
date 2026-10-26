@@ -1,0 +1,50 @@
+name: backend
+
+# Cổng bắt buộc của luồng backend/ (CONTRIBUTING.md, mục CI).
+# Chạy với mọi PR và push vào main để đặt làm status check bắt buộc; chạy cả khi push nhánh backend,
+# vì phiên Claude backend build và kiểm thử trên CI trước khi mở PR (Q3).
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'feat/backend/**'
+      - 'fix/backend/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  build-test:
+    name: build · unit · Modulith · tích hợp
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: Phiên bản thư viện mới nhất (tạm, để ghim pom)
+        run: |
+          for a in org/springframework/boot/spring-boot-starter-parent org/springframework/modulith/spring-modulith-bom; do
+            echo "$a"; curl -sS "https://repo1.maven.org/maven2/$a/maven-metadata.xml" | grep -o '<version>[^<]*' | sed 's/<version>//' | tail -15 | tr '\n' ' '; echo
+          done
+      - name: Build, kiểm thử đơn vị, ApplicationModules.verify(), kiểm thử tích hợp (Testcontainers)
+        run: mvn -B -ntp verify
+      - name: Tài liệu mô-đun
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: modulith-docs
+          path: backend/target/spring-modulith-docs
+          if-no-files-found: ignore
