@@ -46,13 +46,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Organization'
-        4XX: &id001
+        4XX:
           description: Lỗi
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
-        5XX: *id001
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/organizations/{id}:
     get:
       tags:
@@ -72,8 +77,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Organization'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/organizations/{id}/kyb-decision:
     post:
       tags:
@@ -100,8 +115,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Organization'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/organizations/{id}/signers:
     post:
       tags:
@@ -128,8 +153,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthorizedSigner'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/kyc-cases:
     post:
       tags:
@@ -156,8 +191,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/KycCase'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/kyc-cases/{id}/decision:
     post:
       tags:
@@ -184,8 +229,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/KycCase'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/wallet-challenges:
     post:
       tags:
@@ -208,7 +263,7 @@ paths:
               required:
               - address
               properties:
-                address: &id005
+                address:
                   type: string
                   pattern: ^0x[0-9a-fA-F]{40}$
               additionalProperties: false
@@ -219,8 +274,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WalletChallenge'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/wallets:
     post:
       tags:
@@ -247,8 +312,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Wallet'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/programs:
     post:
       tags:
@@ -274,8 +349,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Program'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/programs/{id}:
     get:
       tags:
@@ -295,8 +380,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Program'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/programs/{id}/limits:
     get:
       tags:
@@ -317,8 +412,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProgramLimits'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/documents:
     post:
       tags:
@@ -349,7 +454,7 @@ paths:
                   type: string
                 title:
                   type: string
-                supersedesId: &id003
+                supersedesId:
                   type: string
                   format: uuid
                   description: UUIDv7
@@ -367,8 +472,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Document'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/series:
     post:
       tags:
@@ -395,8 +510,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Series'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/series/{id}:
     get:
       tags:
@@ -416,8 +541,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Series'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/series/{id}/submit:
     post:
       tags:
@@ -438,8 +573,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SigningProposalRef'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/series/{id}/deploy:
     post:
       tags:
@@ -454,14 +599,24 @@ paths:
       - $ref: '#/components/parameters/Id'
       - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '202': &id002
+        '202':
           description: Đã nhận; tạo yêu cầu duyệt hoặc đề nghị ký
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SigningProposalRef'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/issuer-decisions:
     post:
       tags:
@@ -483,8 +638,18 @@ paths:
       responses:
         '201':
           description: OK
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/offerings:
     post:
       tags:
@@ -511,8 +676,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Offering'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/offerings/{id}/open:
     post:
       tags:
@@ -533,8 +708,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Offering'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/offerings/{id}/close:
     post:
       tags:
@@ -555,8 +740,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Offering'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/offerings/{id}/orders:
     post:
       tags:
@@ -584,8 +779,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/orders/{id}:
     patch:
       tags:
@@ -614,8 +819,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
     delete:
       tags:
       - distribution
@@ -637,8 +852,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/offerings/{id}/allocation-lists:
     post:
       tags:
@@ -665,8 +890,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AllocationList'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/allocation-lists/{id}/submit:
     post:
       tags:
@@ -681,9 +916,24 @@ paths:
       - $ref: '#/components/parameters/Id'
       - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '202': *id002
-        4XX: *id001
-        5XX: *id001
+        '202':
+          description: Đã nhận; tạo yêu cầu duyệt hoặc đề nghị ký
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SigningProposalRef'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/allocation-lists/{id}/proofs/{allocationId}:
     get:
       tags:
@@ -700,7 +950,10 @@ paths:
       - name: allocationId
         in: path
         required: true
-        schema: *id003
+        schema:
+          type: string
+          format: uuid
+          description: UUIDv7
       responses:
         '200':
           description: OK
@@ -708,8 +961,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AllocationProof'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/series/{id}/issuance-progress:
     get:
       tags:
@@ -731,8 +994,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IssuanceProgress'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/transfers:
     post:
       tags:
@@ -759,8 +1032,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Transfer'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/transfers/{id}/confirm:
     post:
       tags:
@@ -782,8 +1065,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Transfer'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/holdings:
     get:
       tags:
@@ -799,10 +1092,16 @@ paths:
       parameters:
       - name: seriesId
         in: query
-        schema: *id003
+        schema:
+          type: string
+          format: uuid
+          description: UUIDv7
       - name: walletId
         in: query
-        schema: *id003
+        schema:
+          type: string
+          format: uuid
+          description: UUIDv7
       - $ref: '#/components/parameters/Cursor'
       - $ref: '#/components/parameters/Limit'
       responses:
@@ -822,8 +1121,18 @@ paths:
                   nextCursor:
                     type: string
                 additionalProperties: false
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/series/{id}/snapshots/{period}:
     get:
       tags:
@@ -851,8 +1160,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Snapshot'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/approvals:
     get:
       tags:
@@ -883,8 +1202,18 @@ paths:
                   nextCursor:
                     type: string
                 additionalProperties: false
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/approvals/{id}/decision:
     post:
       tags:
@@ -911,8 +1240,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApprovalRequest'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/signing-proposals/{id}:
     get:
       tags:
@@ -932,8 +1271,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SigningProposal'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/signing-proposals/{id}/signatures:
     post:
       tags:
@@ -960,8 +1309,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SigningProposal'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/enforcement-orders:
     post:
       tags:
@@ -987,8 +1346,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EnforcementOrder'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/supervision/series/{id}:
     get:
       tags:
@@ -1008,8 +1377,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Series'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/supervision/block-hash-checks:
     get:
       tags:
@@ -1040,8 +1419,18 @@ paths:
                   nextCursor:
                     type: string
                 additionalProperties: false
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/audit-log:
     get:
       tags:
@@ -1073,8 +1462,18 @@ paths:
                   nextCursor:
                     type: string
                 additionalProperties: false
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/reconciliation/runs:
     get:
       tags:
@@ -1107,8 +1506,18 @@ paths:
                   nextCursor:
                     type: string
                 additionalProperties: false
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/inbound/bidv/credit-notifications:
     post:
       tags:
@@ -1135,8 +1544,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ack'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       security:
       - bankMtls: []
   /v1/inbound/bidv/payout-confirmations:
@@ -1165,8 +1584,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ack'
-        4XX: *id001
-        5XX: *id001
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       security:
       - bankMtls: []
 components:
@@ -1197,7 +1626,10 @@ components:
       name: id
       in: path
       required: true
-      schema: *id003
+      schema:
+        type: string
+        format: uuid
+        description: UUIDv7
     Cursor:
       name: cursor
       in: query
@@ -1229,7 +1661,7 @@ components:
           type: string
           pattern: ^[0-9]+$
           description: Số tiền theo đơn vị nhỏ nhất, dạng chuỗi
-        currency: &id008
+        currency:
           type: string
           pattern: ^[A-Z]{3}$
       additionalProperties: false
@@ -1261,8 +1693,14 @@ components:
       - signingProposalId
       - status
       properties:
-        signingProposalId: *id003
-        approvalRequestId: *id003
+        signingProposalId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        approvalRequestId:
+          type: string
+          format: uuid
+          description: UUIDv7
         status:
           type: string
           enum:
@@ -1295,7 +1733,10 @@ components:
       - roles
       - kybStatus
       properties:
-        id: *id003
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
         legalName:
           type: string
         registrationNo:
@@ -1306,7 +1747,7 @@ components:
           type: array
           items:
             type: string
-            enum: &id004
+            enum:
             - ISSUER
             - OPERATING_AGENCY
             - SYNDICATE
@@ -1344,11 +1785,25 @@ components:
           type: array
           items:
             type: string
-            enum: *id004
+            enum:
+            - ISSUER
+            - OPERATING_AGENCY
+            - SYNDICATE
+            - REGISTRAR
+            - PAYING_AGENT
+            - TREASURY
+            - CUSTODIAN
+            - TRUSTEE
+            - SUPERVISOR
+            - OPERATOR
+            - INVESTOR
           minItems: 1
         kybDocumentIds:
           type: array
-          items: *id003
+          items:
+            type: string
+            format: uuid
+            description: UUIDv7
       additionalProperties: false
     SignerCreate:
       type: object
@@ -1359,8 +1814,13 @@ components:
       - validFrom
       - authorizationDocId
       properties:
-        userId: *id003
-        signingAddress: *id005
+        userId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        signingAddress:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
         scopes:
           type: array
           items:
@@ -1372,11 +1832,16 @@ components:
             - REGISTRAR_ATTEST
             - ENFORCEMENT
             - GOVERNANCE
-        validFrom: &id006
+        validFrom:
           type: string
           format: date
-        validTo: *id006
-        authorizationDocId: *id003
+        validTo:
+          type: string
+          format: date
+        authorizationDocId:
+          type: string
+          format: uuid
+          description: UUIDv7
       additionalProperties: false
     AuthorizedSigner:
       allOf:
@@ -1386,18 +1851,30 @@ components:
         - id
         - organizationId
         properties:
-          id: *id003
-          organizationId: *id003
+          id:
+            type: string
+            format: uuid
+            description: UUIDv7
+          organizationId:
+            type: string
+            format: uuid
+            description: UUIDv7
         additionalProperties: false
     KycCaseCreate:
       type: object
       required:
       - organizationId
       properties:
-        organizationId: *id003
+        organizationId:
+          type: string
+          format: uuid
+          description: UUIDv7
         documentIds:
           type: array
-          items: *id003
+          items:
+            type: string
+            format: uuid
+            description: UUIDv7
       additionalProperties: false
     KycDecision:
       type: object
@@ -1423,8 +1900,14 @@ components:
       - organizationId
       - status
       properties:
-        id: *id003
-        organizationId: *id003
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        organizationId:
+          type: string
+          format: uuid
+          description: UUIDv7
         status:
           type: string
           enum:
@@ -1438,7 +1921,7 @@ components:
           description: Kết quả sàng lọc cấm vận, PEP, lưu nguyên văn
         investorClass:
           type: string
-        expiresAt: &id007
+        expiresAt:
           type: string
           format: date-time
       additionalProperties: false
@@ -1449,10 +1932,15 @@ components:
       - message
       - expiresAt
       properties:
-        challengeId: *id003
+        challengeId:
+          type: string
+          format: uuid
+          description: UUIDv7
         message:
           type: string
-        expiresAt: *id007
+        expiresAt:
+          type: string
+          format: date-time
       additionalProperties: false
     WalletRegister:
       type: object
@@ -1463,14 +1951,22 @@ components:
       - challengeId
       - signature
       properties:
-        organizationId: *id003
-        address: *id005
+        organizationId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        address:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
         walletType:
           type: string
           enum:
           - SELF
           - OMNIBUS
-        challengeId: *id003
+        challengeId:
+          type: string
+          format: uuid
+          description: UUIDv7
         signature:
           type: string
           pattern: ^0x[0-9a-fA-F]+$
@@ -1484,15 +1980,25 @@ components:
       - walletType
       - status
       properties:
-        id: *id003
-        organizationId: *id003
-        address: *id005
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        organizationId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        address:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
         walletType:
           type: string
           enum:
           - SELF
           - OMNIBUS
-        onchainIdAddress: *id005
+        onchainIdAddress:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
         status:
           type: string
           enum:
@@ -1518,16 +2024,24 @@ components:
           type: string
         hdndResolutionNo:
           type: string
-        approvedOn: *id006
-        currency: *id008
+        approvedOn:
+          type: string
+          format: date
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
         maxPrincipal:
           $ref: '#/components/schemas/Money'
-        rateFloorPpm: &id009
+        rateFloorPpm:
           type: integer
           format: int32
           minimum: 0
           description: Phần triệu, 1 000 000 = 100%
-        rateCapPpm: *id009
+        rateCapPpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
         costCap:
           $ref: '#/components/schemas/Money'
         tenorRange:
@@ -1540,8 +2054,14 @@ components:
           type: array
           items:
             type: string
-        documentId: *id003
-        amendsProgramId: *id003
+        documentId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        amendsProgramId:
+          type: string
+          format: uuid
+          description: UUIDv7
       additionalProperties: false
     Program:
       allOf:
@@ -1551,7 +2071,10 @@ components:
         - id
         - status
         properties:
-          id: *id003
+          id:
+            type: string
+            format: uuid
+            description: UUIDv7
           status:
             type: string
             enum:
@@ -1569,7 +2092,10 @@ components:
       - used
       - available
       properties:
-        programId: *id003
+        programId:
+          type: string
+          format: uuid
+          description: UUIDv7
         maxPrincipal:
           $ref: '#/components/schemas/Money'
         reserved:
@@ -1587,7 +2113,10 @@ components:
       - title
       - sha256
       properties:
-        id: *id003
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
         docType:
           type: string
         title:
@@ -1597,7 +2126,10 @@ components:
         sha256:
           type: string
           pattern: ^[0-9a-f]{64}$
-        supersedesId: *id003
+        supersedesId:
+          type: string
+          format: uuid
+          description: UUIDv7
         visibility:
           type: string
           enum:
@@ -1620,14 +2152,23 @@ components:
       - maturityDate
       - termsDocumentId
       properties:
-        programId: *id003
+        programId:
+          type: string
+          format: uuid
+          description: UUIDv7
         seriesCode:
           type: string
-        currency: *id008
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
         faceValue:
           $ref: '#/components/schemas/Money'
-        issuePricePpm: *id009
-        maxQuantity: &id010
+        issuePricePpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        maxQuantity:
           type: integer
           format: int64
           minimum: 0
@@ -1648,8 +2189,12 @@ components:
           enum:
           - '30_360'
           - ACT_ACT
-        issueDate: *id006
-        maturityDate: *id006
+        issueDate:
+          type: string
+          format: date
+        maturityDate:
+          type: string
+          format: date
         calendars:
           type: array
           items:
@@ -1659,13 +2204,24 @@ components:
             - NY
         graceBusinessDays:
           type: integer
-        withholdingTaxPpm: *id009
-        holdingLimit: *id010
+        withholdingTaxPpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        holdingLimit:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
         investorClasses:
           type: array
           items:
             type: string
-        termsDocumentId: *id003
+        termsDocumentId:
+          type: string
+          format: uuid
+          description: UUIDv7
       additionalProperties: false
     Series:
       allOf:
@@ -1675,7 +2231,10 @@ components:
         - id
         - status
         properties:
-          id: *id003
+          id:
+            type: string
+            format: uuid
+            description: UUIDv7
           status:
             type: string
             enum:
@@ -1696,13 +2255,17 @@ components:
           isin:
             type: string
             pattern: ^[A-Z]{2}[A-Z0-9]{9}[0-9]$
-          termsHash: &id011
+          termsHash:
             type: string
             pattern: ^0x[0-9a-fA-F]{64}$
           chainId:
             type: integer
-          controllerAddress: *id005
-          tokenAddress: *id005
+          controllerAddress:
+            type: string
+            pattern: ^0x[0-9a-fA-F]{40}$
+          tokenAddress:
+            type: string
+            pattern: ^0x[0-9a-fA-F]{40}$
           events:
             type: array
             items:
@@ -1723,11 +2286,23 @@ components:
           - MATURITY
         periodNo:
           type: integer
-        periodStart: *id006
-        periodEnd: *id006
-        recordDate: *id006
-        paymentDate: *id006
-        ratePpm: *id009
+        periodStart:
+          type: string
+          format: date
+        periodEnd:
+          type: string
+          format: date
+        recordDate:
+          type: string
+          format: date
+        paymentDate:
+          type: string
+          format: date
+        ratePpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
       additionalProperties: false
     IssuerDecisionCreate:
       type: object
@@ -1739,16 +2314,27 @@ components:
       properties:
         decisionNo:
           type: string
-        decidedOn: *id006
+        decidedOn:
+          type: string
+          format: date
         subject:
           type: string
           enum:
           - SERIES_TERMS
           - COUPON_RATE
           - ALLOCATION
-        seriesId: *id003
-        offeringId: *id003
-        documentId: *id003
+        seriesId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        offeringId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        documentId:
+          type: string
+          format: uuid
+          description: UUIDv7
       additionalProperties: false
     OfferingCreate:
       type: object
@@ -1759,17 +2345,39 @@ components:
       - bookOpenAt
       - bookCloseAt
       properties:
-        seriesId: *id003
+        seriesId:
+          type: string
+          format: uuid
+          description: UUIDv7
         method:
           type: string
           enum:
           - BOOKBUILDING
-        rateGuidanceLowPpm: *id009
-        rateGuidanceHighPpm: *id009
-        targetQuantity: *id010
-        bookOpenAt: *id007
-        bookCloseAt: *id007
-        announcementDocumentId: *id003
+        rateGuidanceLowPpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        rateGuidanceHighPpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        targetQuantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        bookOpenAt:
+          type: string
+          format: date-time
+        bookCloseAt:
+          type: string
+          format: date-time
+        announcementDocumentId:
+          type: string
+          format: uuid
+          description: UUIDv7
       additionalProperties: false
     Offering:
       allOf:
@@ -1779,7 +2387,10 @@ components:
         - id
         - status
         properties:
-          id: *id003
+          id:
+            type: string
+            format: uuid
+            description: UUIDv7
           status:
             type: string
             enum:
@@ -1797,17 +2408,39 @@ components:
       - ratePpm
       - quantity
       properties:
-        investorOrgId: *id003
-        walletId: *id003
-        ratePpm: *id009
-        quantity: *id010
+        investorOrgId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        walletId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        ratePpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        quantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
       additionalProperties: false
     OrderAmend:
       type: object
       required: []
       properties:
-        ratePpm: *id009
-        quantity: *id010
+        ratePpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        quantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
       additionalProperties: false
     Order:
       allOf:
@@ -1818,9 +2451,18 @@ components:
         - offeringId
         - status
         properties:
-          id: *id003
-          offeringId: *id003
-          enteredByOrgId: *id003
+          id:
+            type: string
+            format: uuid
+            description: UUIDv7
+          offeringId:
+            type: string
+            format: uuid
+            description: UUIDv7
+          enteredByOrgId:
+            type: string
+            format: uuid
+            description: UUIDv7
           status:
             type: string
             enum:
@@ -1839,7 +2481,11 @@ components:
       - couponRatePpm
       - items
       properties:
-        couponRatePpm: *id009
+        couponRatePpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
         items:
           type: array
           items:
@@ -1848,8 +2494,15 @@ components:
             - orderId
             - quantity
             properties:
-              orderId: *id003
-              quantity: *id010
+              orderId:
+                type: string
+                format: uuid
+                description: UUIDv7
+              quantity:
+                type: integer
+                format: int64
+                minimum: 0
+                description: Số trái phiếu (decimals 0)
               adjustmentReason:
                 type: string
             additionalProperties: false
@@ -1863,13 +2516,29 @@ components:
       - status
       - totalQuantity
       properties:
-        id: *id003
-        offeringId: *id003
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        offeringId:
+          type: string
+          format: uuid
+          description: UUIDv7
         listVersion:
           type: integer
-        couponRatePpm: *id009
-        totalQuantity: *id010
-        merkleRoot: *id011
+        couponRatePpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        totalQuantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        merkleRoot:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
         status:
           type: string
           enum:
@@ -1889,15 +2558,32 @@ components:
       - proof
       - merkleRoot
       properties:
-        allocationId: *id003
-        seriesController: *id005
-        wallet: *id005
-        quantity: *id010
-        leaf: *id011
+        allocationId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        seriesController:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
+        wallet:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
+        quantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        leaf:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
         proof:
           type: array
-          items: *id011
-        merkleRoot: *id011
+          items:
+            type: string
+            pattern: ^0x[0-9a-fA-F]{64}$
+        merkleRoot:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
       additionalProperties: false
     IssuanceProgress:
       type: object
@@ -1905,7 +2591,10 @@ components:
       - seriesId
       - step
       properties:
-        seriesId: *id003
+        seriesId:
+          type: string
+          format: uuid
+          description: UUIDv7
         step:
           type: string
           enum:
@@ -1915,10 +2604,26 @@ components:
           - MINTING
           - WAIT_VSDC
           - DONE
-        allocated: *id010
-        paid: *id010
-        minted: *id010
-        overdue: *id010
+        allocated:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        paid:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        minted:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        overdue:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
         alerts:
           type: array
           items:
@@ -1932,10 +2637,23 @@ components:
       - toWalletId
       - quantity
       properties:
-        seriesId: *id003
-        fromWalletId: *id003
-        toWalletId: *id003
-        quantity: *id010
+        seriesId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        fromWalletId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        toWalletId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        quantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
       additionalProperties: false
     Transfer:
       allOf:
@@ -1945,7 +2663,10 @@ components:
         - id
         - status
         properties:
-          id: *id003
+          id:
+            type: string
+            format: uuid
+            description: UUIDv7
           status:
             type: string
             enum:
@@ -1953,10 +2674,18 @@ components:
             - SUBMITTED
             - COMPLETED
             - REJECTED
-          fromConfirmedAt: *id007
-          toConfirmedAt: *id007
-          custodianConfirmedAt: *id007
-          txHash: *id011
+          fromConfirmedAt:
+            type: string
+            format: date-time
+          toConfirmedAt:
+            type: string
+            format: date-time
+          custodianConfirmedAt:
+            type: string
+            format: date-time
+          txHash:
+            type: string
+            pattern: ^0x[0-9a-fA-F]{64}$
         additionalProperties: false
     Holding:
       type: object
@@ -1968,11 +2697,29 @@ components:
       - locked
       - asOfBlock
       properties:
-        seriesId: *id003
-        walletId: *id003
-        balance: *id010
-        frozen: *id010
-        locked: *id010
+        seriesId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        walletId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        balance:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        frozen:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        locked:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
         asOfBlock:
           type: integer
       additionalProperties: false
@@ -1985,16 +2732,27 @@ components:
       - registerHash
       - lines
       properties:
-        seriesId: *id003
+        seriesId:
+          type: string
+          format: uuid
+          description: UUIDv7
         periodNo:
           type: integer
         recordBlock:
           type: integer
-        registerHash: *id011
-        registrarAttestedAt: *id007
+        registerHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        registrarAttestedAt:
+          type: string
+          format: date-time
         holderCount:
           type: integer
-        totalQuantity: *id010
+        totalQuantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
         lines:
           type: array
           items:
@@ -2003,9 +2761,19 @@ components:
             - walletId
             - quantity
             properties:
-              walletId: *id003
-              investorOrgId: *id003
-              quantity: *id010
+              walletId:
+                type: string
+                format: uuid
+                description: UUIDv7
+              investorOrgId:
+                type: string
+                format: uuid
+                description: UUIDv7
+              quantity:
+                type: integer
+                format: int64
+                minimum: 0
+                description: Số trái phiếu (decimals 0)
               gross:
                 $ref: '#/components/schemas/Money'
               tax:
@@ -2028,21 +2796,34 @@ components:
       - makerUserId
       - status
       properties:
-        id: *id003
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
         actionType:
           type: string
         subjectRef:
           type: string
-        payloadHash: *id011
-        makerUserId: *id003
-        checkerUserId: *id003
+        payloadHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        makerUserId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        checkerUserId:
+          type: string
+          format: uuid
+          description: UUIDv7
         status:
           type: string
           enum:
           - PENDING
           - APPROVED
           - REJECTED
-        decidedAt: *id007
+        decidedAt:
+          type: string
+          format: date-time
         comment:
           type: string
       additionalProperties: false
@@ -2058,17 +2839,26 @@ components:
       - signatures
       - status
       properties:
-        id: *id003
-        targetContract: *id005
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        targetContract:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
         functionName:
           type: string
-        calldataHash: *id011
+        calldataHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
         typedData:
           type: object
           description: Dữ liệu EIP-712 người ký cần ký
         requiredSigners:
           type: array
-          items: *id005
+          items:
+            type: string
+            pattern: ^0x[0-9a-fA-F]{40}$
         threshold:
           type: integer
         signatures:
@@ -2079,11 +2869,17 @@ components:
             - signer
             - signature
             properties:
-              signer: *id005
-              safe: *id005
+              signer:
+                type: string
+                pattern: ^0x[0-9a-fA-F]{40}$
+              safe:
+                type: string
+                pattern: ^0x[0-9a-fA-F]{40}$
               signature:
                 type: string
-              submittedAt: *id007
+              submittedAt:
+                type: string
+                format: date-time
             additionalProperties: false
         status:
           type: string
@@ -2093,7 +2889,9 @@ components:
           - SENT
           - MINED
           - FAILED
-        txHash: *id011
+        txHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
       additionalProperties: false
     SignatureSubmit:
       type: object
@@ -2101,7 +2899,9 @@ components:
       - signer
       - signature
       properties:
-        signer: *id005
+        signer:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
         signature:
           type: string
           pattern: ^0x[0-9a-fA-F]+$
@@ -2122,21 +2922,36 @@ components:
           type: string
         orderNo:
           type: string
-        issuedOn: *id006
-        basisDocumentId: *id003
+        issuedOn:
+          type: string
+          format: date
+        basisDocumentId:
+          type: string
+          format: uuid
+          description: UUIDv7
         action:
           type: string
           enum:
           - FREEZE
           - UNFREEZE
           - FORCED_TRANSFER
-        seriesId: *id003
-        walletId: *id003
+        seriesId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        walletId:
+          type: string
+          format: uuid
+          description: UUIDv7
         toWalletId:
           type: string
           format: uuid
           description: Chỉ cho FORCED_TRANSFER
-        quantity: *id010
+        quantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
       additionalProperties: false
     EnforcementOrder:
       allOf:
@@ -2146,9 +2961,17 @@ components:
         - id
         - status
         properties:
-          id: *id003
-          basisHash: *id011
-          approvalRequestId: *id003
+          id:
+            type: string
+            format: uuid
+            description: UUIDv7
+          basisHash:
+            type: string
+            pattern: ^0x[0-9a-fA-F]{64}$
+          approvalRequestId:
+            type: string
+            format: uuid
+            description: UUIDv7
           status:
             type: string
             enum:
@@ -2171,22 +2994,40 @@ components:
       properties:
         seq:
           type: integer
-        occurredAt: *id007
-        actorUserId: *id003
-        actorOrgId: *id003
+        occurredAt:
+          type: string
+          format: date-time
+        actorUserId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        actorOrgId:
+          type: string
+          format: uuid
+          description: UUIDv7
         action:
           type: string
         subjectRef:
           type: string
-        payloadHash: *id011
-        prevHash: *id011
-        entryHash: *id011
+        payloadHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        prevHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        entryHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
         anchor:
           type: object
           required: []
           properties:
-            businessDate: *id006
-            txHash: *id011
+            businessDate:
+              type: string
+              format: date
+            txHash:
+              type: string
+              pattern: ^0x[0-9a-fA-F]{64}$
           additionalProperties: false
       additionalProperties: false
     ReconciliationRun:
@@ -2197,8 +3038,13 @@ components:
       - scope
       - breakCount
       properties:
-        id: *id003
-        runDate: *id006
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        runDate:
+          type: string
+          format: date
         scope:
           type: string
           enum:
@@ -2223,7 +3069,10 @@ components:
                 type: string
               actual:
                 type: string
-              resolvedBy: *id003
+              resolvedBy:
+                type: string
+                format: uuid
+                description: UUIDv7
             additionalProperties: false
       additionalProperties: false
     BidvCreditNotification:
@@ -2241,7 +3090,9 @@ components:
           type: string
         amount:
           $ref: '#/components/schemas/Money'
-        valueDate: *id006
+        valueDate:
+          type: string
+          format: date
         payerName:
           type: string
         remittanceInfo:
@@ -2284,5 +3135,8 @@ components:
       properties:
         received:
           type: boolean
-        messageId: *id003
+        messageId:
+          type: string
+          format: uuid
+          description: UUIDv7
       additionalProperties: false

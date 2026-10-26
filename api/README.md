@@ -30,6 +30,8 @@ Ghi chú B1.0 (duyệt 26/10/2026): mỗi API có `x-werwa-roles`, danh sách va
 | Sở TC | chưa có vai; tạm dùng tài khoản thuộc tổ chức CQĐH (Q7) |
 | Mọi bên có quyền, Người duyệt, Người ký | `ANY` |
 
+Từ 0.2.0, `openapi.yaml` không dùng anchor/alias YAML (`&id…`, `*id…`): bộ sinh mã OpenAPI Generator đọc sai alias. Khi sinh lại tệp bằng PyYAML, tắt alias (`ignore_aliases`) và giữ `width=140`.
+
 Kiểm tra cục bộ:
 
 ```bash
