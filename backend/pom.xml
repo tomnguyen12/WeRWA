@@ -26,6 +26,7 @@
         <java.version>21</java.version>
         <spring-modulith.version>2.1.2</spring-modulith.version>
         <openapi-generator.version>7.14.0</openapi-generator.version>
+        <web3j.version>5.0.2</web3j.version>
         <jnats.version>2.26.4</jnats.version>
         <json-schema-validator.version>1.5.8</json-schema-validator.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -94,6 +95,12 @@
             <!-- Sổ sự kiện JDBC làm outbox (D4, B2) -->
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-starter-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Gọi và đọc chuỗi qua JSON-RPC chuẩn EVM (ADR-11) -->
+            <groupId>org.web3j</groupId>
+            <artifactId>core</artifactId>
+            <version>${web3j.version}</version>
         </dependency>
         <dependency>
             <groupId>io.nats</groupId>
@@ -191,6 +198,41 @@
             </resource>
         </resources>
         <plugins>
+            <plugin>
+                <!-- Lớp Java gọi hợp đồng sinh từ api/abi (ADR-11, B3) -->
+                <groupId>org.web3j</groupId>
+                <artifactId>web3j-maven-plugin</artifactId>
+                <version>${web3j.version}</version>
+                <executions>
+                    <execution>
+                        <id>werwa-contracts</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate-sources</goal>
+                        </goals>
+                        <configuration>
+                            <packageName>vn.werwa.onchain.api.contracts</packageName>
+                            <nativeJavaType>true</nativeJavaType>
+                            <outputFormat>java</outputFormat>
+                            <soliditySourceFiles>
+                                <directory>${project.basedir}/src/main/solidity-none</directory>
+                            </soliditySourceFiles>
+                            <abiSourceFiles>
+                                <directory>${project.basedir}/../api/abi</directory>
+                                <includes>
+                                    <include>*.json</include>
+                                </includes>
+                                <excludes>
+                                    <exclude>manifest.json</exclude>
+                                </excludes>
+                            </abiSourceFiles>
+                            <outputDirectory>
+                                <java>${project.build.directory}/generated-sources/web3j</java>
+                            </outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <!-- Contract-first (D6): interface controller và mô hình sinh từ api/openapi.yaml -->
                 <groupId>org.openapitools</groupId>
