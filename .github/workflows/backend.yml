@@ -52,7 +52,6 @@ jobs:
           echo "::error title=build-errors::$(grep -E '\[ERROR\]|FAILED|Caused by|Exception' build.log | grep -v '^\s*at ' | head -80 | summary)"
           first=$(grep -n -m1 '\[ERROR\]' build.log | cut -d: -f1)
           [ -n "$first" ] && echo "::error title=context-before-first-error::$(sed -n "$((first>60?first-60:1)),$((first+5))p" build.log | summary)"
-          echo "::warning title=web3j-files::$(find target -name 'AuditAnchor*' | head -10 | summary)"
           for f in target/surefire-reports/*.txt target/failsafe-reports/*.txt; do
             [ -f "$f" ] && grep -q -E 'FAILURE|ERROR' "$f" && echo "::error title=$(basename "$f")::$(head -60 "$f" | summary)"
           done
