@@ -181,6 +181,11 @@
                 <targetPath>contract/events</targetPath>
             </resource>
             <resource>
+                <!-- ABI: indexer giải mã log, chạy thử giải mã custom error (Q16, Q17) -->
+                <directory>../api/abi</directory>
+                <targetPath>contract/abi</targetPath>
+            </resource>
+            <resource>
                 <!-- Cấu hình stream WERWA (I2): kiểm thử tạo stream từ đúng tệp của infra -->
                 <directory>../infra/services/nats</directory>
                 <includes>
@@ -197,6 +202,19 @@
                 <targetPath>seed</targetPath>
             </resource>
         </resources>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+            <testResource>
+                <!-- Genesis QBFT của devnet: kiểm thử dựng Besu một node từ đúng mẫu này (D9) -->
+                <directory>../infra/devnet/config</directory>
+                <includes>
+                    <include>genesis.template.json</include>
+                </includes>
+                <targetPath>chain</targetPath>
+            </testResource>
+        </testResources>
         <plugins>
             <plugin>
                 <!-- Lớp Java gọi hợp đồng sinh từ api/abi (ADR-11, B3) -->
