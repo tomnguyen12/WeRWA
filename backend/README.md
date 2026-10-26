@@ -1,6 +1,6 @@
 # backend/ — ứng dụng WeRWA
 
-Một khối triển khai (ADR-10), Java 21, Spring Boot 4.0, Spring Modulith 2.0, PostgreSQL, Flyway. Quyết định riêng của luồng backend: D1–D9, Q1–Q3 trong `docs/open-questions.md`.
+Một khối triển khai (ADR-10), Java 21, Spring Boot 4.1, Spring Modulith 2.1, PostgreSQL, Flyway. Quyết định riêng của luồng backend: D1–D9, Q1–Q3 trong `docs/open-questions.md`.
 
 ## Mô-đun
 
@@ -51,6 +51,32 @@ cd backend && mvn spring-boot:run
 - `werwa.chain.read-urls` không được trùng `submit-urls`: ứng dụng chỉ đọc qua O1 (ADR-12).
 - `signing-mode=pkcs11` thì bắt buộc `werwa.signer.url`, `werwa.signer.token`.
 - Hợp đồng và Safe tra bằng `contract("seriesFactory")`, `safe("governance3of3")`: biến môi trường làm mất chữ hoa, nên không đọc map trực tiếp.
+
+## Nền API (B1)
+
+Mọi API `/v1/**` đi qua chuỗi kiểm dưới đây trước khi tới controller. Controller của mô-đun cài interface sinh từ `api/openapi.yaml` (gói `vn.werwa.platform.openapi.api`, D6), không tự khai đường dẫn.
+
+```mermaid
+flowchart LR
+  R[Request] --> J[JWT Keycloak: issuer, audience] --> C[Hợp đồng: API có trong đặc tả, x-werwa-roles, vai thuộc tổ chức] --> I[Idempotency-Key với lệnh ghi] --> H[Controller]
+  J -. lỗi .-> P[problem+json có code]
+  C -. lỗi .-> P
+  I -. lỗi .-> P
+  H -. ApiException .-> P
+```
+
+| Cần | Dùng |
+|---|---|
+| Lỗi nghiệp vụ | Enum mã lỗi của mô-đun cài `ErrorCode`, ném `ApiException` |
+| Người gọi | `CurrentUser.get()`: `subject`, `organizationId`, `roles` |
+| Đối tượng thuộc tổ chức khác (US-4.07-AC2) | `OrgScope.requireOwnOrganization(owner)` hoặc `requireOwnOrganizationOr(owner, vai xem chéo)` |
+| Ghi đè | Cột `version`; trả `ETag: ETags.of(version)`; kiểm `ETags.requireMatch(ifMatch, version)` |
+| Khóa chính | `Ids.newId()` (UUIDv7) |
+| Tiền, tỷ lệ | `Money` (`amountMinor` nguyên), `Ppm`; `Ppm.applyExact` theo quy tắc C5 |
+| Phân trang | `Paging.limit(limit)`, `Paging.decodeCursor`, `Paging.Page.of(rows, limit, idOf)` |
+| Kiểm response khớp đặc tả trong test | `OpenApiSchemas.validate("<Schema>", json)` |
+
+`Idempotency-Key` theo người dùng (Q6), giữ 24 giờ ở `platform.idempotency_key`; trả lại kèm `Idempotent-Replayed: true`; kết quả 5xx không lưu. Webhook ngân hàng (`/v1/inbound/**`, mTLS) đóng tới B8. Vai tổ chức đọc từ tệp seed devnet tới B5 (Q5).
 
 ## Quy trình làm việc
 
