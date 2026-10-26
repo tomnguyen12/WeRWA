@@ -2,7 +2,7 @@
 <!--
   Backend WeRWA: một khối triển khai, Spring Modulith, 6 mô-đun phân hệ + mô-đun dùng chung platform.
   Quyết định: ADR-10, ADR-11; D1 (Maven), D2 (gói vn.werwa), D5 (Spring Data JDBC), Q4 (Spring Boot 4.1.x, Modulith 2.1.x).
-  Chỉ khai báo thư viện đã dùng; web3j, jnats thêm ở nhóm PR dùng tới chúng (B2, B3).
+  Chỉ khai báo thư viện đã dùng; web3j thêm ở B3.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -26,6 +26,7 @@
         <java.version>21</java.version>
         <spring-modulith.version>2.1.2</spring-modulith.version>
         <openapi-generator.version>7.14.0</openapi-generator.version>
+        <jnats.version>2.21.0</jnats.version>
         <json-schema-validator.version>1.5.8</json-schema-validator.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -90,6 +91,16 @@
             <artifactId>spring-modulith-starter-core</artifactId>
         </dependency>
         <dependency>
+            <!-- Sổ sự kiện JDBC làm outbox (D4, B2) -->
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-starter-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.nats</groupId>
+            <artifactId>jnats</artifactId>
+            <version>${jnats.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
@@ -126,6 +137,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
@@ -151,6 +167,19 @@
                     <include>openapi.yaml</include>
                 </includes>
                 <targetPath>contract</targetPath>
+            </resource>
+            <resource>
+                <!-- Danh mục và lược đồ sự kiện: chỉ phát loại có trong catalog (Q13) -->
+                <directory>../api/events</directory>
+                <targetPath>contract/events</targetPath>
+            </resource>
+            <resource>
+                <!-- Cấu hình stream WERWA (I2): kiểm thử tạo stream từ đúng tệp của infra -->
+                <directory>../infra/services/nats</directory>
+                <includes>
+                    <include>stream-werwa.json</include>
+                </includes>
+                <targetPath>contract/nats</targetPath>
             </resource>
             <resource>
                 <!-- Vai của tổ chức thử devnet (I6), nguồn tạm tới B5 (Q5) -->

@@ -39,6 +39,12 @@ jobs:
           set -o pipefail
           mvn -B -ntp verify 2>&1 | tee build.log
           echo "::notice title=tests::$(grep -E 'Tests run:.*Fail' build.log | grep -v ' in ' | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+      - name: DDL sổ sự kiện của Spring Modulith (tạm, để đối chiếu Flyway V3)
+        if: always()
+        run: |
+          jar=$(find ~/.m2/repository/org/springframework/modulith/spring-modulith-events-jdbc -name '*.jar' | head -1)
+          echo "::notice title=modulith-ddl::$(unzip -p "$jar" schema-postgresql.sql 2>/dev/null | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+          echo "::notice title=jnats::$(curl -sS https://repo1.maven.org/maven2/io/nats/jnats/maven-metadata.xml | grep -o '<release>[^<]*')"
       - name: Tóm tắt lỗi thành annotation (đọc được qua API)
         if: failure()
         run: |
