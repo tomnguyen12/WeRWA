@@ -34,6 +34,13 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: backend/pom.xml
+      - name: Phiên bản (tạm)
+        run: |
+          for a in org/web3j/core org/web3j/web3j-maven-plugin org/web3j/codegen org/hyperledger/besu/besu; do
+            echo "::notice title=$a::$(curl -sS https://repo1.maven.org/maven2/$a/maven-metadata.xml | grep -o '<version>[^<]*' | sed 's/<version>//' | tail -8 | tr '\n' ' ')"
+          done
+          echo "::notice title=besu-docker::$(curl -sS 'https://hub.docker.com/v2/repositories/hyperledger/besu/tags?page_size=10' | python3 -c 'import json,sys;print(" ".join(t["name"] for t in json.load(sys.stdin)["results"]))')"
+          grep -rn "besu" ../infra/devnet/compose.yaml | head -3 | tr '\n' ' ' | sed 's/^/::notice title=infra-besu::/'; echo
       - name: Build, kiểm thử đơn vị, ApplicationModules.verify(), kiểm thử tích hợp (Testcontainers)
         run: |
           set -o pipefail
