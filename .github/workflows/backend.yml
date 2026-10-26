@@ -44,8 +44,9 @@ jobs:
         run: |
           jar=$(find ~/.m2/repository/org/springframework/modulith/spring-modulith-events-jdbc -name '*.jar' | head -1)
           echo "::notice title=modulith-jar::$jar $(unzip -l "$jar" | grep -i sql | awk '{print $4}' | tr '\n' ' ')"
-          f=$(unzip -l "$jar" | grep -i 'postgres' | awk '{print $4}' | head -1)
-          echo "::notice title=modulith-ddl::$(unzip -p "$jar" "$f" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+          for f in $(unzip -l "$jar" | grep -i 'postgres' | awk '{print $4}'); do
+            echo "::notice title=$f::$(unzip -p "$jar" "$f" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+          done
           echo "::notice title=jnats::$(curl -sS https://repo1.maven.org/maven2/io/nats/jnats/maven-metadata.xml | grep -o '<release>[^<]*')"
       - name: Tóm tắt lỗi thành annotation (đọc được qua API)
         if: failure()
