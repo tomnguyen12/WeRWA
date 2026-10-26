@@ -36,14 +36,28 @@ jobs:
           cache-dependency-path: backend/pom.xml
       - name: Phiên bản thư viện mới nhất (tạm, để ghim pom)
         run: |
+          out=""
           for a in org/springframework/boot/spring-boot-starter-parent org/springframework/modulith/spring-modulith-bom; do
-            echo "$a"; curl -sS "https://repo1.maven.org/maven2/$a/maven-metadata.xml" | grep -o '<version>[^<]*' | sed 's/<version>//' | tail -15 | tr '\n' ' '; echo
+            v=$(curl -sS "https://repo1.maven.org/maven2/$a/maven-metadata.xml" | grep -o '<version>[^<]*' | sed 's/<version>//' | tail -12 | tr '\n' ' ')
+            out="$out$a: $v%0A"
           done
+          echo "::notice title=versions::$out"
       - name: Build, kiểm thử đơn vị, ApplicationModules.verify(), kiểm thử tích hợp (Testcontainers)
-        run: mvn -B -ntp verify
+        run: |
+          set -o pipefail
+          mvn -B -ntp verify 2>&1 | tee build.log
+      - name: Tóm tắt lỗi thành annotation (đọc được qua API)
+        if: failure()
+        run: |
+          summary() { sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' | cut -c1-60000; }
+          echo "::error title=build-errors::$(grep -E '\[ERROR\]|FAILED|Caused by|Exception' build.log | grep -v '^\s*at ' | head -80 | summary)"
+          for f in target/surefire-reports/*.txt target/failsafe-reports/*.txt; do
+            [ -f "$f" ] && grep -q -E 'FAILURE|ERROR' "$f" && echo "::error title=$(basename "$f")::$(head -60 "$f" | summary)"
+          done
+          true
       - name: Tài liệu mô-đun
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: modulith-docs
           path: backend/target/spring-modulith-docs
