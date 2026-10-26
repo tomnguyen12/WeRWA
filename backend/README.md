@@ -102,6 +102,26 @@ flowchart LR
 
 Consumer mới đọc từ đầu stream (giữ 30 ngày); inbox chặn xử lý trùng. Thêm bên nhận cho loại sự kiện đã có thì bên đó sẽ nhận cả sự kiện cũ còn trong stream.
 
+## Onchain (B3)
+
+```mermaid
+flowchart LR
+  M[Mô-đun: chain.submit trong giao dịch] --> P[Chạy thử eth_call trên O1] -- từ chối --> R[ChainCallRejected CHAIN_*]
+  P --> S[Ký qua WeHSM eth_signTransaction, giữ nonce] --> B[(chain_tx BUILT)]
+  B -- sau commit --> V[Gửi V1, lỗi thì V2] --> T[(SENT)]
+  I[Indexer đọc O1] --> E[(indexed_event)] --> X[event.indexed.v1]
+  T -- indexer đã đọc tới khối --> D[(MINED / FAILED)] --> Y[tx.mined.v1 / tx.failed.v1]
+```
+
+| Cần | Dùng |
+|---|---|
+| Mã hóa calldata | `calls.load(AuditAnchor.class, calls.address("auditAnchor")).anchor(...).encodeFunctionCall()`; lớp hợp đồng sinh từ `api/abi` vào `vn.werwa.onchain.api.contracts` |
+| Gửi giao dịch khóa vận hành Holco | `chain.submit(new TxRequest(purpose, subjectRef, SignerKey.HOLCO_OPERATOR, to, data))` trong giao dịch DB; kết quả qua `werwa.onchain.tx.mined.v1` / `tx.failed.v1` |
+| Đọc sự kiện chuỗi | Nhận `werwa.onchain.event.indexed.v1`, đọc chi tiết ở `onchain.indexed_event` qua API của Onchain |
+| Kiểm thử có chuỗi | Kế thừa `ChainIntegrationTest`: Besu QBFT một node, `DeployPlatform` thật, ký bằng khóa thử (Q15). Cần Foundry 1.8.5 và `jq` trên máy |
+
+Chế độ ký `devnet` (I12) không ký được: gửi giao dịch trả 503 `CHAIN_SIGNER_UNAVAILABLE`. Chế độ `pkcs11` ký qua WeHSM bằng `eth_signTransaction` (Q14), chờ phiên WeHSM bổ sung.
+
 ## Quy trình làm việc
 
 ```mermaid
