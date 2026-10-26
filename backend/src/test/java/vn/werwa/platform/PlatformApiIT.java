@@ -19,29 +19,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
+import vn.werwa.IntegrationTest;
 
 /** Lớp nền API của B1 chạy với PostgreSQL thật: quyền theo hợp đồng, Idempotency-Key, If-Match, problem+json. */
-@SpringBootTest
-@ActiveProfiles("it")
-@Testcontainers
-class PlatformApiIT {
+class PlatformApiIT extends IntegrationTest {
 
-    @Container
-    @ServiceConnection
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18.6");
 
     // Tổ chức thử của devnet (infra/keycloak/seed/orgs.json, I6)
     static final String HOLCO = "01a15bc1-f409-7589-aef1-774ceddccf3f";

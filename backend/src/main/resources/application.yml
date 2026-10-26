@@ -8,6 +8,15 @@ spring:
     default-schema: platform
     schemas: platform
     locations: classpath:db/migration
+  modulith:
+    events:
+      # Sổ sự kiện làm outbox (D4): bảng do Flyway tạo ở schema platform (Q1, V3)
+      jdbc:
+        schema: platform
+        schema-initialization:
+          enabled: false
+      completion-mode: archive
+      republish-outstanding-events-on-restart: true
   jackson:
     time-zone: UTC
   threads:
