@@ -34,18 +34,11 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: backend/pom.xml
-      - name: Phiên bản thư viện mới nhất (tạm, để ghim pom)
-        run: |
-          out=""
-          for a in org/springframework/boot/spring-boot-starter-parent org/springframework/modulith/spring-modulith-bom; do
-            v=$(curl -sS "https://repo1.maven.org/maven2/$a/maven-metadata.xml" | grep -o '<version>[^<]*' | sed 's/<version>//' | grep -E '^(4\.0\.|2\.0\.)' | tr '\n' ' ')
-            out="$out$a: $v%0A"
-          done
-          echo "::notice title=versions::$out"
       - name: Build, kiểm thử đơn vị, ApplicationModules.verify(), kiểm thử tích hợp (Testcontainers)
         run: |
           set -o pipefail
           mvn -B -ntp verify 2>&1 | tee build.log
+          echo "::notice title=tests::$(grep -E 'Tests run:.*Fail' build.log | grep -v ' in ' | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
       - name: Tóm tắt lỗi thành annotation (đọc được qua API)
         if: failure()
         run: |
