@@ -18,6 +18,26 @@ jobs:
         with:
           node-version: '20'
       - run: npx --yes @redocly/cli@1.25.0 lint api/openapi.yaml
+      - name: Mọi API có x-werwa-roles hợp lệ (B1.0)
+        run: |
+          python3 - <<'PY'
+          import yaml, sys
+          d = yaml.safe_load(open('api/openapi.yaml'))
+          enum = set(d['components']['schemas']['Organization']['properties']['roles']['items']['enum'])
+          bad = []
+          for path, ops in d['paths'].items():
+              for method, op in ops.items():
+                  if not isinstance(op, dict) or 'operationId' not in op:
+                      continue
+                  roles = op.get('x-werwa-roles')
+                  if not roles or not isinstance(roles, list):
+                      bad.append(f'{method.upper()} {path}: thiếu x-werwa-roles')
+                  elif roles != ['ANY'] and not set(roles) <= enum:
+                      bad.append(f'{method.upper()} {path}: vai lạ {sorted(set(roles) - enum)}')
+          if bad:
+              print('\n'.join(bad)); sys.exit(1)
+          print('x-werwa-roles hợp lệ')
+          PY
 
   event-schemas:
     runs-on: ubuntu-latest

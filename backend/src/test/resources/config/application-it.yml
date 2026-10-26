@@ -11,3 +11,10 @@ werwa:
     submit-urls: http://127.0.0.1:8545
     deployed-at-block: 0
     signing-mode: devnet
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Kiểm thử dùng jwt() của spring-security-test, không gọi tới Keycloak; địa chỉ chỉ để tạo JwtDecoder.
+          jwk-set-uri: http://127.0.0.1:1/realms/werwa/protocol/openid-connect/certs
