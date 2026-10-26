@@ -1,0 +1,60 @@
+# Ký giao dịch bằng WeHSM trên devnet (ADR-06, US-6.04-AC4; repo tomnguyen12/WeHSM, docs/tich-hop-werwa-s7.md).
+# Chạy qua `./signer.sh up`; script sinh PIN, token, chứng chỉ client và gói client vào out/ trước (gitignore).
+#
+#   hsm-node   node HSM giả lập Luna: SoftHSM2 sau mTLS :1792. Chỉ cho XD và môi trường thử; Đ1 thay bằng
+#              Luna Network HSM, WeHSM chỉ đổi gói gắn vào /opt/hsm-client. Không mở cổng ra máy chủ.
+#   wehsm      dịch vụ ký JSON-RPC: chính sách ký, ghép giao dịch, nhờ HSM ký qua PKCS#11. Đọc qua O1,
+#              chỉ gửi raw tx tới V1 (ADR-12). Mất HSM thì thoát mã 70; restart policy khởi động lại.
+#
+# Hai ảnh ghim theo digest (in ở job publish của CI WeHSM). Container chạy bằng UID của máy chạy, như Besu,
+# để đọc được PIN, token và khóa client (quyền 600) trong out/.
+
+name: werwa-signer
+
+services:
+  hsm-node:
+    image: ${WEHSM_HSM_NODE_IMAGE:-ghcr.io/tomnguyen12/wehsm-hsm-node@sha256:cecd835ee6b272aa0313016245f07ac733e2b9af5f28c3037978b8131fb81463}
+    user: "${SIGNER_UID:-1000}:${SIGNER_GID:-1000}"
+    restart: unless-stopped
+    environment:
+      HSM_NODE_PARTITION: wehsm
+      HSM_NODE_HOSTNAME: hsm.werwa.devnet
+      HSM_NODE_AUTO_INIT: "1"
+    volumes:
+      - ./out/hsm-node:/var/lib/hsm-node
+      - ./out/secrets/hsm:/run/secrets:ro
+    networks:
+      app: { aliases: [hsm.werwa.devnet] }
+
+  wehsm:
+    image: ${WEHSM_IMAGE:-ghcr.io/tomnguyen12/wehsm@sha256:d7a7ad5d7ea2808209b5a02117a2e84c3aefd6f14bb2897d78aa58fbd6993985}
+    user: "${SIGNER_UID:-1000}:${SIGNER_GID:-1000}"
+    command: ["serve"]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on: [hsm-node]
+    environment:
+      WEHSM_PKCS11_LIBRARY: /usr/lib/x86_64-linux-gnu/p11-kit-proxy.so
+      WEHSM_PARTITION_LABEL: wehsm
+      WEHSM_PIN_FILE: /run/secrets/pin
+      WEHSM_CHAIN_ID: "270201"
+      WEHSM_READ_RPC: http://o1-a.werwa.devnet:8545
+      WEHSM_SEND_RPC: http://v1.werwa.devnet:8545
+      WEHSM_RPC_TOKEN_FILE: /run/secrets/token
+      # Hai chế độ (0007): triển khai nền tảng (deployer bật, chưa có devnet.json) và vận hành.
+      WEHSM_DEPLOYER_ENABLED: ${WEHSM_DEPLOYER_ENABLED:-false}
+      WEHSM_CONTRACTS_FILE: ${WEHSM_CONTRACTS_FILE:-}
+    volumes:
+      - ./out/hsm-client:/opt/hsm-client:ro
+      - ./out/secrets/wehsm:/run/secrets:ro
+      - ./out/wehsm-data:/var/lib/wehsm
+      - ../devnet/out/platform:/run/werwa:ro
+    networks:
+      app: { aliases: [wehsm.werwa.devnet] }
+    ports: ["127.0.0.1:8745:8545"]
+
+networks:
+  app:
+    name: werwa-devnet-app
+    external: true
