@@ -312,7 +312,7 @@
                             <generateModelTests>false</generateModelTests>
                             <configOptions>
                                 <interfaceOnly>true</interfaceOnly>
-                                <skipDefaultInterface>true</skipDefaultInterface>
+                                <skipDefaultInterface>false</skipDefaultInterface>
                                 <useTags>true</useTags>
                                 <useSpringBoot3>true</useSpringBoot3>
                                 <useJakartaEe>true</useJakartaEe>
