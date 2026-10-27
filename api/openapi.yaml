@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.2.0
+  version: 0.3.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -2821,6 +2821,8 @@ components:
           - PENDING
           - APPROVED
           - REJECTED
+          - CANCELLED
+          description: 'CANCELLED: nội dung đối tượng đổi sau khi gửi duyệt, yêu cầu bị thay bằng yêu cầu mới (US-4.08-AC1)'
         decidedAt:
           type: string
           format: date-time
