@@ -40,6 +40,26 @@ class OnboardingConfig {
     }
 
     @Bean
+    vn.werwa.onboarding.api.Wallets wallets(JdbcTemplate jdbc) {
+        return id -> jdbc.query("""
+                SELECT id, organization_id, chain_id, address FROM onboarding.wallet WHERE id = ? AND status = 'REGISTERED'
+                """, (rs, i) -> new vn.werwa.onboarding.api.Wallets.Wallet(rs.getObject(1, java.util.UUID.class),
+                        rs.getObject(2, java.util.UUID.class), rs.getLong(3), rs.getString(4)), id).stream().findFirst();
+    }
+
+    /** US-3.02-AC1: KYC đạt và còn hạn; lấy loại nhà đầu tư của hồ sơ đạt mới nhất. */
+    @Bean
+    vn.werwa.onboarding.api.Investors investors(JdbcTemplate jdbc) {
+        return (org, at) -> jdbc.queryForList("""
+                SELECT k.investor_class FROM onboarding.kyc_case k
+                JOIN onboarding.organization o ON o.id = k.organization_id
+                WHERE k.organization_id = ? AND k.status = 'APPROVED' AND k.expires_at > ?
+                  AND o.kyb_status = 'KYB_APPROVED' AND 'INVESTOR' = ANY (o.roles)
+                ORDER BY k.decided_at DESC LIMIT 1
+                """, String.class, org, java.sql.Timestamp.from(at)).stream().findFirst();
+    }
+
+    @Bean
     KycService kyc(JdbcTemplate jdbc, OrganizationService organizations, Screening screening, AuditLog audit,
             Events events, JsonMapper json, OnboardingProperties props, Clock clock) {
         return new KycService(jdbc, organizations, screening, audit, events, json, props, clock);

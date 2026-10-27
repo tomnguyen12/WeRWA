@@ -29,31 +29,31 @@ class ContractProbeController {
 
     static final AtomicInteger CREATED = new AtomicInteger();
 
-    @PostMapping("/v1/transfers")
+    @PostMapping("/v1/probe/items")
     ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, Object> body) {
         if (Boolean.TRUE.equals(body.get("fail"))) {
             throw new IllegalStateException("lỗi giả lập");
         }
         CREATED.incrementAndGet();
         UUID id = Ids.newId();
-        return ResponseEntity.created(URI.create("/v1/transfers/" + id))
+        return ResponseEntity.created(URI.create("/v1/probe/items/" + id))
                 .body(Map.of("id", id.toString(), "legalName", String.valueOf(body.get("legalName"))));
     }
 
-    @GetMapping("/v1/allocation-lists/{id}/proofs/{allocationId}")
+    @GetMapping("/v1/probe/lists/{id}/proofs/{allocationId}")
     Map<String, Object> get(@PathVariable UUID id, @PathVariable String allocationId) {
         OrgScope.requireOwnOrganization(id);
         return Map.of("id", id.toString());
     }
 
-    @PatchMapping("/v1/orders/{id}")
+    @PatchMapping("/v1/probe/orders/{id}")
     ResponseEntity<Map<String, Object>> amend(
             @PathVariable UUID id, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         ETags.requireMatch(ifMatch, 3);
         return ResponseEntity.ok().eTag(ETags.of(4)).body(Map.of("id", id.toString()));
     }
 
-    @GetMapping("/v1/holdings")
+    @GetMapping("/v1/probe/holdings")
     Map<String, Object> holdings(@RequestParam(required = false) Integer limit) {
         return Map.of("limit", Paging.limit(limit));
     }

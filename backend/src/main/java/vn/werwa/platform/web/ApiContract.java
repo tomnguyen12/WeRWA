@@ -45,6 +45,13 @@ public final class ApiContract {
         }
     }
 
+    /** Gộp thêm API của hợp đồng khác; chỉ dùng cho hợp đồng thăm dò trong kiểm thử. */
+    public ApiContract with(ApiContract extra) {
+        List<Operation> all = new ArrayList<>(operations);
+        all.addAll(extra.operations);
+        return new ApiContract(all);
+    }
+
     public List<Operation> operations() {
         return operations;
     }
