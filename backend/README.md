@@ -216,6 +216,29 @@ sequenceDiagram
 | Tham số | `werwa.distribution.order-quantity-step` (Q42), `book-scheduler-enabled`, `book-schedule-interval` (Q46) |
 | Kiểm thử lớp nền | Hợp đồng thăm dò `src/test/resources/probe/openapi-probe.yaml` nạp qua `werwa.api.probe-contract`, để `ContractProbeController` không đụng đường dẫn thật |
 
+## Báo có và theo dõi tiền (B8a)
+
+```mermaid
+sequenceDiagram
+  participant B as BIDV (giả lập)
+  participant I as Tích hợp
+  participant D as Phân phối
+  B->>I: webhook báo có (mTLS ở ingress, X-Bank-Signature)
+  I->>I: kiểm chữ ký, chặn trùng theo bankRef, lưu nguyên văn
+  I-->>D: credit_received
+  D->>D: đối chiếu theo tài khoản ảo: MATCHED, SHORT, OVER, UNKNOWN
+  D-->>D: payment.matched; định kỳ: quá hạn, gom lô (gốc Merkle)
+  Note over D: B8b: BIDV ký gốc lô, mint
+```
+
+| Cần | Dùng |
+|---|---|
+| Kênh webhook ngân hàng | `platform.inbound.BankChannel`; Tích hợp cài `BidvBankChannel` khi có `werwa.integration.bidv.public-key` (Q49). Không có thì 403, sai chữ ký thì 401 và ghi `integration.inbound_message` |
+| Tài khoản ảo | `integration.api.VirtualAccounts` (Q51); mở khi UBND duyệt danh sách; giả lập `werwa.integration.bidv.virtual-account-prefix` + 10 chữ số |
+| Đối chiếu, quá hạn, lô | `distribution.payment.PaymentService` (Q52–Q54); việc định kỳ `werwa.distribution.payment-batch-interval` (mặc định PT15M), ân hạn `payment-grace-business-days` |
+| Tiến độ ghi sổ | `GET /v1/series/{id}/issuance-progress` |
+| Giả lập BIDV | `bidv-simulator/` (Q55), mô-đun Maven riêng; xem README trong đó |
+
 ## Quy trình làm việc
 
 ```mermaid
