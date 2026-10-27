@@ -188,6 +188,34 @@ stateDiagram-v2
 | `termsHash` | SHA-256 của JSON chuẩn hóa gồm tham số series và SHA-256 các tài liệu (Q34) |
 | Mã băm tiện ích | `platform.hash.Hashes` (chuyển từ governance để mọi mô-đun dùng) |
 
+## Phân phối (B7a)
+
+```mermaid
+sequenceDiagram
+  participant T as Tổ hợp
+  participant D as Phân phối
+  participant N as Nhà đầu tư
+  participant U as UBND
+  T->>D: POST /v1/offerings (series READY, có ISIN)
+  D->>D: mở sổ (giờ mở hoặc /open): series OFFERING
+  N->>D: đặt, sửa, hủy lệnh (KYC, loại, ví, chỉ dẫn, bội số)
+  D->>D: đóng sổ: lệnh khóa, series BOOK_CLOSED, phát offering.closed
+  T->>D: đề xuất danh sách (phiên bản, lá Merkle, gốc)
+  T->>D: /submit (tổng, khung lãi suất, quyết định UBND)
+  U->>D: duyệt qua /v1/approvals (vai ISSUER, Q40)
+  Note over U,D: B7b: UBND ký setAllocation, danh sách SIGNED
+```
+
+| Cần | Dùng |
+|---|---|
+| Lá, gốc, đường chứng minh | `distribution.allocation.AllocationMerkle`, khớp `SeriesLeaves` và `MerkleProof` của OpenZeppelin; UUID sang `bytes32` theo Q43 |
+| `listHash` | SHA-256 của JSON chuẩn hóa (Q44), đi kèm yêu cầu duyệt và sau này là đối số `setAllocation` |
+| Duyệt khác tổ chức | `Approvals.request(..., Role.ISSUER)` (Q40); hàng chờ `/v1/approvals` gồm yêu cầu chỉ định vai của người xem |
+| Ví, điều kiện nhà đầu tư | `onboarding.api.Wallets`, `onboarding.api.Investors` (Q41); ví nạp từ B5b |
+| Series từ Phân phối | `issuance.api.SeriesCatalog` (tham số, `markOffering`, `markBookClosed`), `issuance.api.IssuerDecisions` |
+| Tham số | `werwa.distribution.order-quantity-step` (Q42), `book-scheduler-enabled`, `book-schedule-interval` (Q46) |
+| Kiểm thử lớp nền | Hợp đồng thăm dò `src/test/resources/probe/openapi-probe.yaml` nạp qua `werwa.api.probe-contract`, để `ContractProbeController` không đụng đường dẫn thật |
+
 ## Quy trình làm việc
 
 ```mermaid
