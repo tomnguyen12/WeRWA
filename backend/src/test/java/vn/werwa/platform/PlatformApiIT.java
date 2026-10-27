@@ -53,7 +53,7 @@ class PlatformApiIT extends IntegrationTest {
     }
 
     /** GET có kiểm phạm vi tổ chức; mã danh sách là mã tổ chức để kiểm ORG_SCOPE_VIOLATION. */
-    static final String PROOF = "/v1/allocation-lists/";
+    static final String PROOF = "/v1/probe/lists/";
 
     static RequestPostProcessor investorMaker() {
         return user("inv-a-maker", INVESTOR_A, "INVESTOR");
@@ -80,7 +80,7 @@ class PlatformApiIT extends IntegrationTest {
 
         @Test
         void roleNotInXWerwaRolesIs403() throws Exception {
-            problem(post("/v1/transfers")
+            problem(post("/v1/probe/items")
                             .with(user("ubnd-maker", UBND, "ISSUER"))
                             .header("Idempotency-Key", "k-role")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -127,7 +127,7 @@ class PlatformApiIT extends IntegrationTest {
 
         @Test
         void methodOutsideContractIs405() throws Exception {
-            problem(put("/v1/transfers").with(investorMaker()), 405, "METHOD_NOT_ALLOWED");
+            problem(put("/v1/probe/items").with(investorMaker()), 405, "METHOD_NOT_ALLOWED");
         }
 
         @Test
@@ -145,7 +145,7 @@ class PlatformApiIT extends IntegrationTest {
 
         @Test
         void missingKeyIs400() throws Exception {
-            problem(post("/v1/transfers")
+            problem(post("/v1/probe/items")
                             .with(investorMaker())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"legalName\":\"X\"}"),
@@ -154,7 +154,7 @@ class PlatformApiIT extends IntegrationTest {
 
         @Test
         void invalidKeyIs400() throws Exception {
-            problem(post("/v1/transfers")
+            problem(post("/v1/probe/items")
                             .with(investorMaker())
                             .header("Idempotency-Key", "x".repeat(129))
                             .contentType(MediaType.APPLICATION_JSON)
@@ -207,14 +207,14 @@ class PlatformApiIT extends IntegrationTest {
         @Test
         void clientErrorIsStoredAndReplayed() throws Exception {
             String key = "k-" + UUID.randomUUID();
-            mvc.perform(post("/v1/transfers")
+            mvc.perform(post("/v1/probe/items")
                             .with(investorMaker())
                             .header("Idempotency-Key", key)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{not json"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
-            mvc.perform(post("/v1/transfers")
+            mvc.perform(post("/v1/probe/items")
                             .with(investorMaker())
                             .header("Idempotency-Key", key)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -224,7 +224,7 @@ class PlatformApiIT extends IntegrationTest {
         }
 
         private MockHttpServletRequestBuilder create(RequestPostProcessor who, String key, String body) {
-            return post("/v1/transfers")
+            return post("/v1/probe/items")
                     .with(who)
                     .header("Idempotency-Key", key)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -236,7 +236,7 @@ class PlatformApiIT extends IntegrationTest {
     @DisplayName("If-Match và phân trang")
     class Preconditions {
 
-        static final String ORDER = "/v1/orders/" + UUID.randomUUID();
+        static final String ORDER = "/v1/probe/orders/" + UUID.randomUUID();
 
         @Test
         void missingIfMatchIs428() throws Exception {
@@ -273,7 +273,7 @@ class PlatformApiIT extends IntegrationTest {
 
         @Test
         void limitAbove200Is400() throws Exception {
-            problem(get("/v1/holdings?limit=201").with(user("inv-a", INVESTOR_A, "INVESTOR")),
+            problem(get("/v1/probe/holdings?limit=201").with(user("inv-a", INVESTOR_A, "INVESTOR")),
                     400, "PAGE_LIMIT_INVALID");
         }
     }

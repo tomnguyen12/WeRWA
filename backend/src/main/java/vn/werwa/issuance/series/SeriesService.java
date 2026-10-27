@@ -32,7 +32,7 @@ import vn.werwa.platform.web.ApiException;
  * Series: term sheet, lịch sự kiện, gửi duyệt và giữ chỗ hạn mức (US-2.04-AC2, US-2.05, máy Series cạnh 1–3).
  * Triển khai 3/3 và ISIN làm ở B6c.
  */
-public class SeriesService {
+public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog {
 
     public static final String SUBMIT_ACTION = "SERIES_SUBMIT";
     static final String APPROVED_EVENT = "werwa.issuance.series.approved.v1";
@@ -222,6 +222,46 @@ public class SeriesService {
         data.put("approvalId", approvalId.toString());
         events.publish(APPROVED_EVENT, "series/" + s.id(), data);
         audit.record("SERIES_APPROVED", "series/" + s.id(), data);
+    }
+
+    @Override
+    public java.util.Optional<SeriesInfo> find(UUID seriesId) {
+        List<Series> rows = jdbc.query(SELECT + " WHERE id = ?", (rs, i) -> series(rs), seriesId);
+        if (rows.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        Series s = rows.getFirst();
+        Program basis = programs.effectiveOf(s.programId()).orElseGet(() -> programs.get(s.programId()));
+        Integer periods = jdbc.queryForObject(
+                "SELECT count(*) FROM issuance.series_event WHERE series_id = ? AND event_type = 'COUPON'", Integer.class,
+                seriesId);
+        Terms t = s.terms();
+        return java.util.Optional.of(new SeriesInfo(s.id(), s.status(), s.isin(), t.currency(), t.faceValue().amountMinor(),
+                t.issuePricePpm(), t.maxQuantity(), t.investorClasses(), basis.rateFloorPpm(), basis.rateCapPpm(),
+                s.controllerAddress(), periods));
+    }
+
+    @Override
+    @Transactional
+    public void markOffering(UUID seriesId) {
+        transition(seriesId, "READY", "OFFERING");
+    }
+
+    @Override
+    @Transactional
+    public void markBookClosed(UUID seriesId) {
+        transition(seriesId, "OFFERING", "BOOK_CLOSED");
+    }
+
+    /** Chuyển trạng thái chỉ có ngoài chuỗi (máy Series cạnh 6, 7); có nhật ký. */
+    private void transition(UUID seriesId, String from, String to) {
+        int changed = jdbc.update("""
+                UPDATE issuance.series SET status = ?, version = version + 1, updated_at = ? WHERE id = ? AND status = ?
+                """, to, Timestamp.from(clock.instant()), seriesId, from);
+        if (changed == 0) {
+            throw new ApiException(IssuanceError.SERIES_NOT_READY, "cần " + from);
+        }
+        audit.record("SERIES_STATE_CHANGED", "series/" + seriesId, Map.of("from", from, "to", to));
     }
 
     public Series get(UUID id) {

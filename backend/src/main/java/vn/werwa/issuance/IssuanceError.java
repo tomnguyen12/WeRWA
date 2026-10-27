@@ -23,6 +23,7 @@ public enum IssuanceError implements ErrorCode {
     SERIES_NOT_EDITABLE(HttpStatus.CONFLICT, "Series không còn ở trạng thái sửa được"),
     SERIES_NOT_DRAFT(HttpStatus.CONFLICT, "Chỉ gửi duyệt được series ở trạng thái Nháp"),
     REQUIRED_DOCUMENTS_MISSING(HttpStatus.UNPROCESSABLE_CONTENT, "Thiếu tài liệu bắt buộc"),
+    SERIES_NOT_READY(HttpStatus.CONFLICT, "Series không ở trạng thái cho bước này"),
     ISSUER_DECISION_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Quyết định thiếu đối tượng áp dụng"),
     ISSUER_DECISION_EXISTS(HttpStatus.CONFLICT, "Số quyết định đã được ghi");
 

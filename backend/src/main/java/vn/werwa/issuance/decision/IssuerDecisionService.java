@@ -23,7 +23,7 @@ import vn.werwa.platform.web.ApiException;
  * Quyết định của UBND về điều khoản, lãi suất, phân bổ (US-2.06-AC1). Mã băm quyết định gồm số, ngày, đối tượng và SHA-256
  * của văn bản, để đi kèm đề nghị ký sau này (AC3, B7). Kiểm "đã có quyết định" khi gửi danh sách phân bổ (AC2) làm ở B7.
  */
-public class IssuerDecisionService {
+public class IssuerDecisionService implements vn.werwa.issuance.api.IssuerDecisions {
 
     private final JdbcTemplate jdbc;
     private final DocumentService documents;
@@ -43,6 +43,16 @@ public class IssuerDecisionService {
     public record Decision(
             UUID id, String decisionNo, LocalDate decidedOn, String subject, UUID seriesId, UUID offeringId, UUID documentId,
             String decisionHash) {}
+
+    @Override
+    public java.util.Optional<Ref> latestCouponRate(UUID seriesId, UUID offeringId) {
+        return jdbc.query("""
+                SELECT id, decision_no, decision_hash FROM issuance.issuer_decision
+                WHERE subject = 'COUPON_RATE' AND (offering_id = ? OR (offering_id IS NULL AND series_id = ?))
+                ORDER BY (offering_id IS NOT NULL) DESC, decided_on DESC, created_at DESC LIMIT 1
+                """, (rs, i) -> new Ref(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3)), offeringId, seriesId)
+                .stream().findFirst();
+    }
 
     @Transactional
     public Decision record(String decisionNo, LocalDate decidedOn, String subject, UUID seriesId, UUID offeringId,
