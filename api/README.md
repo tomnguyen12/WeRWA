@@ -32,6 +32,8 @@ Ghi chú B1.0 (duyệt 26/10/2026): mỗi API có `x-werwa-roles`, danh sách va
 
 Từ 0.2.0, `openapi.yaml` không dùng anchor/alias YAML (`&id…`, `*id…`): bộ sinh mã OpenAPI Generator đọc sai alias. Khi sinh lại tệp bằng PyYAML, tắt alias (`ignore_aliases`) và giữ `width=140`.
 
+Bản 0.3.1 (27/10/2026): bảy lược đồ response trước đây ghép `allOf` với `additionalProperties: false` (`AuthorizedSigner`, `Program`, `Series`, `Offering`, `Order`, `Transfer`, `EnforcementOrder`), nên không JSON nào khớp được. Nay viết phẳng: đủ trường của phần gốc và phần thêm, nội dung không đổi. Lược đồ mới không ghép `allOf` với `additionalProperties: false`.
+
 Kiểm tra cục bộ:
 
 ```bash

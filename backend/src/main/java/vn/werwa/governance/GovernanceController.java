@@ -43,7 +43,7 @@ class GovernanceController implements GovernanceApi {
     @Override
     public ResponseEntity<ApprovalRequest> decideApproval(UUID id, String idempotencyKey, Decision decision) {
         boolean approve = decision.getDecision() == Decision.DecisionEnum.APPROVE;
-        return ResponseEntity.ok(view(approvals.decide(id, approve, decision.getComment())));
+        return ResponseEntity.ok(view(approvals.decideRow(id, approve, decision.getComment())));
     }
 
     @Override

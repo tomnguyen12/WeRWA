@@ -28,18 +28,18 @@ class ContractProbeController {
 
     static final AtomicInteger CREATED = new AtomicInteger();
 
-    @PostMapping("/v1/organizations")
+    @PostMapping("/v1/series")
     ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, Object> body) {
         if (Boolean.TRUE.equals(body.get("fail"))) {
             throw new IllegalStateException("lỗi giả lập");
         }
         CREATED.incrementAndGet();
         UUID id = Ids.newId();
-        return ResponseEntity.created(URI.create("/v1/organizations/" + id))
+        return ResponseEntity.created(URI.create("/v1/series/" + id))
                 .body(Map.of("id", id.toString(), "legalName", String.valueOf(body.get("legalName"))));
     }
 
-    @GetMapping("/v1/organizations/{id}")
+    @GetMapping("/v1/series/{id}")
     Map<String, Object> get(@PathVariable UUID id) {
         OrgScope.requireOwnOrganization(id);
         return Map.of("id", id.toString());

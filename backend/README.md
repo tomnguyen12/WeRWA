@@ -133,6 +133,17 @@ Chế độ ký `devnet` (I12) không ký được: gửi giao dịch trả 503 
 
 Người duyệt cùng tổ chức, khác người lập (Q18). Nhật ký chỉ ghi thêm (trigger chặn sửa, xóa); neo lên `AuditAnchor` lúc 00:15 giờ Việt Nam cho ngày trước, tự bù 7 ngày gần nhất (Q21). Người dùng ghi theo subject OIDC tới khi có bảng `app_user` (B5).
 
+## Onboarding (B5a)
+
+| Cần | Dùng |
+|---|---|
+| Tổ chức đã qua KYB và vai của nó | Bảng `onboarding.organization`; kiểm quyền đọc từ đây (Q5). Tổ chức chưa qua KYB thì người dùng của nó bị 403 `ORGANIZATION_UNKNOWN` |
+| Người ký còn hiệu lực (B4b) | `onboarding.api.Signers.active(address, ngày)` |
+| Sàng lọc KYC | `integration.api.Screening.screen(...)`; XD dùng bộ giả lập: tên chứa `SANCTIONED` thì trùng cấm vận, chứa `PEP` thì trùng PEP |
+| Danh mục loại nhà đầu tư | `onboarding.investor_class` (Q25) |
+
+KYB duyệt 4 mắt qua `Approvals` (B4a); quyết định qua `/kyb-decision` hay `/v1/approvals/{id}/decision` đều áp vào tổ chức. Ở devnet, đặt `WERWA_ONBOARDING_SEEDORGANIZATIONS=classpath:seed/orgs.json` để nạp 12 tổ chức thử (I6); môi trường thật để trống.
+
 ## Quy trình làm việc
 
 ```mermaid
