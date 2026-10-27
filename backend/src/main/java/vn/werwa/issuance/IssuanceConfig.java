@@ -44,9 +44,34 @@ class IssuanceConfig {
 
     @Bean
     SeriesService series(JdbcTemplate jdbc, ProgramService programs, DocumentService documents, Approvals approvals,
-            AuditLog audit, Events events, BusinessCalendar calendar, IssuanceProperties props, Clock clock) {
+            AuditLog audit, Events events, BusinessCalendar calendar, IssuanceProperties props,
+            vn.werwa.governance.api.Parameters parameters, Clock clock) {
+        // Q60: tham số đọc mỗi lần dùng; chưa có trong bảng thì lấy cấu hình
         return new SeriesService(jdbc, programs, documents, approvals, audit, events,
-                new ScheduleGenerator(calendar, props.businessDayConvention()), props.requiredDocumentTypes(), clock);
+                new ScheduleGenerator(calendar, () -> ScheduleGenerator.Convention.valueOf(parameters.enumValue(
+                        "issuance.business-day-convention", props.businessDayConvention().name()))),
+                () -> parameters.stringList("issuance.required-document-types", props.requiredDocumentTypes()), clock);
+    }
+
+    /** Q61: lịch ngày làm việc đổi thì tính lại lịch các kỳ chưa tới ngày chốt. */
+    @Bean
+    vn.werwa.platform.events.EventHandler issuanceOnCalendarChanged(SeriesService series) {
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "issuance";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.governance.calendar.changed.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                series.recalculateSchedules((String) event.data().get("calendarCode"));
+            }
+        };
     }
 
     @Bean

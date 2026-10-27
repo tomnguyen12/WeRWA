@@ -14,6 +14,15 @@ import vn.werwa.integration.kyc.SimulatedScreeningProvider;
 @org.springframework.boot.context.properties.EnableConfigurationProperties(vn.werwa.integration.bank.BidvProperties.class)
 class IntegrationConfig {
 
+    /** Q62: chỉ gửi email khi có máy chủ SMTP ({@code spring.mail.host}). */
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty("spring.mail.host")
+    vn.werwa.platform.mail.Mailer mailer(org.springframework.mail.javamail.JavaMailSender sender,
+            @org.springframework.beans.factory.annotation.Value("${werwa.integration.mail.from:no-reply@werwa.local}")
+            String from) {
+        return new vn.werwa.integration.mail.SmtpMailer(sender, from);
+    }
+
     /** Q49: kênh webhook BIDV chỉ bật khi có khóa công khai của BIDV. */
     @Bean
     @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty("werwa.integration.bidv.public-key")

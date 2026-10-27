@@ -44,11 +44,12 @@ public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog {
     private final AuditLog audit;
     private final Events events;
     private final ScheduleGenerator schedule;
-    private final List<String> requiredDocumentTypes;
+    private final java.util.function.Supplier<List<String>> requiredDocumentTypes;
     private final Clock clock;
 
     public SeriesService(JdbcTemplate jdbc, ProgramService programs, DocumentService documents, Approvals approvals,
-            AuditLog audit, Events events, ScheduleGenerator schedule, List<String> requiredDocumentTypes, Clock clock) {
+            AuditLog audit, Events events, ScheduleGenerator schedule,
+            java.util.function.Supplier<List<String>> requiredDocumentTypes, Clock clock) {
         this.jdbc = jdbc;
         this.programs = programs;
         this.documents = documents;
@@ -56,7 +57,7 @@ public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog {
         this.audit = audit;
         this.events = events;
         this.schedule = schedule;
-        this.requiredDocumentTypes = List.copyOf(requiredDocumentTypes);
+        this.requiredDocumentTypes = requiredDocumentTypes;
         this.clock = clock;
     }
 
@@ -169,7 +170,7 @@ public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog {
         }
         Set<String> present = new LinkedHashSet<>();
         documents.require(documentIds(s.terms())).values().forEach(d -> present.add(d.docType()));
-        List<String> missing = requiredDocumentTypes.stream().filter(t -> !present.contains(t)).toList();
+        List<String> missing = requiredDocumentTypes.get().stream().filter(t -> !present.contains(t)).toList();
         if (!missing.isEmpty()) {
             throw new ApiException(IssuanceError.REQUIRED_DOCUMENTS_MISSING, String.join(", ", missing));
         }
@@ -262,6 +263,52 @@ public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog {
             throw new ApiException(IssuanceError.SERIES_NOT_READY, "cần " + from);
         }
         audit.record("SERIES_STATE_CHANGED", "series/" + seriesId, Map.of("from", from, "to", to));
+    }
+
+    /**
+     * Q32, Q61: lịch ngày làm việc đổi thì tính lại ngày chốt, ngày trả của các kỳ chưa tới ngày chốt (giờ VN), cho mọi series
+     * dùng lịch đó và chưa đóng. Trả số series có thay đổi.
+     */
+    @Transactional
+    public int recalculateSchedules(String calendarCode) {
+        java.time.LocalDate today = clock.instant().atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate();
+        List<Series> affected = jdbc.query(SELECT + " WHERE ? = ANY (calendars) AND status NOT IN "
+                + "('MATURED', 'CLOSED', 'CANCELLED') FOR UPDATE", (rs, i) -> series(rs), calendarCode);
+        int changedSeries = 0;
+        for (Series s : affected) {
+            Terms t = s.terms();
+            List<Map<String, Object>> changes = new ArrayList<>();
+            for (ScheduleGenerator.Event e : schedule.generate(t.issueDate(), t.maturityDate(), t.couponFrequency(),
+                    t.calendars())) {
+                List<Map<String, Object>> old = jdbc.queryForList("""
+                        SELECT record_date, payment_date FROM issuance.series_event
+                        WHERE series_id = ? AND event_type = ? AND period_no = ? AND record_date > ?
+                        """, s.id(), e.eventType(), e.periodNo(), today);
+                if (old.isEmpty()) {
+                    continue;
+                }
+                LocalDate oldRecord = ((java.sql.Date) old.getFirst().get("record_date")).toLocalDate();
+                LocalDate oldPayment = ((java.sql.Date) old.getFirst().get("payment_date")).toLocalDate();
+                if (!oldRecord.equals(e.recordDate()) || !oldPayment.equals(e.paymentDate())) {
+                    jdbc.update("""
+                            UPDATE issuance.series_event SET record_date = ?, payment_date = ?
+                            WHERE series_id = ? AND event_type = ? AND period_no = ?
+                            """, e.recordDate(), e.paymentDate(), s.id(), e.eventType(), e.periodNo());
+                    Map<String, Object> c = new LinkedHashMap<>();
+                    c.put("eventType", e.eventType());
+                    c.put("periodNo", e.periodNo());
+                    c.put("recordDate", oldRecord + " → " + e.recordDate());
+                    c.put("paymentDate", oldPayment + " → " + e.paymentDate());
+                    changes.add(c);
+                }
+            }
+            if (!changes.isEmpty()) {
+                changedSeries++;
+                audit.record("SERIES_SCHEDULE_RECALCULATED", "series/" + s.id(),
+                        Map.of("calendarCode", calendarCode, "changes", changes));
+            }
+        }
+        return changedSeries;
     }
 
     public Series get(UUID id) {

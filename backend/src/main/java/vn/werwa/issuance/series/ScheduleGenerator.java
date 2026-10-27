@@ -19,9 +19,14 @@ public final class ScheduleGenerator {
             LocalDate paymentDate) {}
 
     private final BusinessCalendar calendar;
-    private final Convention convention;
+    private final java.util.function.Supplier<Convention> convention;
 
     public ScheduleGenerator(BusinessCalendar calendar, Convention convention) {
+        this(calendar, () -> convention);
+    }
+
+    /** Quy tắc dời ngày đọc mỗi lần sinh lịch, vì là tham số đổi được (Q60). */
+    public ScheduleGenerator(BusinessCalendar calendar, java.util.function.Supplier<Convention> convention) {
         this.calendar = calendar;
         this.convention = convention;
     }
@@ -58,7 +63,7 @@ public final class ScheduleGenerator {
 
     LocalDate adjust(LocalDate day, List<String> calendars) {
         LocalDate next = calendar.following(day, calendars);
-        if (convention == Convention.MODIFIED_FOLLOWING && next.getMonthValue() != day.getMonthValue()) {
+        if (convention.get() == Convention.MODIFIED_FOLLOWING && next.getMonthValue() != day.getMonthValue()) {
             return calendar.preceding(day, calendars);
         }
         return next;

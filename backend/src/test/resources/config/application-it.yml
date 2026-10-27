@@ -9,6 +9,7 @@ werwa:
     seed-organizations: classpath:seed/orgs.json
   governance:
     alert-token: test-alert-token
+    notification-mail-enabled: false
     # Neo nhật ký cần chuỗi: kiểm thử neo gọi thẳng dịch vụ (AuditAnchorIT).
     anchor-enabled: false
   onchain:

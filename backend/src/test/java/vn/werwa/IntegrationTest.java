@@ -43,6 +43,10 @@ public abstract class IntegrationTest {
             .withExposedPorts(9090)
             .waitingFor(Wait.forListeningPort());
 
+    /** Máy chủ SMTP cho kiểm thử email thông báo (Q62). */
+    public static final com.icegreen.greenmail.util.GreenMail SMTP =
+            new com.icegreen.greenmail.util.GreenMail(com.icegreen.greenmail.util.ServerSetupTest.SMTP.dynamicPort());
+
     /** Cặp khóa BIDV giả lập cho kiểm thử webhook (Q49). */
     public static final java.security.KeyPair BIDV_KEYS;
 
@@ -70,6 +74,7 @@ public abstract class IntegrationTest {
 
     static {
         POSTGRES.start();
+        SMTP.start();
         NATS.start();
         S3.start();
         createStream();
@@ -91,6 +96,8 @@ public abstract class IntegrationTest {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("werwa.nats.url", IntegrationTest::natsUrl);
         registry.add("werwa.storage.endpoint", IntegrationTest::s3Url);
+        registry.add("spring.mail.host", () -> "127.0.0.1");
+        registry.add("spring.mail.port", () -> SMTP.getSmtp().getPort());
         registry.add("werwa.integration.bidv.public-key",
                 () -> java.util.Base64.getEncoder().encodeToString(BIDV_KEYS.getPublic().getEncoded()));
         registry.add("werwa.storage.bucket", () -> BUCKET);

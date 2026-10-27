@@ -33,8 +33,9 @@ class DistributionConfig {
 
     @Bean
     OrderService orders(JdbcTemplate jdbc, OfferingService offerings, SeriesCatalog series, Investors investors,
-            Wallets wallets, AuditLog audit, DistributionProperties props, Clock clock) {
-        return new OrderService(jdbc, offerings, series, investors, wallets, audit, props, clock);
+            Wallets wallets, AuditLog audit, DistributionProperties props, vn.werwa.governance.api.Parameters parameters,
+            Clock clock) {
+        return new OrderService(jdbc, offerings, series, investors, wallets, audit, props, parameters, clock);
     }
 
     @Bean
@@ -48,9 +49,10 @@ class DistributionConfig {
     @Bean
     vn.werwa.distribution.payment.PaymentService payments(JdbcTemplate jdbc, SeriesCatalog series,
             vn.werwa.governance.api.BusinessCalendar calendar, AuditLog audit, Events events, DistributionProperties props,
+            vn.werwa.governance.api.Parameters parameters, vn.werwa.governance.api.Notifications notifications,
             Clock clock) {
         return new vn.werwa.distribution.payment.PaymentService(jdbc, series, calendar, audit, events,
-                props.paymentGraceBusinessDays(), clock);
+                props.paymentGraceBusinessDays(), parameters, notifications, clock);
     }
 
     /** US-3.05-AC2: đối chiếu báo có từ mô-đun Tích hợp. */

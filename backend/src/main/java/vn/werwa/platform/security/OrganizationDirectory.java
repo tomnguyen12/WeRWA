@@ -14,4 +14,9 @@ public interface OrganizationDirectory {
 
     /** Vai của tổ chức; rỗng nếu tổ chức không có trên nền tảng. */
     Optional<Set<Role>> rolesOf(UUID organizationId);
+
+    /** Hộp thư nhận thông báo (Q62) của các tổ chức có một trong {@code roles} (rỗng là mọi vai), giới hạn ở một tổ chức nếu có. */
+    default java.util.List<String> notificationEmails(java.util.Collection<Role> roles, UUID organizationId) {
+        return java.util.List.of();
+    }
 }

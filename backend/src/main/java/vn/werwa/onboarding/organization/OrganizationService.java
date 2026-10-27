@@ -58,7 +58,7 @@ public class OrganizationService implements OrganizationDirectory, Signers {
 
     public record Org(
             UUID id, String legalName, String registrationNo, String country, List<String> roles, String kybStatus,
-            UUID kybApprovalId) {}
+            UUID kybApprovalId, String notificationEmail) {}
 
     public record Signer(
             UUID id, UUID organizationId, UUID userId, String signingAddress, List<String> scopes, LocalDate validFrom,
@@ -67,6 +67,13 @@ public class OrganizationService implements OrganizationDirectory, Signers {
     /** US-1.01-AC1: người lập nhập hồ sơ; tổ chức chờ duyệt KYB. */
     @Transactional
     public Org create(String legalName, String registrationNo, String country, List<String> roles, List<UUID> documents) {
+        return create(legalName, registrationNo, country, roles, documents, null);
+    }
+
+    /** Q62: {@code notificationEmail} là hộp thư nhận thông báo của tổ chức. */
+    @Transactional
+    public Org create(String legalName, String registrationNo, String country, List<String> roles, List<UUID> documents,
+            String notificationEmail) {
         requireDocuments(documents);
         UUID id = Ids.newId();
         Timestamp now = Timestamp.from(clock.instant());
@@ -74,8 +81,9 @@ public class OrganizationService implements OrganizationDirectory, Signers {
             jdbc.update(con -> {
                 var ps = con.prepareStatement("""
                         INSERT INTO onboarding.organization
-                            (id, legal_name, registration_no, country, roles, kyb_status, kyb_document_ids, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, 'PENDING_REVIEW', ?, ?, ?)
+                            (id, legal_name, registration_no, country, roles, kyb_status, kyb_document_ids, created_at, updated_at,
+                             notification_email)
+                        VALUES (?, ?, ?, ?, ?, 'PENDING_REVIEW', ?, ?, ?, ?)
                         """);
                 ps.setObject(1, id);
                 ps.setString(2, legalName);
@@ -85,6 +93,7 @@ public class OrganizationService implements OrganizationDirectory, Signers {
                 ps.setArray(6, con.createArrayOf("uuid", documents.toArray()));
                 ps.setTimestamp(7, now);
                 ps.setTimestamp(8, now);
+                ps.setString(9, notificationEmail);
                 return ps;
             });
         } catch (DuplicateKeyException e) {
@@ -212,6 +221,18 @@ public class OrganizationService implements OrganizationDirectory, Signers {
                 }, organizationId).stream().findFirst();
     }
 
+    /** Q62: hộp thư của tổ chức đã qua KYB, lọc theo vai (rỗng là mọi vai) và tổ chức (null là mọi tổ chức). */
+    @Override
+    public List<String> notificationEmails(java.util.Collection<Role> roles, UUID organizationId) {
+        String[] r = roles.stream().map(Role::name).toArray(String[]::new);
+        return jdbc.queryForList("""
+                SELECT notification_email FROM onboarding.organization
+                WHERE kyb_status = 'KYB_APPROVED' AND notification_email IS NOT NULL
+                  AND (?::uuid IS NULL OR id = ?::uuid) AND (cardinality(?::text[]) = 0 OR roles && ?::text[])
+                ORDER BY notification_email
+                """, String.class, organizationId, organizationId, r, r);
+    }
+
     /** Q26: từ B6a, mã tài liệu phải có trong kho tài liệu. */
     public void requireDocuments(java.util.Collection<UUID> ids) {
         java.util.Collection<UUID> missing = documents.missing(ids);
@@ -221,12 +242,12 @@ public class OrganizationService implements OrganizationDirectory, Signers {
     }
 
     private static final String SELECT = """
-            SELECT id, legal_name, registration_no, country, roles, kyb_status, kyb_approval_id
+            SELECT id, legal_name, registration_no, country, roles, kyb_status, kyb_approval_id, notification_email
             FROM onboarding.organization""";
 
     static Org org(java.sql.ResultSet rs, int i) throws java.sql.SQLException {
         Array roles = rs.getArray(5);
         return new Org(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4),
-                List.of((String[]) roles.getArray()), rs.getString(6), rs.getObject(7, UUID.class));
+                List.of((String[]) roles.getArray()), rs.getString(6), rs.getObject(7, UUID.class), rs.getString(8));
     }
 }

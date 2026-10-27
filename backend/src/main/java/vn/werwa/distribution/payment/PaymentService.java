@@ -36,10 +36,15 @@ public class PaymentService {
     private final AuditLog audit;
     private final Events events;
     private final int graceBusinessDays;
+    private final vn.werwa.governance.api.Parameters parameters;
+    private final vn.werwa.governance.api.Notifications notifications;
     private final Clock clock;
 
     public PaymentService(JdbcTemplate jdbc, SeriesCatalog series, BusinessCalendar calendar, AuditLog audit, Events events,
-            int graceBusinessDays, Clock clock) {
+            int graceBusinessDays, vn.werwa.governance.api.Parameters parameters,
+            vn.werwa.governance.api.Notifications notifications, Clock clock) {
+        this.parameters = parameters;
+        this.notifications = notifications;
         this.jdbc = jdbc;
         this.series = series;
         this.calendar = calendar;
@@ -115,6 +120,14 @@ public class PaymentService {
             events.publish(MATCHED_EVENT, "allocation/" + allocation, data);
         }
         audit.record("PAYMENT_" + result, "payment-confirmation/" + id, data);
+        if (!"MATCHED".equals(result)) {
+            // Q63: báo có lệch: Holco và tổ hợp xử lý
+            notifications.notify(new vn.werwa.governance.api.Notifications.Notice(
+                    vn.werwa.governance.api.Notifications.Kind.PAYMENT_MISMATCH,
+                    vn.werwa.governance.api.Notifications.Severity.WARNING,
+                    "Báo có " + result + ": " + c.bankRef(), detail, "payment-confirmation/" + id,
+                    List.of(vn.werwa.platform.security.Role.OPERATOR, vn.werwa.platform.security.Role.SYNDICATE), null));
+        }
         return result;
     }
 
@@ -133,6 +146,12 @@ public class PaymentService {
                 jdbc.update("UPDATE distribution.allocation SET status = 'OVERDUE' WHERE id = ? AND status = 'AWAITING_PAYMENT'",
                         a.get("id"));
                 audit.record("ALLOCATION_OVERDUE", "allocation/" + a.get("id"), Map.of("deadline", deadline.toString()));
+                notifications.notify(new vn.werwa.governance.api.Notifications.Notice(
+                        vn.werwa.governance.api.Notifications.Kind.ALLOCATION_OVERDUE,
+                        vn.werwa.governance.api.Notifications.Severity.WARNING,
+                        "Phân bổ quá hạn thanh toán", "Phân bổ " + a.get("id") + " chưa có tiền, hạn " + deadline,
+                        "allocation/" + a.get("id"),
+                        List.of(vn.werwa.platform.security.Role.SYNDICATE, vn.werwa.platform.security.Role.OPERATOR), null));
                 count++;
             }
         }
@@ -141,7 +160,8 @@ public class PaymentService {
 
     LocalDate deadline(LocalDate due) {
         LocalDate d = calendar.following(due, List.of("VN"));
-        for (int i = 0; i < graceBusinessDays; i++) {
+        long grace = parameters.integer("distribution.payment-grace-business-days", graceBusinessDays);
+        for (int i = 0; i < grace; i++) {
             d = calendar.following(d.plusDays(1), List.of("VN"));
         }
         return d;

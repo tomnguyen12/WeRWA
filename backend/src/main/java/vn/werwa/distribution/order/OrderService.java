@@ -39,10 +39,13 @@ public class OrderService {
     private final Wallets wallets;
     private final AuditLog audit;
     private final DistributionProperties props;
+    private final vn.werwa.governance.api.Parameters parameters;
     private final Clock clock;
 
     public OrderService(JdbcTemplate jdbc, OfferingService offerings, SeriesCatalog series, Investors investors,
-            Wallets wallets, AuditLog audit, DistributionProperties props, Clock clock) {
+            Wallets wallets, AuditLog audit, DistributionProperties props, vn.werwa.governance.api.Parameters parameters,
+            Clock clock) {
+        this.parameters = parameters;
         this.jdbc = jdbc;
         this.offerings = offerings;
         this.series = series;
@@ -182,8 +185,9 @@ public class OrderService {
             throw new ApiException(DistributionError.RATE_OUTSIDE_GUIDANCE,
                     offering.rateGuidanceLowPpm() + "–" + offering.rateGuidanceHighPpm() + " ppm");
         }
-        if (quantity <= 0 || quantity % props.orderQuantityStep() != 0) {
-            throw new ApiException(DistributionError.QUANTITY_NOT_MULTIPLE, "bội số " + props.orderQuantityStep());
+        long step = parameters.integer("distribution.order-quantity-step", props.orderQuantityStep());
+        if (quantity <= 0 || quantity % step != 0) {
+            throw new ApiException(DistributionError.QUANTITY_NOT_MULTIPLE, "bội số " + step);
         }
         if (wallet.address() == null) {
             throw new ApiException(DistributionError.WALLET_NOT_REGISTERED);

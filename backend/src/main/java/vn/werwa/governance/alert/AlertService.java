@@ -27,8 +27,11 @@ public class AlertService {
     private final AuditLog audit;
     private final JsonMapper json;
     private final Clock clock;
+    private final vn.werwa.governance.api.Notifications notifications;
 
-    public AlertService(JdbcTemplate jdbc, AuditLog audit, JsonMapper json, Clock clock) {
+    public AlertService(JdbcTemplate jdbc, AuditLog audit, JsonMapper json, Clock clock,
+            vn.werwa.governance.api.Notifications notifications) {
+        this.notifications = notifications;
         this.jdbc = jdbc;
         this.audit = audit;
         this.json = json;
@@ -74,6 +77,13 @@ public class AlertService {
                     status, source, Timestamp.from(a.startsAt()), endsAt, now, now);
             if (n > 0) {
                 changed++;
+                if (a.firing() && "critical".equalsIgnoreCase(a.labels().get("severity"))) {
+                    // Q63: cảnh báo critical mới báo Holco vận hành
+                    notifications.notify(new vn.werwa.governance.api.Notifications.Notice(
+                            vn.werwa.governance.api.Notifications.Kind.INFRA_ALERT,
+                            vn.werwa.governance.api.Notifications.Severity.CRITICAL, "Cảnh báo hạ tầng: " + name, summary,
+                            "alert/" + a.fingerprint(), java.util.List.of(vn.werwa.platform.security.Role.OPERATOR), null));
+                }
                 audit.record("ALERT_" + status, "alert/" + a.fingerprint(),
                         Map.of("name", name, "source", source, "startsAt", a.startsAt().toString()));
             }

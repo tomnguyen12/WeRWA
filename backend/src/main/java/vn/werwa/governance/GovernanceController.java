@@ -29,10 +29,124 @@ class GovernanceController implements GovernanceApi {
     private final JdbcTemplate jdbc;
     private final vn.werwa.governance.alert.AlertService alerts;
 
-    GovernanceController(ApprovalService approvals, JdbcTemplate jdbc, vn.werwa.governance.alert.AlertService alerts) {
+    private final vn.werwa.governance.parameter.ParameterService parameters;
+    private final vn.werwa.governance.calendar.CalendarAdjustmentService calendars;
+    private final vn.werwa.governance.notification.NotificationService notifications;
+
+    GovernanceController(ApprovalService approvals, JdbcTemplate jdbc, vn.werwa.governance.alert.AlertService alerts,
+            vn.werwa.governance.parameter.ParameterService parameters,
+            vn.werwa.governance.calendar.CalendarAdjustmentService calendars,
+            vn.werwa.governance.notification.NotificationService notifications) {
         this.approvals = approvals;
         this.jdbc = jdbc;
         this.alerts = alerts;
+        this.parameters = parameters;
+        this.calendars = calendars;
+        this.notifications = notifications;
+    }
+
+    // ---------- Tham số (Q60) ----------
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ListParameters200Response> listParameters() {
+        var out = new vn.werwa.platform.openapi.model.ListParameters200Response();
+        out.setItems(parameters.list().stream().map(c -> {
+            var v = new vn.werwa.platform.openapi.model.Parameter();
+            v.setKey(c.definition().key());
+            v.setType(vn.werwa.platform.openapi.model.Parameter.TypeEnum.fromValue(c.definition().type().name()));
+            v.setAllowedValues(c.definition().allowed());
+            v.setValue(c.value());
+            v.setSource(vn.werwa.platform.openapi.model.Parameter.SourceEnum.fromValue(c.value() == null ? "DEFAULT" : "TABLE"));
+            v.setEffectiveFrom(c.effectiveFrom());
+            v.setScheduled(c.scheduled().stream().map(GovernanceController::view).toList());
+            return v;
+        }).toList());
+        return ResponseEntity.ok(out);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ParameterChange> requestParameterChange(String key,
+            String idempotencyKey, vn.werwa.platform.openapi.model.ParameterChangeCreate body) {
+        var c = parameters.request(key, body.getValue(), body.getEffectiveFrom(), body.getReason());
+        return ResponseEntity.status(201).body(view(c));
+    }
+
+    static vn.werwa.platform.openapi.model.ParameterChange view(vn.werwa.governance.parameter.ParameterService.Change c) {
+        var v = new vn.werwa.platform.openapi.model.ParameterChange();
+        v.setId(c.id());
+        v.setKey(c.key());
+        v.setValue(c.value());
+        v.setEffectiveFrom(c.effectiveFrom());
+        v.setReason(c.reason());
+        v.setStatus(vn.werwa.platform.openapi.model.ParameterChange.StatusEnum.fromValue(c.status()));
+        v.setApprovalRequestId(c.approvalRequestId());
+        return v;
+    }
+
+    // ---------- Lịch ngày nghỉ (Q61) ----------
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.CalendarYear> listCalendarDays(String code, Integer year) {
+        var y = calendars.year(code, year);
+        var v = new vn.werwa.platform.openapi.model.CalendarYear();
+        v.setCalendarCode(y.calendarCode());
+        v.setYear(y.year());
+        v.setHolidays(y.holidays().stream().map(GovernanceController::view).toList());
+        v.setWorkingDays(y.workingDays().stream().map(GovernanceController::view).toList());
+        return ResponseEntity.ok(v);
+    }
+
+    static vn.werwa.platform.openapi.model.CalendarDay view(vn.werwa.governance.calendar.CalendarAdjustmentService.Day d) {
+        var v = new vn.werwa.platform.openapi.model.CalendarDay();
+        v.setDay(d.day());
+        v.setName(d.name());
+        v.setSource(vn.werwa.platform.openapi.model.CalendarDay.SourceEnum.fromValue(d.source()));
+        return v;
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.CalendarAdjustment> requestCalendarAdjustment(String code,
+            String idempotencyKey, vn.werwa.platform.openapi.model.CalendarAdjustmentCreate body) {
+        var r = calendars.request(code, body.getDay(), body.getKind().getValue(), body.getName());
+        var v = new vn.werwa.platform.openapi.model.CalendarAdjustment();
+        v.setId(r.id());
+        v.setCalendarCode(r.calendarCode());
+        v.setDay(r.day());
+        v.setKind(vn.werwa.platform.openapi.model.CalendarAdjustment.KindEnum.fromValue(r.kind()));
+        v.setName(r.name());
+        v.setStatus(vn.werwa.platform.openapi.model.CalendarAdjustment.StatusEnum.fromValue(r.status()));
+        v.setApprovalRequestId(r.approvalRequestId());
+        return ResponseEntity.status(201).body(v);
+    }
+
+    // ---------- Thông báo (Q62) ----------
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ListNotifications200Response> listNotifications(String cursor,
+            Integer limit) {
+        Paging.Page<vn.werwa.governance.notification.NotificationService.Item> page = notifications.list(cursor, limit);
+        var out = new vn.werwa.platform.openapi.model.ListNotifications200Response();
+        out.setItems(page.items().stream().map(GovernanceController::view).toList());
+        out.setNextCursor(page.nextCursor());
+        return ResponseEntity.ok(out);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.Notification> markNotificationRead(UUID id, String idempotencyKey) {
+        return ResponseEntity.ok(view(notifications.markRead(id)));
+    }
+
+    static vn.werwa.platform.openapi.model.Notification view(vn.werwa.governance.notification.NotificationService.Item n) {
+        var v = new vn.werwa.platform.openapi.model.Notification();
+        v.setId(n.id());
+        v.setKind(vn.werwa.platform.openapi.model.Notification.KindEnum.fromValue(n.kind()));
+        v.setSeverity(vn.werwa.platform.openapi.model.Notification.SeverityEnum.fromValue(n.severity()));
+        v.setTitle(n.title());
+        v.setBody(n.body());
+        v.setSubjectRef(n.subjectRef());
+        v.setCreatedAt(n.createdAt().atOffset(ZoneOffset.UTC));
+        v.setRead(n.read());
+        return v;
     }
 
     /** I5, US-6.01-AC3 (Q56, Q57). */

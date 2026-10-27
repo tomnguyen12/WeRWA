@@ -32,8 +32,83 @@ class GovernanceConfig {
 
     @Bean
     vn.werwa.governance.alert.AlertService alerts(JdbcTemplate jdbc, AuditLogService audit,
-            tools.jackson.databind.json.JsonMapper json, Clock clock) {
-        return new vn.werwa.governance.alert.AlertService(jdbc, audit, json, clock);
+            tools.jackson.databind.json.JsonMapper json, Clock clock,
+            vn.werwa.governance.notification.NotificationService notifications) {
+        return new vn.werwa.governance.alert.AlertService(jdbc, audit, json, clock, notifications);
+    }
+
+    @Bean
+    vn.werwa.governance.notification.NotificationService notifications(JdbcTemplate jdbc,
+            org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.security.OrganizationDirectory> organizations,
+            org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.mail.Mailer> mailer, Clock clock) {
+        return new vn.werwa.governance.notification.NotificationService(jdbc, organizations, mailer, clock);
+    }
+
+    @Bean
+    vn.werwa.governance.parameter.ParameterService parameters(JdbcTemplate jdbc, ApprovalService approvals,
+            AuditLogService audit, tools.jackson.databind.json.JsonMapper json, Clock clock) {
+        return new vn.werwa.governance.parameter.ParameterService(jdbc, approvals, audit, json, clock);
+    }
+
+    @Bean
+    vn.werwa.governance.calendar.CalendarAdjustmentService calendarAdjustments(JdbcTemplate jdbc,
+            vn.werwa.governance.calendar.CalendarService calendar, ApprovalService approvals, AuditLogService audit,
+            Events events, Clock clock) {
+        return new vn.werwa.governance.calendar.CalendarAdjustmentService(jdbc, calendar, approvals, audit, events, clock);
+    }
+
+    /** Q60. */
+    @Bean
+    vn.werwa.governance.api.ApprovalHook parameterApprovalHook(vn.werwa.governance.parameter.ParameterService parameters) {
+        return hook(vn.werwa.governance.parameter.ParameterService.CHANGE_ACTION,
+                d -> parameters.applyDecision(d.approvalId(), d.approve()));
+    }
+
+    /** Q61. */
+    @Bean
+    vn.werwa.governance.api.ApprovalHook calendarApprovalHook(
+            vn.werwa.governance.calendar.CalendarAdjustmentService adjustments) {
+        return hook(vn.werwa.governance.calendar.CalendarAdjustmentService.ADJUST_ACTION,
+                d -> adjustments.applyDecision(d.approvalId(), d.approve()));
+    }
+
+    private static vn.werwa.governance.api.ApprovalHook hook(String action,
+            java.util.function.Consumer<vn.werwa.governance.api.ApprovalHook.Decision> apply) {
+        return new vn.werwa.governance.api.ApprovalHook() {
+            @Override
+            public String actionType() {
+                return action;
+            }
+
+            @Override
+            public void onDecision(Decision decision) {
+                apply.accept(decision);
+            }
+        };
+    }
+
+    /** Q62: gửi email thông báo định kỳ. */
+    @Bean
+    @ConditionalOnProperty(name = "werwa.governance.notification-mail-enabled", havingValue = "true", matchIfMissing = true)
+    MailJob notificationMailJob(vn.werwa.governance.notification.NotificationService notifications) {
+        return new MailJob(notifications);
+    }
+
+    static class MailJob {
+        private final vn.werwa.governance.notification.NotificationService notifications;
+
+        MailJob(vn.werwa.governance.notification.NotificationService notifications) {
+            this.notifications = notifications;
+        }
+
+        @org.springframework.scheduling.annotation.Scheduled(fixedDelayString = "${werwa.governance.notification-mail-interval:PT1M}")
+        void tick() {
+            try {
+                notifications.sendPendingEmails();
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(MailJob.class).warn("Lượt gửi email lỗi: {}", e.toString());
+            }
+        }
     }
 
     /** Q56: kênh webhook Alertmanager chỉ mở khi có token. */
@@ -58,8 +133,9 @@ class GovernanceConfig {
 
     @Bean
     ApprovalService approvals(JdbcTemplate jdbc, AuditLogService audit, Events events, Clock clock,
-            org.springframework.beans.factory.ObjectProvider<vn.werwa.governance.api.ApprovalHook> hooks) {
-        return new ApprovalService(jdbc, audit, events, clock, hooks);
+            org.springframework.beans.factory.ObjectProvider<vn.werwa.governance.api.ApprovalHook> hooks,
+            vn.werwa.governance.notification.NotificationService notifications) {
+        return new ApprovalService(jdbc, audit, events, clock, hooks, notifications);
     }
 
     @Bean

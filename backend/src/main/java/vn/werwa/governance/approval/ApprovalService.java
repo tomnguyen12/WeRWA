@@ -30,10 +30,13 @@ public class ApprovalService implements Approvals {
     private final Events events;
     private final Clock clock;
     private final org.springframework.beans.factory.ObjectProvider<ApprovalHook> hooks;
+    private final vn.werwa.governance.api.Notifications notifications;
 
     public ApprovalService(JdbcTemplate jdbc, AuditLog audit, Events events, Clock clock,
-            org.springframework.beans.factory.ObjectProvider<ApprovalHook> hooks) {
+            org.springframework.beans.factory.ObjectProvider<ApprovalHook> hooks,
+            vn.werwa.governance.api.Notifications notifications) {
         this.hooks = hooks;
+        this.notifications = notifications;
         this.jdbc = jdbc;
         this.audit = audit;
         this.events = events;
@@ -85,6 +88,13 @@ public class ApprovalService implements Approvals {
                 Timestamp.from(clock.instant()), checkerRole == null ? null : checkerRole.name());
         audit.record("APPROVAL_REQUESTED", "approval/" + id,
                 Map.of("actionType", actionType, "subjectRef", subjectRef, "payloadHash", hash));
+        // Q63: báo người duyệt: cùng tổ chức người lập, hoặc vai được chỉ định (Q40)
+        notifications.notify(new vn.werwa.governance.api.Notifications.Notice(
+                vn.werwa.governance.api.Notifications.Kind.APPROVAL_PENDING,
+                vn.werwa.governance.api.Notifications.Severity.INFO, "Có yêu cầu chờ duyệt: " + actionType,
+                "Đối tượng " + subjectRef + ", yêu cầu " + id, "approval/" + id,
+                checkerRole == null ? java.util.List.of() : java.util.List.of(checkerRole),
+                checkerRole == null ? maker.organizationId() : null));
         return id;
     }
 

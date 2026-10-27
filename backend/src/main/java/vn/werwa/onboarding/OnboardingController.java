@@ -39,7 +39,7 @@ class OnboardingController implements OnboardingApi {
     public ResponseEntity<Organization> createOrganization(String idempotencyKey, OrganizationCreate body) {
         Org org = organizations.create(body.getLegalName(), body.getRegistrationNo(), body.getCountry(),
                 body.getRoles().stream().map(OrganizationCreate.RolesEnum::getValue).toList(),
-                body.getKybDocumentIds() == null ? List.of() : body.getKybDocumentIds());
+                body.getKybDocumentIds() == null ? List.of() : body.getKybDocumentIds(), body.getNotificationEmail());
         return ResponseEntity.created(URI.create("/v1/organizations/" + org.id())).body(view(org));
     }
 
@@ -94,6 +94,7 @@ class OnboardingController implements OnboardingApi {
         v.setCountry(o.country());
         v.setRoles(o.roles().stream().map(Organization.RolesEnum::fromValue).toList());
         v.setKybStatus(Organization.KybStatusEnum.fromValue(o.kybStatus()));
+        v.setNotificationEmail(o.notificationEmail());
         return v;
     }
 
