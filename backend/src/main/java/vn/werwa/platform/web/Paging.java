@@ -42,6 +42,27 @@ public final class Paging {
         }
     }
 
+    /** Con trỏ theo số thứ tự (bảng có cột seq tăng dần, ví dụ nhật ký kiểm toán). */
+    public static String encodeSeqCursor(long lastSeq) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(("seq:" + lastSeq).getBytes(StandardCharsets.US_ASCII));
+    }
+
+    /** {@code null} khi không có con trỏ (trang đầu). */
+    public static Long decodeSeqCursor(String cursor) {
+        if (cursor == null || cursor.isEmpty()) {
+            return null;
+        }
+        try {
+            String raw = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.US_ASCII);
+            if (!raw.startsWith("seq:")) {
+                throw new IllegalArgumentException(raw);
+            }
+            return Long.parseLong(raw.substring(4));
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(PlatformError.CURSOR_INVALID);
+        }
+    }
+
     /**
      * Trang kết quả. Truy vấn lấy {@code limit + 1} dòng; có dòng thừa thì còn trang sau và con trỏ là khóa của dòng
      * cuối trong trang.

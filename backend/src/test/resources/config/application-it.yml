@@ -1,5 +1,8 @@
 # Cấu hình cho kiểm thử tích hợp (*IT). DataSource do Testcontainers cấp (@ServiceConnection).
 werwa:
+  governance:
+    # Neo nhật ký cần chuỗi: kiểm thử neo gọi thẳng dịch vụ (AuditAnchorIT).
+    anchor-enabled: false
   onchain:
     # Kiểm thử không có chuỗi: tắt indexer và việc định kỳ; ChainIntegrationTest bật lại.
     workers-enabled: false

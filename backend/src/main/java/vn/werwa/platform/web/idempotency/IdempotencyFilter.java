@@ -16,6 +16,8 @@ import java.util.regex.Pattern;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingResponseWrapper;
+import vn.werwa.platform.audit.AuditSink;
+import vn.werwa.platform.audit.WriteAudit;
 import vn.werwa.platform.security.ContractAuthorizationFilter;
 import vn.werwa.platform.security.CurrentUser;
 import vn.werwa.platform.web.ApiContract.Operation;
@@ -34,6 +36,7 @@ import vn.werwa.platform.web.idempotency.IdempotencyStore.StoredResponse;
  *       {@code Idempotent-Replayed: true}.
  *   <li>Cùng khóa, request khác (phương thức, đường dẫn hoặc thân khác): 422. Lần đầu chưa xử lý xong: 409.
  *   <li>Kết quả 5xx không được lưu, để thử lại được.
+ *   <li>Kết quả 2xx ghi một dòng nhật ký kiểm toán (Q22), sau khi xử lý xong.
  * </ul>
  */
 public class IdempotencyFilter extends OncePerRequestFilter {
@@ -44,9 +47,11 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     private static final Pattern KEY = Pattern.compile("^[\\x21-\\x7E]{1,128}$");
 
     private final IdempotencyStore store;
+    private final AuditSink audit;
 
-    public IdempotencyFilter(IdempotencyStore store) {
+    public IdempotencyFilter(IdempotencyStore store, AuditSink audit) {
         this.store = store;
+        this.audit = audit;
     }
 
     @Override
@@ -115,6 +120,17 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                         wrapper.getHeader(HttpHeaders.ETAG),
                         wrapper.getContentAsByteArray()));
                 stored = true;
+            }
+            if (status >= 200 && status < 300) {
+                CurrentUser user = CurrentUser.get();
+                try {
+                    audit.recordWrite(new WriteAudit(user.subject(), user.organizationId(), op.operationId(),
+                            request.getMethod(), request.getRequestURI(), "0x" + hash, status));
+                } catch (RuntimeException e) {
+                    // Nghiệp vụ đã commit; không làm hỏng response, nhưng phải báo để vận hành xử lý.
+                    org.slf4j.LoggerFactory.getLogger(IdempotencyFilter.class)
+                            .error("Không ghi được nhật ký kiểm toán cho {} {}", request.getMethod(), request.getRequestURI(), e);
+                }
             }
         } finally {
             if (!stored) {

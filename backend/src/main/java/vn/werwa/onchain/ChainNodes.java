@@ -46,11 +46,6 @@ public class ChainNodes {
         return firstAvailable(readers, what, call);
     }
 
-    /** Web3j đọc qua O1 đầu tiên, cho lớp hợp đồng sinh từ ABI gọi hàm view. */
-    public Web3j primaryReader() {
-        return readers.getFirst().web3j();
-    }
-
     /**
      * Gửi raw tx qua validator đầu tiên trả lời được. Node trả "đã biết giao dịch" thì coi là đã gửi, vì raw tx giống hệt
      * (gửi lại an toàn, Q14).

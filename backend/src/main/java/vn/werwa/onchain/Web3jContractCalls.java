@@ -28,7 +28,11 @@ class Web3jContractCalls implements ContractCalls {
         try {
             Method load = type.getMethod("load", String.class, Web3j.class, TransactionManager.class,
                     org.web3j.tx.gas.ContractGasProvider.class);
-            Web3j web3j = nodes.primaryReader();
+            // Node chỉ đọc đầu tiên đang trả lời (O1-a rồi O1-b, ADR-12).
+            Web3j web3j = nodes.read("eth_blockNumber", w -> {
+                w.ethBlockNumber().send();
+                return w;
+            });
             return (T) load.invoke(null, address, web3j, new ReadonlyTransactionManager(web3j, ZERO),
                     new StaticGasProvider(BigInteger.ZERO, BigInteger.ZERO));
         } catch (ReflectiveOperationException e) {
