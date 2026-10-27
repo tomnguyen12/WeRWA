@@ -239,6 +239,25 @@ sequenceDiagram
 | Tiến độ ghi sổ | `GET /v1/series/{id}/issuance-progress` |
 | Giả lập BIDV | `bidv-simulator/` (Q55), mô-đun Maven riêng; xem README trong đó |
 
+## Cảnh báo vận hành (B12a, I5)
+
+| Cần | Dùng |
+|---|---|
+| Nhận cảnh báo hạ tầng | `POST /v1/inbound/alerts/alertmanager`, token Bearer cố định `werwa.governance.alert-token` (Q56). Không đặt token thì kênh đóng (403) |
+| Kênh nhận dùng token | `platform.inbound.InboundToken`; đường `/v1/inbound/**` không đi qua JWT |
+| Hàng chờ | `governance.operational_alert`; `GET /v1/alerts`, `POST /v1/alerts/{id}/acknowledge` (Q57, Q58) |
+
+Cấu hình Alertmanager (phiên infra):
+
+```yaml
+webhook_configs:
+  - url: https://<ingress>/v1/inbound/alerts/alertmanager
+    send_resolved: true
+    http_config:
+      authorization:
+        credentials: <WERWA_GOVERNANCE_ALERTTOKEN>
+```
+
 ## Quy trình làm việc
 
 ```mermaid
