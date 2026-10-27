@@ -29,7 +29,7 @@ import tools.jackson.databind.json.JsonMapper;
 import vn.werwa.IntegrationTest;
 import vn.werwa.platform.OpenApiSchemas;
 
-/** Hồ sơ phát hành có phiên bản (US-2.04-AC1, AC3; Q29, Q30) với PostgreSQL và MinIO thật. */
+/** Hồ sơ phát hành có phiên bản (US-2.04-AC1, AC3; Q29, Q30) với PostgreSQL thật và kho S3 giả. */
 class DocumentsIT extends IntegrationTest {
 
     static final String HOLCO = "01a15bc1-f409-7589-aef1-774ceddccf3f";

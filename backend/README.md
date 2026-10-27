@@ -42,7 +42,7 @@ cd backend && mvn spring-boot:run
 | Lệnh | Việc |
 |---|---|
 | `mvn test` | Kiểm thử đơn vị và `ApplicationModules.verify()` |
-| `mvn verify` | Thêm kiểm thử tích hợp `*IT` (Testcontainers: PostgreSQL 18.6, NATS 2.15.1, MinIO; Besu cho kiểm thử chuỗi) |
+| `mvn verify` | Thêm kiểm thử tích hợp `*IT` (Testcontainers: PostgreSQL 18.6, NATS 2.15.1, S3Mock; Besu cho kiểm thử chuỗi) |
 
 ## Cấu hình
 
@@ -150,7 +150,7 @@ KYB duyệt 4 mắt qua `Approvals` (B4a); quyết định qua `/kyb-decision` h
 flowchart LR
   U[Người dùng] -- multipart POST /v1/documents --> C[IssuanceController]
   C --> S[DocumentService<br/>SHA-256, phiên bản]
-  S -- nội dung --> O[(Kho S3<br/>MinIO ở devnet)]
+  S -- nội dung --> O[(Kho S3)]
   S -- metadata --> D[(issuance.document)]
   S --> A[AuditLog]
   U -- GET /v1/documents/id/content --> C2[URL ký sẵn 5 phút] --> O
