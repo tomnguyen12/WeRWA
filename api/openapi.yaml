@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.6.0
+  version: 0.7.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1677,6 +1677,126 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /v1/inbound/alerts/alertmanager:
+    post:
+      tags:
+      - governance
+      operationId: receiveAlertmanagerWebhook
+      summary: Nhận cảnh báo hạ tầng từ Alertmanager (I5, US-6.01-AC3); chống trùng theo fingerprint, không dùng Idempotency-Key
+      x-werwa-function: '4.11'
+      x-werwa-callers: Alertmanager · token Bearer cố định
+      x-werwa-roles:
+      - OPERATOR
+      security:
+      - alertToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertmanagerWebhook'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ack'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/alerts:
+    get:
+      tags:
+      - governance
+      operationId: listAlerts
+      summary: Hàng chờ cảnh báo vận hành (Q58)
+      x-werwa-function: '4.11'
+      x-werwa-callers: Holco vận hành, Cơ quan giám sát
+      x-werwa-roles:
+      - OPERATOR
+      - SUPERVISOR
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - FIRING
+          - ACKNOWLEDGED
+          - RESOLVED
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperationalAlert'
+                  nextCursor:
+                    type: string
+                additionalProperties: false
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/alerts/{id}/acknowledge:
+    post:
+      tags:
+      - governance
+      operationId: acknowledgeAlert
+      summary: Người trực xác nhận đã nhận cảnh báo (Q58)
+      x-werwa-function: '4.11'
+      x-werwa-callers: Holco vận hành
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalAlert'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/audit-log:
     get:
       tags:
@@ -1852,6 +1972,10 @@ components:
     bankMtls:
       type: mutualTLS
       description: 'Webhook BIDV: mTLS và header X-Bank-Signature'
+    alertToken:
+      type: http
+      scheme: bearer
+      description: Webhook Alertmanager; token cố định cấu hình ở cả hai phía (Q56), không phải token OIDC
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
@@ -3832,6 +3956,100 @@ components:
               bankRef:
                 type: string
             additionalProperties: false
+      additionalProperties: false
+    AlertmanagerWebhook:
+      type: object
+      description: Định dạng webhook của Alertmanager (phiên bản 4); giữ trường lạ để không vỡ khi Alertmanager thêm trường
+      required:
+      - status
+      - alerts
+      properties:
+        version:
+          type: string
+        status:
+          type: string
+        receiver:
+          type: string
+        groupKey:
+          type: string
+        alerts:
+          type: array
+          items:
+            type: object
+            required:
+            - status
+            - labels
+            - startsAt
+            - fingerprint
+            properties:
+              status:
+                type: string
+                enum:
+                - firing
+                - resolved
+              labels:
+                type: object
+                additionalProperties:
+                  type: string
+              annotations:
+                type: object
+                additionalProperties:
+                  type: string
+              startsAt:
+                type: string
+                format: date-time
+              endsAt:
+                type: string
+                format: date-time
+              generatorURL:
+                type: string
+              fingerprint:
+                type: string
+            additionalProperties: true
+      additionalProperties: true
+    OperationalAlert:
+      type: object
+      required:
+      - id
+      - fingerprint
+      - name
+      - status
+      - startsAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        fingerprint:
+          type: string
+        name:
+          type: string
+          description: Nhãn alertname
+        severity:
+          type: string
+        summary:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        status:
+          type: string
+          enum:
+          - FIRING
+          - ACKNOWLEDGED
+          - RESOLVED
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        acknowledgedBy:
+          type: string
+        acknowledgedAt:
+          type: string
+          format: date-time
       additionalProperties: false
     Ack:
       type: object
