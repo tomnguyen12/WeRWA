@@ -16,7 +16,8 @@ class HolidayRulesTest {
         assertThat(LunarCalendar.toSolar(1, 1, 2026)).isEqualTo(LocalDate.of(2026, 2, 17));
         assertThat(LunarCalendar.toSolar(1, 1, 2027)).isEqualTo(LocalDate.of(2027, 2, 6));
         assertThat(LunarCalendar.toSolar(1, 1, 2028)).isEqualTo(LocalDate.of(2028, 1, 26));
-        assertThat(LunarCalendar.toSolar(1, 1, 2030)).isEqualTo(LocalDate.of(2030, 2, 3));
+        // Sóc 23h07 ngày 2/2/2030 giờ Hà Nội: Tết Việt Nam 2/2, sớm hơn Trung Quốc (3/2) một ngày
+        assertThat(LunarCalendar.toSolar(1, 1, 2030)).isEqualTo(LocalDate.of(2030, 2, 2));
     }
 
     @Test
