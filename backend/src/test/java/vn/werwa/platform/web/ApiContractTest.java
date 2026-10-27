@@ -15,7 +15,7 @@ class ApiContractTest {
 
     @Test
     void readsEveryOperation() {
-        assertThat(CONTRACT.operations()).hasSize(42);
+        assertThat(CONTRACT.operations()).hasSize(44);
         assertThat(CONTRACT.operations()).allMatch(op -> op.anyRole() || !op.roles().isEmpty());
     }
 

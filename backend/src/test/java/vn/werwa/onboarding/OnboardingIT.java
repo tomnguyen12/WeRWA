@@ -93,6 +93,10 @@ class OnboardingIT extends IntegrationTest {
         return org;
     }
 
+    UUID doc() throws Exception {
+        return vn.werwa.issuance.TestDocuments.uploadId(mvc, as(MAKER, HOLCO, "OPERATOR"));
+    }
+
     MvcResult kyb(UUID org, RequestPostProcessor who, String decision) throws Exception {
         return post("/v1/organizations/" + org + "/kyb-decision", who, Map.of("decision", decision));
     }
@@ -169,7 +173,7 @@ class OnboardingIT extends IntegrationTest {
         String address = "0x" + UUID.randomUUID().toString().replace("-", "") + "abcdefab";
         Map<String, Object> signer = Map.of("userId", UUID.randomUUID().toString(), "signingAddress", address,
                 "scopes", List.of("GOVERNANCE"), "validFrom", "2026-11-01",
-                "authorizationDocId", UUID.randomUUID().toString());
+                "authorizationDocId", doc().toString());
 
         MvcResult r = post("/v1/organizations/" + approved + "/signers", as(MAKER, HOLCO, "OPERATOR"), signer);
         assertThat(r.getResponse().getStatus()).isEqualTo(201);
@@ -184,7 +188,7 @@ class OnboardingIT extends IntegrationTest {
         MvcResult notApproved = post("/v1/organizations/" + pending + "/signers", as(MAKER, HOLCO, "OPERATOR"),
                 Map.of("userId", UUID.randomUUID().toString(), "signingAddress", "0x" + "b".repeat(40),
                         "scopes", List.of("GOVERNANCE"), "validFrom", "2026-11-01",
-                        "authorizationDocId", UUID.randomUUID().toString()));
+                        "authorizationDocId", doc().toString()));
         assertThat(body(notApproved).get("code")).isEqualTo("ORGANIZATION_NOT_APPROVED");
     }
 
@@ -286,5 +290,23 @@ class OnboardingIT extends IntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"address\":\"0x" + "c".repeat(40) + "\"}"))
                 .andExpect(r -> assertThat(r.getResponse().getStatus()).isEqualTo(501));
+    }
+
+    @Test
+    @DisplayName("Q26 mã tài liệu KYB phải có trong kho tài liệu: có thì tạo được, không có thì 422 DOCUMENT_NOT_FOUND")
+    void kybDocumentsMustExistInTheDocumentStore() throws Exception {
+        MvcResult ok = post("/v1/organizations", as(MAKER, HOLCO, "OPERATOR"), Map.of(
+                "legalName", "Tổ chức có hồ sơ " + UUID.randomUUID(), "registrationNo", "REG-" + UUID.randomUUID(),
+                "country", "SG", "roles", List.of("INVESTOR"), "kybDocumentIds", List.of(doc().toString())));
+        assertThat(ok.getResponse().getStatus()).isEqualTo(201);
+
+        UUID unknown = UUID.randomUUID();
+        MvcResult r = post("/v1/organizations", as(MAKER, HOLCO, "OPERATOR"), Map.of(
+                "legalName", "Tổ chức thiếu hồ sơ " + UUID.randomUUID(), "registrationNo", "REG-" + UUID.randomUUID(),
+                "country", "SG", "roles", List.of("INVESTOR"), "kybDocumentIds", List.of(unknown.toString())));
+        assertThat(r.getResponse().getStatus()).isEqualTo(422);
+        matches("Problem", r);
+        assertThat(body(r).get("code")).isEqualTo("DOCUMENT_NOT_FOUND");
+        assertThat((String) body(r).get("detail")).contains(unknown.toString());
     }
 }

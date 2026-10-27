@@ -20,6 +20,7 @@ import vn.werwa.governance.api.Approvals;
 import vn.werwa.governance.api.AuditLog;
 import vn.werwa.onboarding.OnboardingError;
 import vn.werwa.onboarding.api.Signers;
+import vn.werwa.platform.documents.DocumentRegistry;
 import vn.werwa.platform.events.Events;
 import vn.werwa.platform.id.Ids;
 import vn.werwa.platform.security.OrganizationDirectory;
@@ -42,8 +43,11 @@ public class OrganizationService implements OrganizationDirectory, Signers {
     private final AuditLog audit;
     private final Events events;
     private final Clock clock;
+    private final DocumentRegistry documents;
 
-    public OrganizationService(JdbcTemplate jdbc, Approvals approvals, AuditLog audit, Events events, Clock clock) {
+    public OrganizationService(JdbcTemplate jdbc, Approvals approvals, AuditLog audit, Events events, Clock clock,
+            DocumentRegistry documents) {
+        this.documents = documents;
         this.jdbc = jdbc;
         this.approvals = approvals;
         this.audit = audit;
@@ -62,6 +66,7 @@ public class OrganizationService implements OrganizationDirectory, Signers {
     /** US-1.01-AC1: người lập nhập hồ sơ; tổ chức chờ duyệt KYB. */
     @Transactional
     public Org create(String legalName, String registrationNo, String country, List<String> roles, List<UUID> documents) {
+        requireDocuments(documents);
         UUID id = Ids.newId();
         Timestamp now = Timestamp.from(clock.instant());
         try {
@@ -151,6 +156,7 @@ public class OrganizationService implements OrganizationDirectory, Signers {
         if (!"KYB_APPROVED".equals(org.kybStatus())) {
             throw new ApiException(OnboardingError.ORGANIZATION_NOT_APPROVED);
         }
+        requireDocuments(List.of(authorizationDocId));
         UUID id = Ids.newId();
         String address = signingAddress.toLowerCase(Locale.ROOT);
         try {
@@ -203,6 +209,14 @@ public class OrganizationService implements OrganizationDirectory, Signers {
                     }
                     return Set.copyOf(roles);
                 }, organizationId).stream().findFirst();
+    }
+
+    /** Q26: từ B6a, mã tài liệu phải có trong kho tài liệu. */
+    public void requireDocuments(java.util.Collection<UUID> ids) {
+        java.util.Collection<UUID> missing = documents.missing(ids);
+        if (!missing.isEmpty()) {
+            throw new ApiException(OnboardingError.DOCUMENT_NOT_FOUND, missing.toString());
+        }
     }
 
     private static final String SELECT = """

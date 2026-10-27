@@ -15,6 +15,7 @@ import vn.werwa.integration.api.Screening;
 import vn.werwa.onboarding.kyc.KycService;
 import vn.werwa.onboarding.organization.OrganizationSeeder;
 import vn.werwa.onboarding.organization.OrganizationService;
+import vn.werwa.platform.documents.DocumentRegistry;
 import vn.werwa.platform.events.EventHandler;
 import vn.werwa.platform.events.Events;
 import vn.werwa.platform.events.InboundEvent;
@@ -27,8 +28,9 @@ class OnboardingConfig {
     /** Cũng là nguồn vai tổ chức cho kiểm quyền (OrganizationDirectory, Q5). */
     @Bean
     @Primary
-    OrganizationService organizations(JdbcTemplate jdbc, Approvals approvals, AuditLog audit, Events events, Clock clock) {
-        return new OrganizationService(jdbc, approvals, audit, events, clock);
+    OrganizationService organizations(JdbcTemplate jdbc, Approvals approvals, AuditLog audit, Events events, Clock clock,
+            DocumentRegistry documents) {
+        return new OrganizationService(jdbc, approvals, audit, events, clock, documents);
     }
 
     @Bean
