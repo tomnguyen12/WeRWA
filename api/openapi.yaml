@@ -1802,7 +1802,7 @@ paths:
       tags:
       - governance
       operationId: listParameters
-      summary: Tham số hệ thống: giá trị đang hiệu lực và thay đổi đã lên lịch (Q60)
+      summary: 'Tham số hệ thống: giá trị đang hiệu lực và thay đổi đã lên lịch (Q60)'
       x-werwa-function: '4.11'
       x-werwa-callers: Holco, Cơ quan giám sát
       x-werwa-roles:
@@ -1882,7 +1882,7 @@ paths:
       tags:
       - governance
       operationId: listCalendarDays
-      summary: Ngày nghỉ của một năm: theo luật và điều chỉnh (Q61)
+      summary: 'Ngày nghỉ của một năm: theo luật và điều chỉnh (Q61)'
       x-werwa-function: '4.11'
       x-werwa-callers: Mọi bên có quyền
       x-werwa-roles:
