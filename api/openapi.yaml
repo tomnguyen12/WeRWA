@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.4.1
+  version: 0.5.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -792,6 +792,37 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /v1/offerings/{id}:
+    get:
+      tags:
+      - distribution
+      operationId: getOffering
+      summary: Xem đợt chào bán (Q47)
+      x-werwa-function: '3.01'
+      x-werwa-callers: Mọi bên có quyền
+      x-werwa-roles:
+      - ANY
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Offering'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/offerings/{id}/open:
     post:
       tags:
@@ -857,6 +888,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
   /v1/offerings/{id}/orders:
+    get:
+      tags:
+      - distribution
+      operationId: listOrders
+      summary: Sổ lệnh của đợt chào bán; nhà đầu tư chỉ thấy lệnh của mình (Q47)
+      x-werwa-function: '3.02'
+      x-werwa-callers: Tổ hợp, UBND, Holco; nhà đầu tư xem lệnh của mình
+      x-werwa-roles:
+      - INVESTOR
+      - SYNDICATE
+      - ISSUER
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+                  nextCursor:
+                    type: string
+                additionalProperties: false
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
     post:
       tags:
       - distribution
@@ -896,6 +972,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
   /v1/orders/{id}:
+    get:
+      tags:
+      - distribution
+      operationId: getOrder
+      summary: Xem lệnh (Q47)
+      x-werwa-function: '3.02'
+      x-werwa-callers: Nhà đầu tư chủ lệnh, tổ hợp, UBND, Holco
+      x-werwa-roles:
+      - INVESTOR
+      - SYNDICATE
+      - ISSUER
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
     patch:
       tags:
       - distribution
@@ -989,6 +1098,39 @@ paths:
               $ref: '#/components/schemas/AllocationListCreate'
       responses:
         '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllocationList'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/allocation-lists/{id}:
+    get:
+      tags:
+      - distribution
+      operationId: getAllocationList
+      summary: Xem danh sách phân bổ kèm các mục (Q47)
+      x-werwa-function: '3.03'
+      x-werwa-callers: Tổ hợp, UBND, Holco
+      x-werwa-roles:
+      - SYNDICATE
+      - ISSUER
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
           description: OK
           content:
             application/json:
@@ -2935,6 +3077,49 @@ components:
                 type: string
             additionalProperties: false
       additionalProperties: false
+    AllocationItem:
+      type: object
+      required:
+      - allocationId
+      - orderId
+      - investorOrgId
+      - walletId
+      - quantity
+      - amountDue
+      - leaf
+      properties:
+        allocationId:
+          type: string
+          format: uuid
+          description: UUIDv7; trên chuỗi là bytes32(uint256(uint128(uuid))) (Q43)
+        orderId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        investorOrgId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        walletId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        wallet:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
+        quantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        amountDue:
+          $ref: '#/components/schemas/Money'
+        adjustmentReason:
+          type: string
+        leaf:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+      additionalProperties: false
     AllocationList:
       type: object
       required:
@@ -2975,6 +3160,18 @@ components:
           - SIGNED
           - REJECTED
           - SUPERSEDED
+        listHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+          description: SHA-256 của danh sách chuẩn hóa, đối số listHash của setAllocation (Q44)
+        approvalRequestId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AllocationItem'
       additionalProperties: false
     AllocationProof:
       type: object
