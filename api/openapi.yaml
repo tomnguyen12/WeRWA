@@ -3959,54 +3959,72 @@ components:
       additionalProperties: false
     AlertmanagerWebhook:
       type: object
-      description: Định dạng webhook của Alertmanager (phiên bản 4); giữ trường lạ để không vỡ khi Alertmanager thêm trường
+      description: Định dạng webhook của Alertmanager phiên bản 4, khai đủ mọi trường
       required:
       - status
       - alerts
       properties:
         version:
           type: string
+        groupKey:
+          type: string
+        truncatedAlerts:
+          type: integer
         status:
           type: string
         receiver:
           type: string
-        groupKey:
+        groupLabels:
+          type: object
+          additionalProperties:
+            type: string
+        commonLabels:
+          type: object
+          additionalProperties:
+            type: string
+        commonAnnotations:
+          type: object
+          additionalProperties:
+            type: string
+        externalURL:
           type: string
         alerts:
           type: array
           items:
-            type: object
-            required:
-            - status
-            - labels
-            - startsAt
-            - fingerprint
-            properties:
-              status:
-                type: string
-                enum:
-                - firing
-                - resolved
-              labels:
-                type: object
-                additionalProperties:
-                  type: string
-              annotations:
-                type: object
-                additionalProperties:
-                  type: string
-              startsAt:
-                type: string
-                format: date-time
-              endsAt:
-                type: string
-                format: date-time
-              generatorURL:
-                type: string
-              fingerprint:
-                type: string
-            additionalProperties: true
-      additionalProperties: true
+            $ref: '#/components/schemas/AlertmanagerAlert'
+      additionalProperties: false
+    AlertmanagerAlert:
+      type: object
+      required:
+      - status
+      - labels
+      - startsAt
+      - fingerprint
+      properties:
+        status:
+          type: string
+          enum:
+          - firing
+          - resolved
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        generatorURL:
+          type: string
+        fingerprint:
+          type: string
+      additionalProperties: false
     OperationalAlert:
       type: object
       required:
