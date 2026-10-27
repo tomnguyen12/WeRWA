@@ -8,6 +8,7 @@ werwa:
     # Tổ chức thử của devnet (I6), đã qua KYB, để token thử khớp org_id.
     seed-organizations: classpath:seed/orgs.json
   governance:
+    alert-token: test-alert-token
     # Neo nhật ký cần chuỗi: kiểm thử neo gọi thẳng dịch vụ (AuditAnchorIT).
     anchor-enabled: false
   onchain:

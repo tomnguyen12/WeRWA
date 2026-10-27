@@ -34,7 +34,8 @@ public class SecurityConfig {
             OrganizationDirectory organizations,
             IdempotencyStore idempotency,
             org.springframework.beans.factory.ObjectProvider<AuditSink> audit,
-            org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.inbound.BankChannel> bankChannel)
+            org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.inbound.BankChannel> bankChannel,
+            org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.inbound.InboundToken> inboundToken)
             throws Exception {
         JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();
         authorities.setAuthoritiesClaimName("roles");
@@ -49,7 +50,7 @@ public class SecurityConfig {
         AccessDeniedHandler denied =
                 (request, response, ex) -> Problems.write(request, response, PlatformError.ROLE_NOT_ALLOWED, null);
 
-        ContractAuthorizationFilter contractFilter = new ContractAuthorizationFilter(contract, organizations, bankChannel);
+        ContractAuthorizationFilter contractFilter = new ContractAuthorizationFilter(contract, organizations, bankChannel, inboundToken);
         return http.csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
@@ -59,6 +60,10 @@ public class SecurityConfig {
                         .requestMatchers("/v1/**").authenticated()
                         .anyRequest().hasRole(Role.OPERATOR.name()))
                 .oauth2ResourceServer(o -> o
+                        // Kênh /v1/inbound/** không dùng JWT: token Bearer cố định (Q56) do ContractAuthorizationFilter kiểm
+                        .bearerTokenResolver(request -> request.getRequestURI().startsWith("/v1/inbound/") ? null
+                                : new org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver()
+                                        .resolve(request))
                         .jwt(j -> j.jwtAuthenticationConverter(converter))
                         .authenticationEntryPoint(unauthenticated)
                         .accessDeniedHandler(denied))

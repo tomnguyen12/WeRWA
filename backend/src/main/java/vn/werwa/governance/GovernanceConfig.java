@@ -31,6 +31,22 @@ class GovernanceConfig {
     }
 
     @Bean
+    vn.werwa.governance.alert.AlertService alerts(JdbcTemplate jdbc, AuditLogService audit,
+            tools.jackson.databind.json.JsonMapper json, Clock clock) {
+        return new vn.werwa.governance.alert.AlertService(jdbc, audit, json, clock);
+    }
+
+    /** Q56: kênh webhook Alertmanager chỉ mở khi có token. */
+    @Bean
+    @ConditionalOnProperty("werwa.governance.alert-token")
+    vn.werwa.platform.inbound.InboundToken alertInboundToken(
+            @org.springframework.beans.factory.annotation.Value("${werwa.governance.alert-token}") String token) {
+        byte[] expected = token.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return (operationId, bearer) -> "receiveAlertmanagerWebhook".equals(operationId)
+                && java.security.MessageDigest.isEqual(expected, bearer.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    @Bean
     AuditLogService auditLog(JdbcTemplate jdbc, TransactionTemplate tx, Clock clock) {
         return new AuditLogService(jdbc, tx, clock);
     }

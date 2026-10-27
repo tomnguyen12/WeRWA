@@ -27,10 +27,59 @@ class GovernanceController implements GovernanceApi {
 
     private final ApprovalService approvals;
     private final JdbcTemplate jdbc;
+    private final vn.werwa.governance.alert.AlertService alerts;
 
-    GovernanceController(ApprovalService approvals, JdbcTemplate jdbc) {
+    GovernanceController(ApprovalService approvals, JdbcTemplate jdbc, vn.werwa.governance.alert.AlertService alerts) {
         this.approvals = approvals;
         this.jdbc = jdbc;
+        this.alerts = alerts;
+    }
+
+    /** I5, US-6.01-AC3 (Q56, Q57). */
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.Ack> receiveAlertmanagerWebhook(
+            vn.werwa.platform.openapi.model.AlertmanagerWebhook body) {
+        List<vn.werwa.governance.alert.AlertService.Incoming> incoming = body.getAlerts().stream()
+                .map(a -> new vn.werwa.governance.alert.AlertService.Incoming(a.getFingerprint(),
+                        a.getStatus() == vn.werwa.platform.openapi.model.AlertmanagerAlert.StatusEnum.FIRING,
+                        a.getLabels(), a.getAnnotations(), a.getStartsAt().toInstant(),
+                        a.getEndsAt() == null ? null : a.getEndsAt().toInstant()))
+                .toList();
+        alerts.receive("alertmanager", incoming);
+        vn.werwa.platform.openapi.model.Ack ack = new vn.werwa.platform.openapi.model.Ack();
+        ack.setReceived(true);
+        return ResponseEntity.ok(ack);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ListAlerts200Response> listAlerts(String status, String cursor,
+            Integer limit) {
+        Paging.Page<vn.werwa.governance.alert.AlertService.Alert> page = alerts.list(status, cursor, limit);
+        vn.werwa.platform.openapi.model.ListAlerts200Response out = new vn.werwa.platform.openapi.model.ListAlerts200Response();
+        out.setItems(page.items().stream().map(GovernanceController::view).toList());
+        out.setNextCursor(page.nextCursor());
+        return ResponseEntity.ok(out);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.OperationalAlert> acknowledgeAlert(UUID id, String idempotencyKey) {
+        return ResponseEntity.ok(view(alerts.acknowledge(id)));
+    }
+
+    static vn.werwa.platform.openapi.model.OperationalAlert view(vn.werwa.governance.alert.AlertService.Alert a) {
+        vn.werwa.platform.openapi.model.OperationalAlert v = new vn.werwa.platform.openapi.model.OperationalAlert();
+        v.setId(a.id());
+        v.setFingerprint(a.fingerprint());
+        v.setName(a.name());
+        v.setSeverity(a.severity());
+        v.setSummary(a.summary());
+        v.setLabels(a.labels());
+        v.setStatus(vn.werwa.platform.openapi.model.OperationalAlert.StatusEnum.fromValue(a.status()));
+        v.setStartsAt(a.startsAt().atOffset(ZoneOffset.UTC));
+        v.setEndsAt(a.endsAt() == null ? null : a.endsAt().atOffset(ZoneOffset.UTC));
+        v.setAcknowledgedBy(a.acknowledgedBy());
+        v.setAcknowledgedAt(a.acknowledgedAt() == null ? null : a.acknowledgedAt().atOffset(ZoneOffset.UTC));
+        return v;
     }
 
     @Override
