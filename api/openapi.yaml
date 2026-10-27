@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.3.1
+  version: 0.4.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -472,6 +472,71 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Document'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/documents/{id}:
+    get:
+      tags:
+      - issuance
+      operationId: getDocument
+      summary: Siêu dữ liệu tài liệu, lọc theo mức hiển thị
+      description: 'INTERNAL: chỉ các bên tham gia phát hành (không gồm nhà đầu tư, lưu ký). INVESTOR: thêm nhà đầu tư và lưu ký. PUBLIC: mọi
+        người dùng đã đăng nhập. Không được xem thì trả 404 như không có tài liệu (Q29).'
+      x-werwa-function: '2.04'
+      x-werwa-callers: Mọi bên có quyền
+      x-werwa-roles:
+      - ANY
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/documents/{id}/content:
+    get:
+      tags:
+      - issuance
+      operationId: getDocumentContent
+      summary: URL tải nội dung tài liệu, có hạn
+      description: Cùng luật hiển thị với GET /v1/documents/{id}. URL tải hết hạn sau 5 phút (Q29).
+      x-werwa-function: '2.04'
+      x-werwa-callers: Mọi bên có quyền
+      x-werwa-roles:
+      - ANY
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDownload'
         4XX:
           description: Lỗi
           content:
@@ -3416,4 +3481,22 @@ components:
           type: string
           format: uuid
           description: UUIDv7
+      additionalProperties: false
+    DocumentDownload:
+      type: object
+      required:
+      - url
+      - expiresAt
+      - sha256
+      properties:
+        url:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        sha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          description: Để bên tải kiểm nội dung; cùng dạng với Document.sha256
       additionalProperties: false
