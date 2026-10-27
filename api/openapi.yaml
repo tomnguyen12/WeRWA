@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.5.0
+  version: 0.6.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -3119,6 +3119,25 @@ components:
         leaf:
           type: string
           pattern: ^0x[0-9a-fA-F]{64}$
+        status:
+          type: string
+          enum:
+          - PROPOSED
+          - SIGNED
+          - AWAITING_PAYMENT
+          - PAID
+          - OVERDUE
+          - MINTED
+          - CONFIRMED
+          - NEEDS_CORRECTION
+          description: Theo máy trạng thái Phân bổ
+        virtualAccount:
+          type: string
+          description: Tài khoản ảo BIDV để nhà đầu tư trả tiền cho phân bổ này (Q51)
+        paymentDueDate:
+          type: string
+          format: date
+          description: Hạn trả, mặc định ngày phát hành của series (Q51, Q54)
       additionalProperties: false
     AllocationList:
       type: object
