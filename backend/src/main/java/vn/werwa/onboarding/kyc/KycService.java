@@ -64,6 +64,7 @@ public class KycService {
         if (!org.roles().contains("INVESTOR")) {
             throw new ApiException(OnboardingError.ORGANIZATION_NOT_INVESTOR);
         }
+        organizations.requireDocuments(documents);
         CurrentUser opener = CurrentUser.get();
         Screening.Result result = screening.screen(
                 new Screening.Subject(org.id(), org.legalName(), org.registrationNo(), org.country()));

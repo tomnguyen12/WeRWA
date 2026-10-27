@@ -42,7 +42,7 @@ cd backend && mvn spring-boot:run
 | Lệnh | Việc |
 |---|---|
 | `mvn test` | Kiểm thử đơn vị và `ApplicationModules.verify()` |
-| `mvn verify` | Thêm kiểm thử tích hợp `*IT` (Testcontainers: PostgreSQL 18.6; Besu, NATS từ nhóm B2, B3) |
+| `mvn verify` | Thêm kiểm thử tích hợp `*IT` (Testcontainers: PostgreSQL 18.6, NATS 2.15.1, MinIO; Besu cho kiểm thử chuỗi) |
 
 ## Cấu hình
 
@@ -143,6 +143,27 @@ Người duyệt cùng tổ chức, khác người lập (Q18). Nhật ký chỉ
 | Danh mục loại nhà đầu tư | `onboarding.investor_class` (Q25) |
 
 KYB duyệt 4 mắt qua `Approvals` (B4a); quyết định qua `/kyb-decision` hay `/v1/approvals/{id}/decision` đều áp vào tổ chức. Ở devnet, đặt `WERWA_ONBOARDING_SEEDORGANIZATIONS=classpath:seed/orgs.json` để nạp 12 tổ chức thử (I6); môi trường thật để trống.
+
+## Tài liệu (B6a)
+
+```mermaid
+flowchart LR
+  U[Người dùng] -- multipart POST /v1/documents --> C[IssuanceController]
+  C --> S[DocumentService<br/>SHA-256, phiên bản]
+  S -- nội dung --> O[(Kho S3<br/>MinIO ở devnet)]
+  S -- metadata --> D[(issuance.document)]
+  S --> A[AuditLog]
+  U -- GET /v1/documents/id/content --> C2[URL ký sẵn 5 phút] --> O
+  OB[Onboarding] -- DocumentRegistry.missing --> S
+```
+
+| Cần | Dùng |
+|---|---|
+| Lưu tài liệu | `POST /v1/documents` (multipart, tối đa 50 MB). Mỗi lần tải là bản ghi mới; `supersedesId` trỏ bản trước, một bản chỉ có một bản kế tiếp (409 `DOCUMENT_ALREADY_SUPERSEDED`) |
+| Xem, tải | `GET /v1/documents/{id}`, `GET /v1/documents/{id}/content` trả URL ký sẵn kèm `sha256` để bên tải tự kiểm (Q29) |
+| Ai thấy gì | `INTERNAL`: mọi vai trừ `INVESTOR`, `CUSTODIAN`; người không được xem nhận 404 (US-2.04-AC3). `INVESTOR`, `PUBLIC`: mọi vai |
+| Mô-đun khác kiểm mã tài liệu | `platform.documents.DocumentRegistry.missing(ids)`; Onboarding trả 422 `DOCUMENT_NOT_FOUND` (Q26) |
+| Cấu hình | `werwa.storage.endpoint`, `bucket`, `access-key`, `secret-key`, `path-style`, `download-ttl`. Bucket do infra tạo; ứng dụng dừng khi khởi động nếu không có bucket (Q30) |
 
 ## Quy trình làm việc
 

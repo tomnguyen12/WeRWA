@@ -52,8 +52,11 @@ class PlatformApiIT extends IntegrationTest {
         return jwt().jwt(j -> j.subject(subject).claim("org_id", orgId).claim("roles", List.of(roles)));
     }
 
-    static RequestPostProcessor holcoMaker() {
-        return user("holco-maker", HOLCO, "OPERATOR");
+    /** GET có kiểm phạm vi tổ chức; mã danh sách là mã tổ chức để kiểm ORG_SCOPE_VIOLATION. */
+    static final String PROOF = "/v1/allocation-lists/";
+
+    static RequestPostProcessor investorMaker() {
+        return user("inv-a-maker", INVESTOR_A, "INVESTOR");
     }
 
     MvcResult problem(MockHttpServletRequestBuilder request, int status, String code) throws Exception {
@@ -72,12 +75,12 @@ class PlatformApiIT extends IntegrationTest {
 
         @Test
         void withoutTokenIs401() throws Exception {
-            problem(get("/v1/series/" + HOLCO), 401, "UNAUTHENTICATED");
+            problem(get(PROOF + HOLCO + "/proofs/a1"), 401, "UNAUTHENTICATED");
         }
 
         @Test
         void roleNotInXWerwaRolesIs403() throws Exception {
-            problem(post("/v1/series")
+            problem(post("/v1/transfers")
                             .with(user("ubnd-maker", UBND, "ISSUER"))
                             .header("Idempotency-Key", "k-role")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -87,44 +90,44 @@ class PlatformApiIT extends IntegrationTest {
 
         @Test
         void userRoleOutsideOrganizationRolesIs403() throws Exception {
-            problem(get("/v1/series/" + UBND).with(user("ubnd-maker", UBND, "OPERATOR")),
+            problem(get(PROOF + UBND + "/proofs/a1").with(user("ubnd-user", UBND, "INVESTOR")),
                     403, "ROLE_NOT_IN_ORGANIZATION");
         }
 
         @Test
         void unknownOrganizationIs403() throws Exception {
-            problem(get("/v1/series/" + HOLCO).with(user("x", UUID.randomUUID().toString(), "OPERATOR")),
+            problem(get(PROOF + HOLCO + "/proofs/a1").with(user("x", UUID.randomUUID().toString(), "INVESTOR")),
                     403, "ORGANIZATION_UNKNOWN");
         }
 
         @Test
         void missingOrgClaimIs401() throws Exception {
-            problem(get("/v1/series/" + HOLCO)
-                            .with(jwt().jwt(j -> j.subject("x").claim("roles", List.of("OPERATOR")))),
+            problem(get(PROOF + HOLCO + "/proofs/a1")
+                            .with(jwt().jwt(j -> j.subject("x").claim("roles", List.of("INVESTOR")))),
                     401, "TOKEN_CLAIMS_INVALID");
         }
 
         @Test
-        void anyRoleApiAcceptsEveryRole() throws Exception {
-            mvc.perform(get("/v1/series/" + INVESTOR_A).with(user("inv-a", INVESTOR_A, "INVESTOR")))
+        void allowedRoleInOwnOrganizationIsAccepted() throws Exception {
+            mvc.perform(get(PROOF + INVESTOR_A + "/proofs/a1").with(user("inv-a", INVESTOR_A, "INVESTOR")))
                     .andExpect(status().isOk());
         }
 
         @Test
         @DisplayName("US-4.07-AC2 người dùng tổ chức A gọi đối tượng của tổ chức B bị 403")
         void US_4_07_AC2_crossOrganizationObjectIs403() throws Exception {
-            problem(get("/v1/series/" + INVESTOR_B).with(user("inv-a", INVESTOR_A, "INVESTOR")),
+            problem(get(PROOF + INVESTOR_B + "/proofs/a1").with(user("inv-a", INVESTOR_A, "INVESTOR")),
                     403, "ORG_SCOPE_VIOLATION");
         }
 
         @Test
         void routeOutsideContractIs404() throws Exception {
-            problem(get("/v1/not-in-contract").with(holcoMaker()), 404, "ROUTE_NOT_FOUND");
+            problem(get("/v1/not-in-contract").with(investorMaker()), 404, "ROUTE_NOT_FOUND");
         }
 
         @Test
         void methodOutsideContractIs405() throws Exception {
-            problem(put("/v1/series").with(holcoMaker()), 405, "METHOD_NOT_ALLOWED");
+            problem(put("/v1/transfers").with(investorMaker()), 405, "METHOD_NOT_ALLOWED");
         }
 
         @Test
@@ -142,8 +145,8 @@ class PlatformApiIT extends IntegrationTest {
 
         @Test
         void missingKeyIs400() throws Exception {
-            problem(post("/v1/series")
-                            .with(holcoMaker())
+            problem(post("/v1/transfers")
+                            .with(investorMaker())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"legalName\":\"X\"}"),
                     400, "IDEMPOTENCY_KEY_REQUIRED");
@@ -151,8 +154,8 @@ class PlatformApiIT extends IntegrationTest {
 
         @Test
         void invalidKeyIs400() throws Exception {
-            problem(post("/v1/series")
-                            .with(holcoMaker())
+            problem(post("/v1/transfers")
+                            .with(investorMaker())
                             .header("Idempotency-Key", "x".repeat(129))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"legalName\":\"X\"}"),
@@ -163,11 +166,11 @@ class PlatformApiIT extends IntegrationTest {
         void sameKeySameRequestReplaysFirstResult() throws Exception {
             String key = "k-" + UUID.randomUUID();
             int before = ContractProbeController.CREATED.get();
-            MvcResult first = mvc.perform(create(holcoMaker(), key, "{\"legalName\":\"A\"}"))
+            MvcResult first = mvc.perform(create(investorMaker(), key, "{\"legalName\":\"A\"}"))
                     .andExpect(status().isCreated())
                     .andExpect(header().doesNotExist("Idempotent-Replayed"))
                     .andReturn();
-            MvcResult second = mvc.perform(create(holcoMaker(), key, "{\"legalName\":\"A\"}"))
+            MvcResult second = mvc.perform(create(investorMaker(), key, "{\"legalName\":\"A\"}"))
                     .andExpect(status().isCreated())
                     .andExpect(header().string("Idempotent-Replayed", "true"))
                     .andReturn();
@@ -180,15 +183,15 @@ class PlatformApiIT extends IntegrationTest {
         @Test
         void sameKeyDifferentBodyIs422() throws Exception {
             String key = "k-" + UUID.randomUUID();
-            mvc.perform(create(holcoMaker(), key, "{\"legalName\":\"A\"}")).andExpect(status().isCreated());
-            problem(create(holcoMaker(), key, "{\"legalName\":\"B\"}"), 422, "IDEMPOTENCY_KEY_REUSED");
+            mvc.perform(create(investorMaker(), key, "{\"legalName\":\"A\"}")).andExpect(status().isCreated());
+            problem(create(investorMaker(), key, "{\"legalName\":\"B\"}"), 422, "IDEMPOTENCY_KEY_REUSED");
         }
 
         @Test
         void sameKeyOtherUserIsIndependent() throws Exception {
             String key = "k-" + UUID.randomUUID();
-            mvc.perform(create(holcoMaker(), key, "{\"legalName\":\"A\"}")).andExpect(status().isCreated());
-            mvc.perform(create(user("holco-checker", HOLCO, "OPERATOR"), key, "{\"legalName\":\"A\"}"))
+            mvc.perform(create(investorMaker(), key, "{\"legalName\":\"A\"}")).andExpect(status().isCreated());
+            mvc.perform(create(user("inv-a-checker", INVESTOR_A, "INVESTOR"), key, "{\"legalName\":\"A\"}"))
                     .andExpect(status().isCreated())
                     .andExpect(header().doesNotExist("Idempotent-Replayed"));
         }
@@ -196,23 +199,23 @@ class PlatformApiIT extends IntegrationTest {
         @Test
         void serverErrorIsNotStoredSoRetryRuns() throws Exception {
             String key = "k-" + UUID.randomUUID();
-            problem(create(holcoMaker(), key, "{\"fail\":true}"), 500, "INTERNAL_ERROR");
+            problem(create(investorMaker(), key, "{\"fail\":true}"), 500, "INTERNAL_ERROR");
             // Lần thử lại cùng khóa chạy lại xử lý (không bị trả 500 cũ, không bị 409)
-            problem(create(holcoMaker(), key, "{\"fail\":true}"), 500, "INTERNAL_ERROR");
+            problem(create(investorMaker(), key, "{\"fail\":true}"), 500, "INTERNAL_ERROR");
         }
 
         @Test
         void clientErrorIsStoredAndReplayed() throws Exception {
             String key = "k-" + UUID.randomUUID();
-            mvc.perform(post("/v1/series")
-                            .with(holcoMaker())
+            mvc.perform(post("/v1/transfers")
+                            .with(investorMaker())
                             .header("Idempotency-Key", key)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{not json"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
-            mvc.perform(post("/v1/series")
-                            .with(holcoMaker())
+            mvc.perform(post("/v1/transfers")
+                            .with(investorMaker())
                             .header("Idempotency-Key", key)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{not json"))
@@ -221,7 +224,7 @@ class PlatformApiIT extends IntegrationTest {
         }
 
         private MockHttpServletRequestBuilder create(RequestPostProcessor who, String key, String body) {
-            return post("/v1/series")
+            return post("/v1/transfers")
                     .with(who)
                     .header("Idempotency-Key", key)
                     .contentType(MediaType.APPLICATION_JSON)
