@@ -1,6 +1,7 @@
 package vn.werwa.distribution;
 
 import java.time.Clock;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -38,9 +39,72 @@ class DistributionConfig {
 
     @Bean
     AllocationListService allocationLists(JdbcTemplate jdbc, OfferingService offerings, OrderService orders,
-            SeriesCatalog series, IssuerDecisions decisions, Wallets wallets, Approvals approvals, AuditLog audit,
+            SeriesCatalog series, IssuerDecisions decisions, Wallets wallets,
+            vn.werwa.integration.api.VirtualAccounts virtualAccounts, Approvals approvals, AuditLog audit, Clock clock) {
+        return new AllocationListService(jdbc, offerings, orders, series, decisions, wallets, virtualAccounts, approvals,
+                audit, clock);
+    }
+
+    @Bean
+    vn.werwa.distribution.payment.PaymentService payments(JdbcTemplate jdbc, SeriesCatalog series,
+            vn.werwa.governance.api.BusinessCalendar calendar, AuditLog audit, Events events, DistributionProperties props,
             Clock clock) {
-        return new AllocationListService(jdbc, offerings, orders, series, decisions, wallets, approvals, audit, clock);
+        return new vn.werwa.distribution.payment.PaymentService(jdbc, series, calendar, audit, events,
+                props.paymentGraceBusinessDays(), clock);
+    }
+
+    /** US-3.05-AC2: đối chiếu báo có từ mô-đun Tích hợp. */
+    @Bean
+    vn.werwa.platform.events.EventHandler distributionOnCreditReceived(vn.werwa.distribution.payment.PaymentService payments) {
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "distribution";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.integration.bank.credit_received.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                Map<String, Object> d = event.data();
+                payments.match(new vn.werwa.distribution.payment.PaymentService.Credit((String) d.get("bankRef"),
+                        (String) d.get("virtualAccount"), Long.parseLong((String) d.get("amountMinor")),
+                        (String) d.get("currency"), java.time.LocalDate.parse((String) d.get("valueDate")),
+                        (String) d.get("payerName"), d.get("messageId") == null ? null
+                                : UUID.fromString((String) d.get("messageId"))));
+            }
+        };
+    }
+
+    /** Q53, Q54: việc định kỳ của bộ điều phối ghi sổ. */
+    @Bean
+    @ConditionalOnProperty(name = "werwa.distribution.book-scheduler-enabled", havingValue = "true", matchIfMissing = true)
+    PaymentJobs paymentJobs(vn.werwa.distribution.payment.PaymentService payments, Clock clock) {
+        return new PaymentJobs(payments, clock);
+    }
+
+    static class PaymentJobs {
+
+        private final vn.werwa.distribution.payment.PaymentService payments;
+        private final Clock clock;
+
+        PaymentJobs(vn.werwa.distribution.payment.PaymentService payments, Clock clock) {
+            this.payments = payments;
+            this.clock = clock;
+        }
+
+        @Scheduled(fixedDelayString = "${werwa.distribution.payment-batch-interval:PT15M}")
+        void tick() {
+            try {
+                payments.markOverdue(clock.instant());
+                payments.buildBatches();
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(PaymentJobs.class).warn("Lượt theo dõi tiền lỗi: {}", e.toString());
+            }
+        }
     }
 
     /** Q40: UBND duyệt danh sách phân bổ. */

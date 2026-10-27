@@ -43,6 +43,31 @@ public abstract class IntegrationTest {
             .withExposedPorts(9090)
             .waitingFor(Wait.forListeningPort());
 
+    /** Cặp khóa BIDV giả lập cho kiểm thử webhook (Q49). */
+    public static final java.security.KeyPair BIDV_KEYS;
+
+    static {
+        try {
+            java.security.KeyPairGenerator g = java.security.KeyPairGenerator.getInstance("EC");
+            g.initialize(new java.security.spec.ECGenParameterSpec("secp256r1"));
+            BIDV_KEYS = g.generateKeyPair();
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** Ký thân thông điệp như BIDV (Q49). */
+    public static String bidvSign(byte[] body) {
+        try {
+            java.security.Signature s = java.security.Signature.getInstance("SHA256withECDSA");
+            s.initSign(BIDV_KEYS.getPrivate());
+            s.update(body);
+            return java.util.Base64.getEncoder().encodeToString(s.sign());
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     static {
         POSTGRES.start();
         NATS.start();
@@ -66,6 +91,8 @@ public abstract class IntegrationTest {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("werwa.nats.url", IntegrationTest::natsUrl);
         registry.add("werwa.storage.endpoint", IntegrationTest::s3Url);
+        registry.add("werwa.integration.bidv.public-key",
+                () -> java.util.Base64.getEncoder().encodeToString(BIDV_KEYS.getPublic().getEncoded()));
         registry.add("werwa.storage.bucket", () -> BUCKET);
         registry.add("werwa.storage.access-key", () -> S3_USER);
         registry.add("werwa.storage.secret-key", () -> S3_PASSWORD);

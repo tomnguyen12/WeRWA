@@ -47,12 +47,15 @@ public class AllocationListService {
     private final SeriesCatalog series;
     private final IssuerDecisions decisions;
     private final Wallets wallets;
+    private final vn.werwa.integration.api.VirtualAccounts virtualAccounts;
     private final Approvals approvals;
     private final AuditLog audit;
     private final Clock clock;
 
     public AllocationListService(JdbcTemplate jdbc, OfferingService offerings, OrderService orders, SeriesCatalog series,
-            IssuerDecisions decisions, Wallets wallets, Approvals approvals, AuditLog audit, Clock clock) {
+            IssuerDecisions decisions, Wallets wallets, vn.werwa.integration.api.VirtualAccounts virtualAccounts,
+            Approvals approvals, AuditLog audit, Clock clock) {
+        this.virtualAccounts = virtualAccounts;
         this.jdbc = jdbc;
         this.offerings = offerings;
         this.orders = orders;
@@ -68,7 +71,8 @@ public class AllocationListService {
 
     public record Item(
             UUID allocationId, UUID orderId, UUID investorOrgId, UUID walletId, String wallet, long quantity,
-            long amountDueMinor, String currency, String adjustmentReason, String leaf) {}
+            long amountDueMinor, String currency, String adjustmentReason, String leaf, String status, String virtualAccount,
+            java.time.LocalDate paymentDueDate) {}
 
     public record AllocationList(
             UUID id, UUID offeringId, int listVersion, int couponRatePpm, List<Integer> periodRatesPpm, long totalQuantity,
@@ -126,7 +130,7 @@ public class AllocationListService {
             String leaf = AllocationMerkle.hex(AllocationMerkle.leaf(s.controllerAddress(), allocationId, w.address(),
                     in.quantity()));
             items.add(new Item(allocationId, o.id(), o.investorOrgId(), o.walletId(), w.address(), in.quantity(),
-                    qr[0].longValueExact(), s.currency(), reason, leaf));
+                    qr[0].longValueExact(), s.currency(), reason, leaf, "PROPOSED", null, null));
         }
         if (items.isEmpty()) {
             throw new ApiException(DistributionError.ALLOCATION_INVALID, "danh sách rỗng");
@@ -233,6 +237,13 @@ public class AllocationListService {
         Timestamp now = Timestamp.from(clock.instant());
         if (approve) {
             jdbc.update("UPDATE distribution.allocation_list SET approved_at = ?, updated_at = ? WHERE id = ?", now, now, id);
+            // Q51: mỗi phân bổ một tài khoản ảo; hạn trả là ngày phát hành của series
+            AllocationList list = get(id);
+            java.time.LocalDate due = series.find(offerings.get(list.offeringId()).seriesId()).orElseThrow().issueDate();
+            for (Item it : list.items()) {
+                jdbc.update("UPDATE distribution.allocation SET virtual_account = ?, payment_due_date = ? WHERE id = ?",
+                        virtualAccounts.open(it.allocationId(), it.currency()), due, it.allocationId());
+            }
             audit.record("ALLOCATION_LIST_APPROVED", "allocation-list/" + id, Map.of("approvalId", approvalId.toString()));
         } else {
             jdbc.update("UPDATE distribution.allocation_list SET status = 'REJECTED', updated_at = ? WHERE id = ?", now, id);
@@ -266,11 +277,12 @@ public class AllocationListService {
         AllocationList l = rows.getFirst();
         List<Item> items = jdbc.query("""
                 SELECT id, order_id, investor_org_id, wallet_id, wallet_address, quantity, amount_due_minor, currency,
-                       adjustment_reason, leaf_hash
+                       adjustment_reason, leaf_hash, status, virtual_account, payment_due_date
                 FROM distribution.allocation WHERE allocation_list_id = ? ORDER BY id
                 """, (rs, i) -> new Item(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getObject(3, UUID.class),
                         rs.getObject(4, UUID.class), rs.getString(5), rs.getLong(6), rs.getLong(7), rs.getString(8),
-                        rs.getString(9), rs.getString(10)), id);
+                        rs.getString(9), rs.getString(10), rs.getString(11), rs.getString(12),
+                        rs.getObject(13, java.time.LocalDate.class)), id);
         return new AllocationList(l.id(), l.offeringId(), l.listVersion(), l.couponRatePpm(), l.periodRatesPpm(),
                 l.totalQuantity(), l.merkleRoot(), l.listHash(), l.approvalRequestId(), l.status(), items);
     }

@@ -12,16 +12,16 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 /** Đọc trước toàn bộ thân request để tính mã băm, rồi cho controller đọc lại. */
-class CachedBodyRequest extends HttpServletRequestWrapper {
+public class CachedBodyRequest extends HttpServletRequestWrapper {
 
     private final byte[] body;
 
-    CachedBodyRequest(HttpServletRequest request) throws IOException {
+    public CachedBodyRequest(HttpServletRequest request) throws IOException {
         super(request);
         this.body = request.getInputStream().readAllBytes();
     }
 
-    byte[] body() {
+    public byte[] body() {
         return body;
     }
 

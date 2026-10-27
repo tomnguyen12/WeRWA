@@ -14,6 +14,7 @@ import vn.werwa.platform.openapi.model.AllocationItem;
 import vn.werwa.platform.openapi.model.AllocationList;
 import vn.werwa.platform.openapi.model.AllocationListCreate;
 import vn.werwa.platform.openapi.model.AllocationProof;
+import vn.werwa.platform.openapi.model.IssuanceProgress;
 import vn.werwa.platform.openapi.model.ListOrders200Response;
 import vn.werwa.platform.openapi.model.Money;
 import vn.werwa.platform.openapi.model.Offering;
@@ -32,8 +33,11 @@ class DistributionController implements DistributionApi {
     private final OfferingService offerings;
     private final OrderService orders;
     private final AllocationListService lists;
+    private final vn.werwa.distribution.payment.PaymentService payments;
 
-    DistributionController(OfferingService offerings, OrderService orders, AllocationListService lists) {
+    DistributionController(OfferingService offerings, OrderService orders, AllocationListService lists,
+            vn.werwa.distribution.payment.PaymentService payments) {
+        this.payments = payments;
         this.offerings = offerings;
         this.orders = orders;
         this.lists = lists;
@@ -132,6 +136,20 @@ class DistributionController implements DistributionApi {
         return ResponseEntity.ok(v);
     }
 
+    @Override
+    public ResponseEntity<IssuanceProgress> getIssuanceProgress(UUID id) {
+        vn.werwa.distribution.payment.PaymentService.Progress p = payments.progress(id);
+        IssuanceProgress v = new IssuanceProgress();
+        v.setSeriesId(p.seriesId());
+        v.setStep(IssuanceProgress.StepEnum.fromValue(p.step().name()));
+        v.setAllocated(p.allocated());
+        v.setPaid(p.paid());
+        v.setMinted(p.minted());
+        v.setOverdue(p.overdue());
+        v.setAlerts(p.alerts());
+        return ResponseEntity.ok(v);
+    }
+
     static Offering view(OfferingService.Offering o) {
         Offering v = new Offering();
         v.setId(o.id());
@@ -186,6 +204,9 @@ class DistributionController implements DistributionApi {
             it.setAmountDue(m);
             it.setAdjustmentReason(i.adjustmentReason());
             it.setLeaf(i.leaf());
+            it.setStatus(AllocationItem.StatusEnum.fromValue(i.status()));
+            it.setVirtualAccount(i.virtualAccount());
+            it.setPaymentDueDate(i.paymentDueDate());
             return it;
         }).toList());
         return v;
