@@ -122,6 +122,17 @@ flowchart LR
 
 Chế độ ký `devnet` (I12) không ký được: gửi giao dịch trả 503 `CHAIN_SIGNER_UNAVAILABLE`. Chế độ `pkcs11` ký qua WeHSM bằng `eth_signTransaction` (Q14), chờ phiên WeHSM bổ sung.
 
+## Quản trị (B4a)
+
+| Cần | Dùng |
+|---|---|
+| Duyệt 4 mắt | `approvals.request(actionType, subjectRef, payload)` trong giao dịch; chờ `werwa.governance.approval.decided.v1`. Nội dung đổi thì gọi lại: yêu cầu cũ chuyển `CANCELLED` (Q19) |
+| Nhật ký thao tác trọng yếu | `auditLog.record(action, subjectRef, payload)` trong giao dịch; chỉ lưu SHA-256 của nội dung. Lệnh ghi API thành công đã được ghi tự động (Q22) |
+| Kiểm chuỗi nhật ký | `auditVerification.verify()`: tính lại mã băm và so với neo trên chuỗi |
+| API chưa làm | Không cần viết gì: phương thức mặc định trả 501 `NOT_IMPLEMENTED` (Q20) |
+
+Người duyệt cùng tổ chức, khác người lập (Q18). Nhật ký chỉ ghi thêm (trigger chặn sửa, xóa); neo lên `AuditAnchor` lúc 00:15 giờ Việt Nam cho ngày trước, tự bù 7 ngày gần nhất (Q21). Người dùng ghi theo subject OIDC tới khi có bảng `app_user` (B5).
+
 ## Quy trình làm việc
 
 ```mermaid
