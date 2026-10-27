@@ -172,7 +172,7 @@ class OnchainIT extends ChainIntegrationTest {
             return new EventHandler() {
                 @Override
                 public String consumer() {
-                    return "governance";
+                    return "onchain-test";
                 }
 
                 @Override

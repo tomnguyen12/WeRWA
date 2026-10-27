@@ -11,6 +11,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import vn.werwa.platform.audit.AuditSink;
 import vn.werwa.platform.web.ApiContract;
 import vn.werwa.platform.web.PlatformError;
 import vn.werwa.platform.web.Problems;
@@ -28,7 +29,11 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain apiSecurity(
-            HttpSecurity http, ApiContract contract, OrganizationDirectory organizations, IdempotencyStore idempotency)
+            HttpSecurity http,
+            ApiContract contract,
+            OrganizationDirectory organizations,
+            IdempotencyStore idempotency,
+            org.springframework.beans.factory.ObjectProvider<AuditSink> audit)
             throws Exception {
         JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();
         authorities.setAuthoritiesClaimName("roles");
@@ -58,7 +63,8 @@ public class SecurityConfig {
                         .accessDeniedHandler(denied))
                 .exceptionHandling(e -> e.authenticationEntryPoint(unauthenticated).accessDeniedHandler(denied))
                 .addFilterAfter(contractFilter, AuthorizationFilter.class)
-                .addFilterAfter(new IdempotencyFilter(idempotency), ContractAuthorizationFilter.class)
+                .addFilterAfter(new IdempotencyFilter(idempotency, audit.getIfAvailable(() -> write -> {})),
+                        ContractAuthorizationFilter.class)
                 .build();
     }
 }

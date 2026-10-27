@@ -45,12 +45,6 @@ jobs:
           set -o pipefail
           mvn -B -ntp verify 2>&1 | tee build.log
           echo "::notice title=tests::$(grep -E 'Tests run:.*Fail' build.log | grep -v ' in ' | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
-      - name: Chữ ký mã sinh (tạm)
-        if: always()
-        run: |
-          g=target/generated-sources/openapi/src/main/java/vn/werwa/platform/openapi
-          echo "::notice title=GovernanceApi::$(grep -E 'ResponseEntity<|default |@Valid|@RequestParam|@PathVariable|@RequestHeader|@RequestBody' $g/api/GovernanceApi.java | head -60 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
-          echo "::notice title=models::$(grep -h -E 'public .*\(|enum ' $g/model/ApprovalRequest.java $g/model/Decision.java $g/model/ListApprovals200Response.java $g/model/AuditEntry.java $g/model/AuditEntryAnchor.java | head -80 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
       - name: Tóm tắt lỗi thành annotation (đọc được qua API)
         if: failure()
         run: |

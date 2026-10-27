@@ -305,7 +305,9 @@
                             <generatorName>spring</generatorName>
                             <apiPackage>vn.werwa.platform.openapi.api</apiPackage>
                             <modelPackage>vn.werwa.platform.openapi.model</modelPackage>
-                            <generateSupportingFiles>false</generateSupportingFiles>
+                            <!-- ApiUtil: phương thức mặc định (API chưa làm, Q20) dùng để đặt ví dụ response -->
+                            <generateSupportingFiles>true</generateSupportingFiles>
+                            <supportingFilesToGenerate>ApiUtil.java</supportingFilesToGenerate>
                             <generateApiDocumentation>false</generateApiDocumentation>
                             <generateModelDocumentation>false</generateModelDocumentation>
                             <generateApiTests>false</generateApiTests>

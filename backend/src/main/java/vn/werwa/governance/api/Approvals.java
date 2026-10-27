@@ -1,0 +1,25 @@
+package vn.werwa.governance.api;
+
+import java.util.UUID;
+
+/**
+ * Duyệt 4 mắt (ADR-13, US-4.08; Q18, Q19). Mô-đun gọi trong giao dịch của mình khi người lập gửi một thao tác trọng yếu.
+ * Người duyệt cùng tổ chức, khác người lập, ra quyết định qua {@code POST /v1/approvals/{id}/decision}; kết quả báo qua
+ * {@code werwa.governance.approval.decided.v1}.
+ */
+public interface Approvals {
+
+    /**
+     * Gửi duyệt. Người lập là người gọi hiện tại. Đối tượng đã có yêu cầu đang chờ: cùng nội dung thì trả lại yêu cầu
+     * đó; khác nội dung thì yêu cầu cũ chuyển {@code CANCELLED} và tạo yêu cầu mới (US-4.08-AC1).
+     *
+     * @param actionType loại thao tác, ví dụ {@code SERIES_SUBMIT}
+     * @param subjectRef đối tượng, ví dụ {@code series/<id>}
+     * @param payload nội dung được duyệt; nền tảng lưu SHA-256 của dạng JSON chuẩn hóa
+     * @return id yêu cầu duyệt
+     */
+    UUID request(String actionType, String subjectRef, Object payload);
+
+    /** Trạng thái hiện tại: PENDING, APPROVED, REJECTED, CANCELLED. */
+    String status(UUID approvalId);
+}

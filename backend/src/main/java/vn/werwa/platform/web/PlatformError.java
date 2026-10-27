@@ -25,6 +25,7 @@ public enum PlatformError implements ErrorCode {
     PRECONDITION_FAILED(HttpStatus.PRECONDITION_FAILED, "Phiên bản đã thay đổi, tải lại rồi thử lại"),
     PAGE_LIMIT_INVALID(HttpStatus.BAD_REQUEST, "limit phải từ 1 tới 200"),
     CURSOR_INVALID(HttpStatus.BAD_REQUEST, "cursor không hợp lệ"),
+    NOT_IMPLEMENTED(HttpStatus.NOT_IMPLEMENTED, "API có trong đặc tả nhưng chưa làm"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống");
 
     private final HttpStatus status;
