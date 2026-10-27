@@ -54,11 +54,11 @@ class IssuanceIT extends IntegrationTest {
         return jwt().jwt(j -> j.subject(subject).claim("org_id", org).claim("roles", List.of(role)));
     }
 
-    static final RequestPostProcessor AGENCY_MAKER = as("agency-maker", AGENCY, "OPERATING_AGENCY");
-    static final RequestPostProcessor AGENCY_CHECKER = as("agency-checker", AGENCY, "OPERATING_AGENCY");
-    static final RequestPostProcessor HOLCO_MAKER = as("holco-maker", HOLCO, "OPERATOR");
-    static final RequestPostProcessor HOLCO_CHECKER = as("holco-checker", HOLCO, "OPERATOR");
-    static final RequestPostProcessor ISSUER = as("ubnd-user", UBND, "ISSUER");
+    static final RequestPostProcessor AGENCY_MAKER = as("6c1f0000-0000-4000-8000-0000000000a1", AGENCY, "OPERATING_AGENCY");
+    static final RequestPostProcessor AGENCY_CHECKER = as("6c1f0000-0000-4000-8000-0000000000a2", AGENCY, "OPERATING_AGENCY");
+    static final RequestPostProcessor HOLCO_MAKER = as("6c1f0000-0000-4000-8000-0000000000b1", HOLCO, "OPERATOR");
+    static final RequestPostProcessor HOLCO_CHECKER = as("6c1f0000-0000-4000-8000-0000000000b2", HOLCO, "OPERATOR");
+    static final RequestPostProcessor ISSUER = as("6c1f0000-0000-4000-8000-0000000000c1", UBND, "ISSUER");
 
     MvcResult send(MockHttpServletRequestBuilder request, RequestPostProcessor who, Object body) throws Exception {
         request.with(who).header("Idempotency-Key", "k-" + UUID.randomUUID());
