@@ -7,7 +7,7 @@ import vn.werwa.platform.web.ErrorCode;
 public enum GovernanceError implements ErrorCode {
     APPROVAL_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có yêu cầu duyệt này"),
     APPROVAL_NOT_PENDING(HttpStatus.CONFLICT, "Yêu cầu không còn chờ duyệt"),
-    MAKER_CANNOT_APPROVE(HttpStatus.FORBIDDEN, "Người lập không được tự duyệt");
+    MAKER_CHECKER_SAME_USER(HttpStatus.FORBIDDEN, "Người lập không được tự duyệt");
 
     private final HttpStatus status;
     private final String title;

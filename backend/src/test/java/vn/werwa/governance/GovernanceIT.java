@@ -123,7 +123,7 @@ class GovernanceIT extends IntegrationTest {
         UUID id = request("series/" + UUID.randomUUID(), Map.of("x", 2));
         MvcResult r = decide(id, as(MAKER, HOLCO, "OPERATOR"), "APPROVE");
         assertThat(r.getResponse().getStatus()).isEqualTo(403);
-        assertThat(r.getResponse().getContentAsString()).contains("MAKER_CANNOT_APPROVE");
+        assertThat(r.getResponse().getContentAsString()).contains("MAKER_CHECKER_SAME_USER");
         assertThat(approvals.status(id)).isEqualTo("PENDING");
     }
 

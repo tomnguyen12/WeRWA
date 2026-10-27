@@ -11,8 +11,6 @@ import org.springframework.core.io.Resource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
-import vn.werwa.platform.security.OrganizationDirectory;
-import vn.werwa.platform.security.SeedOrganizationDirectory;
 import vn.werwa.platform.web.ApiContract;
 import vn.werwa.platform.web.idempotency.IdempotencyStore;
 
@@ -35,15 +33,6 @@ class PlatformConfig {
         ApiContract contract = ApiContract.load(spec);
         log.info("Nạp hợp đồng API: {} API", contract.operations().size());
         return contract;
-    }
-
-    /** Nguồn vai tổ chức tạm tới B5 (Q5). */
-    @Bean
-    @ConditionalOnMissingBean(OrganizationDirectory.class)
-    OrganizationDirectory seedOrganizationDirectory(@Value("${werwa.security.organization-seed:classpath:seed/orgs.json}") Resource seed) {
-        SeedOrganizationDirectory directory = new SeedOrganizationDirectory(seed);
-        log.warn("Vai tổ chức đọc từ tệp seed {} ({} tổ chức), chỉ dùng tới B5", seed, directory.size());
-        return directory;
     }
 
     @Bean

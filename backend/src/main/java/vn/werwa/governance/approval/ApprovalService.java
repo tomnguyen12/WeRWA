@@ -81,9 +81,22 @@ public class ApprovalService implements Approvals {
         return find(approvalId).status();
     }
 
+    @Override
+    public java.util.Optional<UUID> pendingFor(String actionType, String subjectRef) {
+        return jdbc.queryForList("SELECT id FROM governance.approval_request WHERE action_type = ? AND subject_ref = ? "
+                + "AND status = 'PENDING'", UUID.class, actionType, subjectRef).stream().findFirst();
+    }
+
+    @Override
+    @Transactional
+    public Outcome decide(UUID approvalId, boolean approve, String comment) {
+        Row r = decideRow(approvalId, approve, comment);
+        return new Outcome(r.id(), r.actionType(), r.subjectRef(), r.status(), r.makerSubject(), r.checkerSubject());
+    }
+
     /** Người duyệt cùng tổ chức người lập (Q18), khác người lập. */
     @Transactional
-    public Row decide(UUID id, boolean approve, String comment) {
+    public Row decideRow(UUID id, boolean approve, String comment) {
         CurrentUser checker = CurrentUser.get();
         List<Row> rows = jdbc.query(SELECT + " WHERE id = ? FOR UPDATE", ApprovalService::row, id);
         if (rows.isEmpty()) {
@@ -95,7 +108,7 @@ public class ApprovalService implements Approvals {
             throw new ApiException(GovernanceError.APPROVAL_NOT_PENDING, "đang " + current.status());
         }
         if (current.makerSubject().equals(checker.subject())) {
-            throw new ApiException(GovernanceError.MAKER_CANNOT_APPROVE);
+            throw new ApiException(GovernanceError.MAKER_CHECKER_SAME_USER);
         }
         String status = approve ? "APPROVED" : "REJECTED";
         jdbc.update("""
