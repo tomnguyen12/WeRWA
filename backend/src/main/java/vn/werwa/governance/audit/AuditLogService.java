@@ -12,7 +12,7 @@ import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
-import vn.werwa.governance.Hashes;
+import vn.werwa.platform.hash.Hashes;
 import vn.werwa.governance.api.AuditLog;
 import vn.werwa.platform.audit.AuditSink;
 import vn.werwa.platform.audit.WriteAudit;

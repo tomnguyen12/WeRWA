@@ -1,4 +1,4 @@
-package vn.werwa.governance;
+package vn.werwa.platform.hash;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -7,7 +7,7 @@ import tools.jackson.databind.MapperFeature;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
-/** SHA-256 của nội dung ở dạng JSON chuẩn hóa: khóa xếp theo thứ tự chữ cái, không khoảng trắng. */
+/** Dùng chung cho mọi mô-đun (nhật ký, duyệt, termsHash, mã băm quyết định). SHA-256 của nội dung ở dạng JSON chuẩn hóa: khóa xếp theo thứ tự chữ cái, không khoảng trắng. */
 public final class Hashes {
 
     public static final String ZERO = "0x" + "0".repeat(64);

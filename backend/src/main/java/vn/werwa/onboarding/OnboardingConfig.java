@@ -1,7 +1,6 @@
 package vn.werwa.onboarding;
 
 import java.time.Clock;
-import java.util.UUID;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -9,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.json.JsonMapper;
+import vn.werwa.governance.api.ApprovalHook;
 import vn.werwa.governance.api.Approvals;
 import vn.werwa.governance.api.AuditLog;
 import vn.werwa.integration.api.Screening;
@@ -16,9 +16,7 @@ import vn.werwa.onboarding.kyc.KycService;
 import vn.werwa.onboarding.organization.OrganizationSeeder;
 import vn.werwa.onboarding.organization.OrganizationService;
 import vn.werwa.platform.documents.DocumentRegistry;
-import vn.werwa.platform.events.EventHandler;
 import vn.werwa.platform.events.Events;
-import vn.werwa.platform.events.InboundEvent;
 
 /** Bean của mô-đun Onboarding (B5a). */
 @Configuration(proxyBeanMethods = false)
@@ -31,6 +29,14 @@ class OnboardingConfig {
     OrganizationService organizations(JdbcTemplate jdbc, Approvals approvals, AuditLog audit, Events events, Clock clock,
             DocumentRegistry documents) {
         return new OrganizationService(jdbc, approvals, audit, events, clock, documents);
+    }
+
+    @Bean
+    vn.werwa.onboarding.api.InvestorClasses investorClasses(JdbcTemplate jdbc) {
+        return keys -> {
+            java.util.List<String> known = jdbc.queryForList("SELECT key FROM onboarding.investor_class", String.class);
+            return keys.stream().filter(k -> !known.contains(k)).toList();
+        };
     }
 
     @Bean
@@ -48,26 +54,18 @@ class OnboardingConfig {
         };
     }
 
-    /** Quyết định KYB ra qua {@code /v1/approvals/{id}/decision} cũng phải áp vào tổ chức. */
+    /** Q28: mọi đường ra quyết định KYB (API riêng hay {@code /v1/approvals/{id}/decision}) áp vào tổ chức trong cùng giao dịch. */
     @Bean
-    EventHandler onboardingOnApprovalDecided(OrganizationService organizations) {
-        return new EventHandler() {
+    ApprovalHook kybApprovalHook(OrganizationService organizations) {
+        return new ApprovalHook() {
             @Override
-            public String consumer() {
-                return "onboarding";
+            public String actionType() {
+                return OrganizationService.KYB_ACTION;
             }
 
             @Override
-            public String eventType() {
-                return "werwa.governance.approval.decided.v1";
-            }
-
-            @Override
-            public void handle(InboundEvent event) {
-                if (OrganizationService.KYB_ACTION.equals(event.data().get("actionType"))) {
-                    organizations.applyDecision(UUID.fromString(String.valueOf(event.data().get("approvalId"))),
-                            "APPROVE".equals(event.data().get("decision")));
-                }
+            public void onDecision(Decision decision) {
+                organizations.applyDecision(decision.approvalId(), decision.approve());
             }
         };
     }
