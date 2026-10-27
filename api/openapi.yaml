@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.3.0
+  version: 0.3.1
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1844,22 +1844,53 @@ components:
           description: UUIDv7
       additionalProperties: false
     AuthorizedSigner:
-      allOf:
-      - $ref: '#/components/schemas/SignerCreate'
-      - type: object
-        required:
-        - id
-        - organizationId
-        properties:
-          id:
+      type: object
+      required:
+      - userId
+      - signingAddress
+      - scopes
+      - validFrom
+      - authorizationDocId
+      - id
+      - organizationId
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        signingAddress:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
+        scopes:
+          type: array
+          items:
             type: string
-            format: uuid
-            description: UUIDv7
-          organizationId:
-            type: string
-            format: uuid
-            description: UUIDv7
-        additionalProperties: false
+            enum:
+            - SERIES_DEPLOY
+            - ALLOCATION_APPROVE
+            - PAYMENT_BATCH
+            - REGISTRAR_ATTEST
+            - ENFORCEMENT
+            - GOVERNANCE
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        authorizationDocId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        organizationId:
+          type: string
+          format: uuid
+          description: UUIDv7
+      additionalProperties: false
     KycCaseCreate:
       type: object
       required:
@@ -2064,25 +2095,75 @@ components:
           description: UUIDv7
       additionalProperties: false
     Program:
-      allOf:
-      - $ref: '#/components/schemas/ProgramCreate'
-      - type: object
-        required:
-        - id
-        - status
-        properties:
-          id:
+      type: object
+      required:
+      - title
+      - hdndResolutionNo
+      - approvedOn
+      - currency
+      - maxPrincipal
+      - rateFloorPpm
+      - rateCapPpm
+      - costCap
+      - eligibleInvestorClasses
+      - documentId
+      - id
+      - status
+      properties:
+        title:
+          type: string
+        hdndResolutionNo:
+          type: string
+        approvedOn:
+          type: string
+          format: date
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        maxPrincipal:
+          $ref: '#/components/schemas/Money'
+        rateFloorPpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        rateCapPpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        costCap:
+          $ref: '#/components/schemas/Money'
+        tenorRange:
+          type: string
+        eligibleInvestorClasses:
+          type: array
+          items:
             type: string
-            format: uuid
-            description: UUIDv7
-          status:
+        issuanceMethods:
+          type: array
+          items:
             type: string
-            enum:
-            - DRAFT
-            - PENDING_REVIEW
-            - EFFECTIVE
-            - SUPERSEDED
-        additionalProperties: false
+        documentId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        amendsProgramId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - PENDING_REVIEW
+          - EFFECTIVE
+          - SUPERSEDED
+      additionalProperties: false
     ProgramLimits:
       type: object
       required:
@@ -2224,53 +2305,132 @@ components:
           description: UUIDv7
       additionalProperties: false
     Series:
-      allOf:
-      - $ref: '#/components/schemas/SeriesCreate'
-      - type: object
-        required:
-        - id
-        - status
-        properties:
-          id:
-            type: string
-            format: uuid
-            description: UUIDv7
-          status:
+      type: object
+      required:
+      - programId
+      - seriesCode
+      - currency
+      - faceValue
+      - issuePricePpm
+      - maxQuantity
+      - couponFrequency
+      - dayCount
+      - issueDate
+      - maturityDate
+      - termsDocumentId
+      - id
+      - status
+      properties:
+        programId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        seriesCode:
+          type: string
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        faceValue:
+          $ref: '#/components/schemas/Money'
+        issuePricePpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        maxQuantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        couponType:
+          type: string
+          enum:
+          - FIXED
+          description: FLOATING để dành
+        couponFrequency:
+          type: string
+          enum:
+          - ANNUAL
+          - SEMI_ANNUAL
+          - QUARTERLY
+        dayCount:
+          type: string
+          enum:
+          - '30_360'
+          - ACT_ACT
+        issueDate:
+          type: string
+          format: date
+        maturityDate:
+          type: string
+          format: date
+        calendars:
+          type: array
+          items:
             type: string
             enum:
-            - DRAFT
-            - PENDING_REVIEW
-            - PENDING_SIGNATURES
-            - DEPLOYED
-            - READY
-            - OFFERING
-            - BOOK_CLOSED
-            - ALLOCATED
-            - ISSUING
-            - ACTIVE
-            - DEFAULTED
-            - MATURED
-            - CLOSED
-            - CANCELLED
-          isin:
+            - VN
+            - NY
+        graceBusinessDays:
+          type: integer
+        withholdingTaxPpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        holdingLimit:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        investorClasses:
+          type: array
+          items:
             type: string
-            pattern: ^[A-Z]{2}[A-Z0-9]{9}[0-9]$
-          termsHash:
-            type: string
-            pattern: ^0x[0-9a-fA-F]{64}$
-          chainId:
-            type: integer
-          controllerAddress:
-            type: string
-            pattern: ^0x[0-9a-fA-F]{40}$
-          tokenAddress:
-            type: string
-            pattern: ^0x[0-9a-fA-F]{40}$
-          events:
-            type: array
-            items:
-              $ref: '#/components/schemas/SeriesEvent'
-        additionalProperties: false
+        termsDocumentId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - PENDING_REVIEW
+          - PENDING_SIGNATURES
+          - DEPLOYED
+          - READY
+          - OFFERING
+          - BOOK_CLOSED
+          - ALLOCATED
+          - ISSUING
+          - ACTIVE
+          - DEFAULTED
+          - MATURED
+          - CLOSED
+          - CANCELLED
+        isin:
+          type: string
+          pattern: ^[A-Z]{2}[A-Z0-9]{9}[0-9]$
+        termsHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        chainId:
+          type: integer
+        controllerAddress:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
+        tokenAddress:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeriesEvent'
+      additionalProperties: false
     SeriesEvent:
       type: object
       required:
@@ -2380,26 +2540,62 @@ components:
           description: UUIDv7
       additionalProperties: false
     Offering:
-      allOf:
-      - $ref: '#/components/schemas/OfferingCreate'
-      - type: object
-        required:
-        - id
-        - status
-        properties:
-          id:
-            type: string
-            format: uuid
-            description: UUIDv7
-          status:
-            type: string
-            enum:
-            - DRAFT
-            - OPEN
-            - CLOSED
-            - ALLOCATED
-            - CANCELLED
-        additionalProperties: false
+      type: object
+      required:
+      - seriesId
+      - method
+      - targetQuantity
+      - bookOpenAt
+      - bookCloseAt
+      - id
+      - status
+      properties:
+        seriesId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        method:
+          type: string
+          enum:
+          - BOOKBUILDING
+        rateGuidanceLowPpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        rateGuidanceHighPpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        targetQuantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        bookOpenAt:
+          type: string
+          format: date-time
+        bookCloseAt:
+          type: string
+          format: date-time
+        announcementDocumentId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - OPEN
+          - CLOSED
+          - ALLOCATED
+          - CANCELLED
+      additionalProperties: false
     OrderPlace:
       type: object
       required:
@@ -2443,38 +2639,58 @@ components:
           description: Số trái phiếu (decimals 0)
       additionalProperties: false
     Order:
-      allOf:
-      - $ref: '#/components/schemas/OrderPlace'
-      - type: object
-        required:
-        - id
-        - offeringId
-        - status
-        properties:
-          id:
-            type: string
-            format: uuid
-            description: UUIDv7
-          offeringId:
-            type: string
-            format: uuid
-            description: UUIDv7
-          enteredByOrgId:
-            type: string
-            format: uuid
-            description: UUIDv7
-          status:
-            type: string
-            enum:
-            - PLACED
-            - AMENDED
-            - CANCELLED
-            - ALLOCATED
-            - PARTIALLY_ALLOCATED
-            - NOT_ALLOCATED
-          version:
-            type: integer
-        additionalProperties: false
+      type: object
+      required:
+      - investorOrgId
+      - walletId
+      - ratePpm
+      - quantity
+      - id
+      - offeringId
+      - status
+      properties:
+        investorOrgId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        walletId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        ratePpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Phần triệu, 1 000 000 = 100%
+        quantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        offeringId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        enteredByOrgId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        status:
+          type: string
+          enum:
+          - PLACED
+          - AMENDED
+          - CANCELLED
+          - ALLOCATED
+          - PARTIALLY_ALLOCATED
+          - NOT_ALLOCATED
+        version:
+          type: integer
+      additionalProperties: false
     AllocationListCreate:
       type: object
       required:
@@ -2656,37 +2872,56 @@ components:
           description: Số trái phiếu (decimals 0)
       additionalProperties: false
     Transfer:
-      allOf:
-      - $ref: '#/components/schemas/TransferCreate'
-      - type: object
-        required:
-        - id
-        - status
-        properties:
-          id:
-            type: string
-            format: uuid
-            description: UUIDv7
-          status:
-            type: string
-            enum:
-            - PENDING_CONFIRMATIONS
-            - SUBMITTED
-            - COMPLETED
-            - REJECTED
-          fromConfirmedAt:
-            type: string
-            format: date-time
-          toConfirmedAt:
-            type: string
-            format: date-time
-          custodianConfirmedAt:
-            type: string
-            format: date-time
-          txHash:
-            type: string
-            pattern: ^0x[0-9a-fA-F]{64}$
-        additionalProperties: false
+      type: object
+      required:
+      - seriesId
+      - fromWalletId
+      - toWalletId
+      - quantity
+      - id
+      - status
+      properties:
+        seriesId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        fromWalletId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        toWalletId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        quantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        status:
+          type: string
+          enum:
+          - PENDING_CONFIRMATIONS
+          - SUBMITTED
+          - COMPLETED
+          - REJECTED
+        fromConfirmedAt:
+          type: string
+          format: date-time
+        toConfirmedAt:
+          type: string
+          format: date-time
+        custodianConfirmedAt:
+          type: string
+          format: date-time
+        txHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+      additionalProperties: false
     Holding:
       type: object
       required:
@@ -2956,33 +3191,73 @@ components:
           description: Số trái phiếu (decimals 0)
       additionalProperties: false
     EnforcementOrder:
-      allOf:
-      - $ref: '#/components/schemas/EnforcementOrderCreate'
-      - type: object
-        required:
-        - id
-        - status
-        properties:
-          id:
-            type: string
-            format: uuid
-            description: UUIDv7
-          basisHash:
-            type: string
-            pattern: ^0x[0-9a-fA-F]{64}$
-          approvalRequestId:
-            type: string
-            format: uuid
-            description: UUIDv7
-          status:
-            type: string
-            enum:
-            - RECEIVED
-            - PENDING_APPROVAL
-            - PENDING_SIGNATURES
-            - APPLIED
-            - REJECTED
-        additionalProperties: false
+      type: object
+      required:
+      - authorityName
+      - orderNo
+      - issuedOn
+      - basisDocumentId
+      - action
+      - seriesId
+      - walletId
+      - quantity
+      - id
+      - status
+      properties:
+        authorityName:
+          type: string
+        orderNo:
+          type: string
+        issuedOn:
+          type: string
+          format: date
+        basisDocumentId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        action:
+          type: string
+          enum:
+          - FREEZE
+          - UNFREEZE
+          - FORCED_TRANSFER
+        seriesId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        walletId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        toWalletId:
+          type: string
+          format: uuid
+          description: Chỉ cho FORCED_TRANSFER
+        quantity:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        basisHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        approvalRequestId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        status:
+          type: string
+          enum:
+          - RECEIVED
+          - PENDING_APPROVAL
+          - PENDING_SIGNATURES
+          - APPLIED
+          - REJECTED
+      additionalProperties: false
     AuditEntry:
       type: object
       required:
