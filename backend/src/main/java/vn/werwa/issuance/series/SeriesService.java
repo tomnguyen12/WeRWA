@@ -238,7 +238,7 @@ public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog {
         Terms t = s.terms();
         return java.util.Optional.of(new SeriesInfo(s.id(), s.status(), s.isin(), t.currency(), t.faceValue().amountMinor(),
                 t.issuePricePpm(), t.maxQuantity(), t.investorClasses(), basis.rateFloorPpm(), basis.rateCapPpm(),
-                s.controllerAddress(), periods));
+                s.controllerAddress(), periods, t.issueDate()));
     }
 
     @Override

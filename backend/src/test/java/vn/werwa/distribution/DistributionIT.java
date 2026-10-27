@@ -501,4 +501,165 @@ class DistributionIT extends IntegrationTest {
                 leaf)).isTrue();
         assertThat(proof.get("merkleRoot")).isEqualTo(list.get("merkleRoot"));
     }
+
+    // ---------- B8a: báo có, đối chiếu, lô, tiến độ ----------
+
+    @Autowired
+    vn.werwa.distribution.payment.PaymentService paymentService;
+
+    record Signed(UUID series, UUID offering, UUID list, List<Map<String, Object>> items) {}
+
+    /** Danh sách UBND đã duyệt (mở tài khoản ảo) rồi đánh dấu đã ký như B7b sẽ làm khi indexer đọc AllocationSet. */
+    @SuppressWarnings("unchecked")
+    Signed signedList(long... quantities) throws Exception {
+        UUID series = readySeries(Map.of());
+        UUID offering = openOffering(series);
+        List<Map<String, Object>> items = new java.util.ArrayList<>();
+        for (long q : quantities) {
+            items.add(item(order(offering, 50_000, q), q, null));
+        }
+        ok(post("/v1/offerings/" + offering + "/close", SYNDICATE_USER, null), 200, null);
+        UUID list = id(propose(offering, 50_000, items));
+        couponDecision(offering);
+        UUID approval = UUID.fromString((String) body(post("/v1/allocation-lists/" + list + "/submit", SYNDICATE_USER, null))
+                .get("approvalRequestId"));
+        ok(post("/v1/approvals/" + approval + "/decision", ISSUER_CHECKER, Map.of("decision", "APPROVE")), 200, null);
+        jdbc.update("UPDATE distribution.allocation_list SET status = 'SIGNED' WHERE id = ?", list);
+        jdbc.update("UPDATE distribution.allocation SET status = 'AWAITING_PAYMENT' WHERE allocation_list_id = ?", list);
+        MvcResult r = read("/v1/allocation-lists/" + list, SYNDICATE_USER);
+        ok(r, 200, "AllocationList");
+        return new Signed(series, offering, list, (List<Map<String, Object>>) body(r).get("items"));
+    }
+
+    MvcResult credit(String bankRef, String virtualAccount, long amountMinor) throws Exception {
+        String json = JSON.writeValueAsString(Map.of("bankRef", bankRef, "virtualAccount", virtualAccount,
+                "amount", Map.of("amountMinor", Long.toString(amountMinor), "currency", "USD"), "valueDate", "2027-03-01",
+                "payerName", "Nhà đầu tư A"));
+        byte[] raw = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return mvc.perform(MockMvcRequestBuilders.post("/v1/inbound/bidv/credit-notifications")
+                .header("X-Bank-Signature", bidvSign(raw))
+                .header("Idempotency-Key", bankRef)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(raw)).andReturn();
+    }
+
+    String matchResult(String bankRef) {
+        org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(15)).until(() -> jdbc.queryForObject(
+                "SELECT count(*) FROM distribution.payment_confirmation WHERE bank_ref = ?", Integer.class, bankRef) > 0);
+        return jdbc.queryForObject("SELECT match_result FROM distribution.payment_confirmation WHERE bank_ref = ?",
+                String.class, bankRef);
+    }
+
+    String allocationStatus(Object allocationId) {
+        return jdbc.queryForObject("SELECT status FROM distribution.allocation WHERE id = ?::uuid", String.class,
+                allocationId.toString());
+    }
+
+    static String ref() {
+        return "BIDV" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+    }
+
+    @Test
+    @DisplayName("Q51 UBND duyệt danh sách thì mỗi phân bổ có tài khoản ảo và hạn trả")
+    void approvalOpensAVirtualAccountPerAllocation() throws Exception {
+        Signed s = signedList(300, 200);
+        assertThat(s.items()).allSatisfy(it -> {
+            assertThat((String) it.get("virtualAccount")).matches("^963[0-9]{10}$");
+            assertThat(it.get("paymentDueDate")).isEqualTo("2027-03-02");
+            assertThat(it.get("status")).isEqualTo("AWAITING_PAYMENT");
+        });
+        assertThat(s.items().get(0).get("virtualAccount")).isNotEqualTo(s.items().get(1).get("virtualAccount"));
+    }
+
+    @Test
+    @DisplayName("US-3.05-AC1, US-5.02-AC3 báo có gửi lại cùng mã tham chiếu không xử lý lần hai")
+    void US_3_05_AC1_duplicateCreditIsNotProcessedTwice() throws Exception {
+        Signed s = signedList(300);
+        Map<String, Object> a = s.items().getFirst();
+        String bankRef = ref();
+        MvcResult first = credit(bankRef, (String) a.get("virtualAccount"), 300L * 100_000);
+        ok(first, 200, "Ack");
+        assertThat(matchResult(bankRef)).isEqualTo("MATCHED");
+        assertThat(allocationStatus(a.get("allocationId"))).isEqualTo("PAID");
+        byte[] event = nats.jetStreamManagement().getLastMessage("WERWA", "werwa.distribution.payment.matched.v1").getData();
+        assertThat(EventSchemas.validate("werwa.distribution.payment.matched.v1", event)).isEmpty();
+        byte[] received = nats.jetStreamManagement().getLastMessage("WERWA", "werwa.integration.bank.credit_received.v1")
+                .getData();
+        assertThat(EventSchemas.validate("werwa.integration.bank.credit_received.v1", received)).isEmpty();
+
+        MvcResult again = credit(bankRef, (String) a.get("virtualAccount"), 300L * 100_000);
+        ok(again, 200, "Ack");
+        assertThat(body(again).get("messageId")).isEqualTo(body(first).get("messageId"));
+        assertThat(jdbc.queryForObject("SELECT attempts FROM integration.inbound_message WHERE idempotency_key = ?",
+                Integer.class, bankRef)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM distribution.payment_confirmation WHERE bank_ref = ?",
+                Integer.class, bankRef)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("US-3.05-AC2 đúng số lượng × mệnh giá × giá phát hành thì MATCHED; lệch thì SHORT, OVER và không vào lô")
+    void US_3_05_AC2_matchingAndBatching() throws Exception {
+        Signed s = signedList(300, 200, 100);
+        Map<String, Object> exact = s.items().get(0);
+        Map<String, Object> shortPaid = s.items().get(1);
+        Map<String, Object> overPaid = s.items().get(2);
+        long due0 = ((Number) exact.get("quantity")).longValue() * 100_000;
+        long due1 = ((Number) shortPaid.get("quantity")).longValue() * 100_000;
+        long due2 = ((Number) overPaid.get("quantity")).longValue() * 100_000;
+        String r0 = ref();
+        String r1 = ref();
+        String r2 = ref();
+        String r3 = ref();
+        ok(credit(r0, (String) exact.get("virtualAccount"), due0), 200, "Ack");
+        ok(credit(r1, (String) shortPaid.get("virtualAccount"), due1 - 1), 200, "Ack");
+        ok(credit(r2, (String) overPaid.get("virtualAccount"), due2 + 1), 200, "Ack");
+        ok(credit(r3, "9639999999999", 100), 200, "Ack");
+        assertThat(matchResult(r0)).isEqualTo("MATCHED");
+        assertThat(matchResult(r1)).isEqualTo("SHORT");
+        assertThat(matchResult(r2)).isEqualTo("OVER");
+        assertThat(matchResult(r3)).isEqualTo("UNKNOWN");
+        assertThat(allocationStatus(shortPaid.get("allocationId"))).isEqualTo("AWAITING_PAYMENT");
+
+        // Tiến độ: còn phân bổ chờ tiền; cảnh báo các báo có lệch
+        MvcResult progress = read("/v1/series/" + s.series() + "/issuance-progress", ISSUER_CHECKER);
+        ok(progress, 200, "IssuanceProgress");
+        assertThat(body(progress).get("step")).isEqualTo("TRACK_PAYMENTS");
+        assertThat(body(progress).get("allocated")).isEqualTo(600);
+        assertThat(body(progress).get("paid")).isEqualTo(((Number) exact.get("quantity")).intValue());
+        assertThat(body(progress).get("alerts").toString()).contains("SHORT " + r1).contains("OVER " + r2);
+
+        // Q53: chỉ MATCHED vào lô; gốc lô từ lá thanh toán
+        List<UUID> batches = paymentService.buildBatches();
+        UUID batch = jdbc.queryForObject("SELECT payment_batch_id FROM distribution.payment_confirmation WHERE bank_ref = ?",
+                UUID.class, r0);
+        assertThat(batches).contains(batch);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM distribution.payment_confirmation WHERE payment_batch_id = ?",
+                Integer.class, batch)).isEqualTo(1);
+        byte[] leaf = AllocationMerkle.paymentLeaf(CONTROLLER, UUID.fromString((String) exact.get("allocationId")), due0, r0);
+        Map<String, Object> b = jdbc.queryForMap(
+                "SELECT merkle_root, item_count, total_amount_minor, status FROM distribution.payment_batch WHERE id = ?", batch);
+        assertThat(b.get("merkle_root")).isEqualTo(AllocationMerkle.hex(leaf));
+        assertThat(b.get("status")).isEqualTo("BUILT");
+        assertThat(paymentService.buildBatches()).doesNotContain(batch);
+    }
+
+    @Test
+    @DisplayName("Q54 hết ngày làm việc của hạn trả mà chưa có tiền thì phân bổ quá hạn")
+    void unpaidAllocationsBecomeOverdueAfterTheDueBusinessDay() throws Exception {
+        Signed s = signedList(300, 200);
+        String paidRef = ref();
+        ok(credit(paidRef, (String) s.items().get(0).get("virtualAccount"),
+                ((Number) s.items().get(0).get("quantity")).longValue() * 100_000), 200, "Ack");
+        assertThat(matchResult(paidRef)).isEqualTo("MATCHED");
+
+        // Hạn trả 2/3/2027 (thứ Ba): trong ngày chưa quá hạn; sang 3/3 thì quá hạn
+        paymentService.markOverdue(Instant.parse("2027-03-02T15:00:00Z"));
+        assertThat(allocationStatus(s.items().get(1).get("allocationId"))).isEqualTo("AWAITING_PAYMENT");
+        paymentService.markOverdue(Instant.parse("2027-03-02T17:30:00Z"));
+        assertThat(allocationStatus(s.items().get(1).get("allocationId"))).isEqualTo("OVERDUE");
+        assertThat(allocationStatus(s.items().get(0).get("allocationId"))).isEqualTo("PAID");
+        MvcResult progress = read("/v1/series/" + s.series() + "/issuance-progress", HOLCO_CHECKER);
+        assertThat(body(progress).get("overdue")).isEqualTo(((Number) s.items().get(1).get("quantity")).intValue());
+        assertThat(body(progress).get("step")).isEqualTo("WAIT_BIDV_BATCH");
+    }
 }

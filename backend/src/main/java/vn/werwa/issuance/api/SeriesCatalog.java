@@ -22,5 +22,5 @@ public interface SeriesCatalog {
     record SeriesInfo(
             UUID id, String status, String isin, String currency, long faceValueMinor, int issuePricePpm,
             long maxQuantity, List<String> investorClasses, int rateFloorPpm, int rateCapPpm, String controllerAddress,
-            int couponPeriods) {}
+            int couponPeriods, java.time.LocalDate issueDate) {}
 }

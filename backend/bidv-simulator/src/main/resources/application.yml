@@ -1,0 +1,12 @@
+# Giả lập BIDV (Q55). Khóa riêng do infra sinh, chỉ nằm ở giả lập; nền tảng giữ khóa công khai (Q49).
+server:
+  port: ${BIDV_SIM_PORT:8090}
+  address: ${BIDV_SIM_ADDRESS:127.0.0.1}
+bidv-sim:
+  platform-url: ${WERWA_PLATFORM_URL:http://localhost:8080}
+  private-key: ${BIDV_SIM_PRIVATE_KEY:}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

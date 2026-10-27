@@ -41,6 +41,9 @@ class PlatformApiIT extends IntegrationTest {
     @Autowired
     WebApplicationContext context;
 
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     MockMvc mvc;
 
     @BeforeEach
@@ -131,11 +134,21 @@ class PlatformApiIT extends IntegrationTest {
         }
 
         @Test
-        void bankWebhookIsClosedUntilB8() throws Exception {
+        @DisplayName("US-5.02-AC2 webhook ngân hàng sai chữ ký bị từ chối và ghi nhật ký")
+        void US_5_02_AC2_bankWebhookWithoutAValidSignatureIs401() throws Exception {
             problem(post("/v1/inbound/bidv/credit-notifications")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"),
-                    403, "INBOUND_CHANNEL_NOT_ENABLED");
+                    401, "BANK_SIGNATURE_INVALID");
+            problem(post("/v1/inbound/bidv/credit-notifications")
+                            .header("X-Bank-Signature", bidvSign("{\"other\":1}".getBytes()))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"bankRef\":\"FORGED\"}"),
+                    401, "BANK_SIGNATURE_INVALID");
+            assertThat(jdbc.queryForObject("""
+                    SELECT count(*) FROM integration.inbound_message
+                    WHERE NOT signature_valid AND raw_payload = '{"bankRef":"FORGED"}' AND processing_status = 'REJECTED'
+                    """, Integer.class)).isEqualTo(1);
         }
     }
 

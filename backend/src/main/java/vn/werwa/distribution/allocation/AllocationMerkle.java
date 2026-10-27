@@ -37,6 +37,24 @@ public final class AllocationMerkle {
         return Hash.sha3(Hash.sha3(encoded));
     }
 
+    /**
+     * Lá lô xác nhận tiền: {@code keccak256(bytes.concat(keccak256(abi.encode(seriesController, allocationId, amountMinor,
+     * bankRefHash))))} với {@code bankRefHash = keccak256(bankRef UTF-8)} (Q53).
+     */
+    public static byte[] paymentLeaf(String seriesController, UUID allocationId, long amountMinor, String bankRef) {
+        byte[] encoded = ByteBuffer.allocate(128)
+                .put(address(seriesController))
+                .put(uuidToBytes32(allocationId))
+                .put(uint256(amountMinor))
+                .put(bankRefHash(bankRef))
+                .array();
+        return Hash.sha3(Hash.sha3(encoded));
+    }
+
+    public static byte[] bankRefHash(String bankRef) {
+        return Hash.sha3(bankRef.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
     /** Gốc của các lá theo thứ tự cho trước. */
     public static byte[] root(List<byte[]> leaves) {
         if (leaves.isEmpty()) {
