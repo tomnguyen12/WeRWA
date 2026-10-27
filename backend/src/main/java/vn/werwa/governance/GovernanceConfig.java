@@ -26,6 +26,11 @@ class GovernanceConfig {
     static final String TX_FAILED = "werwa.onchain.tx.failed.v1";
 
     @Bean
+    vn.werwa.governance.calendar.CalendarService businessCalendar(JdbcTemplate jdbc) {
+        return new vn.werwa.governance.calendar.CalendarService(jdbc);
+    }
+
+    @Bean
     AuditLogService auditLog(JdbcTemplate jdbc, TransactionTemplate tx, Clock clock) {
         return new AuditLogService(jdbc, tx, clock);
     }
@@ -36,8 +41,9 @@ class GovernanceConfig {
     }
 
     @Bean
-    ApprovalService approvals(JdbcTemplate jdbc, AuditLogService audit, Events events, Clock clock) {
-        return new ApprovalService(jdbc, audit, events, clock);
+    ApprovalService approvals(JdbcTemplate jdbc, AuditLogService audit, Events events, Clock clock,
+            org.springframework.beans.factory.ObjectProvider<vn.werwa.governance.api.ApprovalHook> hooks) {
+        return new ApprovalService(jdbc, audit, events, clock, hooks);
     }
 
     @Bean

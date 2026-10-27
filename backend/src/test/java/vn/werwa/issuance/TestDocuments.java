@@ -32,9 +32,13 @@ public final class TestDocuments {
         return mvc.perform(request).andReturn();
     }
 
-    @SuppressWarnings("unchecked")
     public static UUID uploadId(MockMvc mvc, RequestPostProcessor who) throws Exception {
-        MvcResult r = upload(mvc, who, "AUTHORIZATION", "INTERNAL", "nội dung " + UUID.randomUUID(), null);
+        return uploadId(mvc, who, "AUTHORIZATION");
+    }
+
+    @SuppressWarnings("unchecked")
+    public static UUID uploadId(MockMvc mvc, RequestPostProcessor who, String docType) throws Exception {
+        MvcResult r = upload(mvc, who, docType, "INTERNAL", "nội dung " + UUID.randomUUID(), null);
         if (r.getResponse().getStatus() != 201) {
             throw new IllegalStateException("tải tài liệu thử lỗi: " + r.getResponse().getContentAsString());
         }

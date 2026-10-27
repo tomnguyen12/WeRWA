@@ -126,6 +126,19 @@ public class DocumentService implements DocumentRegistry {
         return ids.stream().filter(i -> !found.contains(i)).toList();
     }
 
+    /** Tài liệu theo mã, không kiểm quyền xem; mã chưa có thì 422 {@code DOCUMENT_NOT_FOUND} (dùng cho tham chiếu). */
+    public java.util.Map<UUID, Doc> require(Collection<UUID> ids) {
+        Collection<UUID> missing = missing(ids);
+        if (!missing.isEmpty()) {
+            throw new ApiException(IssuanceError.DOCUMENT_REFERENCE_MISSING, missing.toString());
+        }
+        java.util.Map<UUID, Doc> out = new java.util.LinkedHashMap<>();
+        for (UUID id : ids) {
+            out.put(id, find(id));
+        }
+        return out;
+    }
+
     Doc find(UUID id) {
         List<Doc> rows = jdbc.query("""
                 SELECT id, doc_type, title, version_no, sha256, supersedes_id, visibility, storage_key

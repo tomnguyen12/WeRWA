@@ -8,7 +8,8 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
-import vn.werwa.governance.Hashes;
+import vn.werwa.platform.hash.Hashes;
+import vn.werwa.governance.api.ApprovalHook;
 import vn.werwa.governance.api.Approvals;
 import vn.werwa.governance.api.AuditLog;
 import vn.werwa.platform.events.Events;
@@ -27,8 +28,11 @@ public class ApprovalService implements Approvals {
     private final AuditLog audit;
     private final Events events;
     private final Clock clock;
+    private final org.springframework.beans.factory.ObjectProvider<ApprovalHook> hooks;
 
-    public ApprovalService(JdbcTemplate jdbc, AuditLog audit, Events events, Clock clock) {
+    public ApprovalService(JdbcTemplate jdbc, AuditLog audit, Events events, Clock clock,
+            org.springframework.beans.factory.ObjectProvider<ApprovalHook> hooks) {
+        this.hooks = hooks;
         this.jdbc = jdbc;
         this.audit = audit;
         this.events = events;
@@ -77,6 +81,18 @@ public class ApprovalService implements Approvals {
     }
 
     @Override
+    @Transactional
+    public void cancel(UUID approvalId, String reason) {
+        int changed = jdbc.update("""
+                UPDATE governance.approval_request SET status = 'CANCELLED', comment = ?, decided_at = ?
+                WHERE id = ? AND status = 'PENDING'
+                """, reason, Timestamp.from(clock.instant()), approvalId);
+        if (changed > 0) {
+            audit.record("APPROVAL_CANCELLED", "approval/" + approvalId, Map.of("reason", String.valueOf(reason)));
+        }
+    }
+
+    @Override
     public String status(UUID approvalId) {
         return find(approvalId).status();
     }
@@ -111,6 +127,10 @@ public class ApprovalService implements Approvals {
             throw new ApiException(GovernanceError.MAKER_CHECKER_SAME_USER);
         }
         String status = approve ? "APPROVED" : "REJECTED";
+        // Q28: hook của mô-đun kiểm và áp nghiệp vụ trong cùng giao dịch; ném lỗi thì yêu cầu vẫn PENDING
+        ApprovalHook.Decision decision = new ApprovalHook.Decision(id, current.subjectRef(), approve,
+                current.makerSubject(), checker.subject(), comment);
+        hooks.orderedStream().filter(h -> h.actionType().equals(current.actionType())).forEach(h -> h.onDecision(decision));
         jdbc.update("""
                 UPDATE governance.approval_request SET status = ?, checker_subject = ?, comment = ?, decided_at = ?
                 WHERE id = ?

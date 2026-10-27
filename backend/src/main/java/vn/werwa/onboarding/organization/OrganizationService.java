@@ -29,7 +29,8 @@ import vn.werwa.platform.web.ApiException;
 
 /**
  * Tổ chức tham gia, KYB và người ký được ủy quyền (US-1.01). KYB duyệt 4 mắt qua mô-đun Quản trị: tạo tổ chức là gửi duyệt;
- * quyết định qua {@code /kyb-decision} hoặc {@code /v1/approvals/{id}/decision} đều dẫn về {@link #applyDecision}.
+ * quyết định qua {@code /kyb-decision} hoặc {@code /v1/approvals/{id}/decision} đều dẫn về {@link #applyDecision} qua
+ * {@code ApprovalHook} (Q28).
  *
  * <p>Cũng là nguồn vai tổ chức cho kiểm quyền (I7, thay tệp seed theo Q5): chỉ tổ chức đã qua KYB mới có vai.
  */
@@ -116,11 +117,11 @@ public class OrganizationService implements OrganizationDirectory, Signers {
             }
             throw e;
         }
-        applyDecision(org.kybApprovalId(), approve);
+        // Kết quả đã được áp qua ApprovalHook (Q28) trong cùng giao dịch
         return get(id);
     }
 
-    /** Áp kết quả duyệt KYB; chạy lại an toàn (sự kiện approval.decided đến sau vẫn không đổi gì). */
+    /** Áp kết quả duyệt KYB; chạy lại an toàn. */
     @Transactional
     public void applyDecision(UUID approvalId, boolean approve) {
         List<Org> rows = jdbc.query(SELECT + " WHERE kyb_approval_id = ? AND kyb_status = 'PENDING_REVIEW' FOR UPDATE",

@@ -21,6 +21,11 @@ public interface Approvals {
      */
     UUID request(String actionType, String subjectRef, Object payload);
 
+    /**
+     * Hủy yêu cầu đang chờ vì đối tượng đã đổi (ADR-13: nội dung đổi thì yêu cầu bị hủy). Yêu cầu không còn chờ thì bỏ qua.
+     */
+    void cancel(UUID approvalId, String reason);
+
     /** Trạng thái hiện tại: PENDING, APPROVED, REJECTED, CANCELLED. */
     String status(UUID approvalId);
 
