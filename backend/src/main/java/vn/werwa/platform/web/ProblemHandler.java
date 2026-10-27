@@ -67,6 +67,10 @@ public class ProblemHandler extends ResponseEntityExceptionHandler {
         if (ex instanceof HttpMessageNotReadableException) {
             return PlatformError.MALFORMED_REQUEST;
         }
+        if (ex instanceof org.springframework.web.bind.MissingRequestHeaderException m
+                && org.springframework.http.HttpHeaders.IF_MATCH.equalsIgnoreCase(m.getHeaderName())) {
+            return PlatformError.PRECONDITION_REQUIRED;
+        }
         if (status.is4xxClientError()) {
             return PlatformError.VALIDATION_FAILED;
         }

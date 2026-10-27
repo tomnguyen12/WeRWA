@@ -165,6 +165,29 @@ flowchart LR
 | Mô-đun khác kiểm mã tài liệu | `platform.documents.DocumentRegistry.missing(ids)`; Onboarding trả 422 `DOCUMENT_NOT_FOUND` (Q26) |
 | Cấu hình | `werwa.storage.endpoint`, `bucket`, `access-key`, `secret-key`, `path-style`, `download-ttl`. Bucket do infra tạo; ứng dụng dừng khi khởi động nếu không có bucket (Q30) |
 
+## Phát hành (B6b)
+
+```mermaid
+stateDiagram-v2
+  [*] --> DRAFT: POST /v1/series (kiểm khung Đề án, sinh lịch)
+  DRAFT --> PENDING_REVIEW: /submit (đủ tài liệu bắt buộc)
+  PENDING_REVIEW --> DRAFT: PATCH term sheet (yêu cầu cũ CANCELLED)
+  PENDING_REVIEW --> DRAFT: từ chối
+  PENDING_REVIEW --> PENDING_SIGNATURES: duyệt đạt + giữ chỗ hạn mức
+  PENDING_SIGNATURES --> DEPLOYED: ký 3/3 (B6c)
+```
+
+| Cần | Dùng |
+|---|---|
+| Kiểm nghiệp vụ lúc duyệt | Bean `governance.api.ApprovalHook` theo loại thao tác; chạy trong giao dịch duyệt, ném lỗi thì yêu cầu vẫn PENDING (Q28). Đang có: `ORGANIZATION_KYB`, `PROGRAM_ACTIVATE`, `SERIES_SUBMIT` |
+| Đề án | `POST /v1/programs` gửi duyệt; duyệt đạt thì EFFECTIVE. Điều chỉnh bằng bản mới có `amendsProgramId`; bản cũ SUPERSEDED |
+| Hạn mức | `issuance.limit_ledger_entry` chỉ ghi thêm; tính trên cả chuỗi Đề án theo khối lượng bản hiệu lực (Q37). RELEASE ở B6c (hủy), USE ở B8 (mint) |
+| Lịch ngày làm việc | `governance.api.BusinessCalendar`; luật VN (cả âm lịch), NY cộng bảng `governance.holiday_calendar` (Q32). Sửa bảng và tính lại lịch các series: B12 |
+| Lịch sự kiện | Sinh khi tạo, sửa series; quy tắc dời ngày `werwa.issuance.business-day-convention` (FOLLOWING, MODIFIED_FOLLOWING) |
+| Tài liệu bắt buộc | `werwa.issuance.required-document-types` (Q31), kiểm khi gửi duyệt trên `termsDocumentId` + `documentIds` (Q38) |
+| `termsHash` | SHA-256 của JSON chuẩn hóa gồm tham số series và SHA-256 các tài liệu (Q34) |
+| Mã băm tiện ích | `platform.hash.Hashes` (chuyển từ governance để mọi mô-đun dùng) |
+
 ## Quy trình làm việc
 
 ```mermaid

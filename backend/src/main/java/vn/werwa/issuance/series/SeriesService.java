@@ -69,7 +69,7 @@ public class SeriesService {
 
     public record Series(
             UUID id, UUID programId, Terms terms, String status, String termsHash, String isin, Long chainId,
-            String controllerAddress, String tokenAddress, UUID approvalRequestId, int version,
+            String controllerAddress, String tokenAddress, UUID approvalRequestId, UUID signingProposalId, int version,
             List<ScheduleGenerator.Event> events) {}
 
     /** US-2.05-AC1, AC2. */
@@ -248,7 +248,7 @@ public class SeriesService {
                         rs.getObject(3, LocalDate.class), rs.getObject(4, LocalDate.class), rs.getObject(5, LocalDate.class),
                         rs.getObject(6, LocalDate.class)), s.id());
         return new Series(s.id(), s.programId(), s.terms(), s.status(), s.termsHash(), s.isin(), s.chainId(),
-                s.controllerAddress(), s.tokenAddress(), s.approvalRequestId(), s.version(), evs);
+                s.controllerAddress(), s.tokenAddress(), s.approvalRequestId(), s.signingProposalId(), s.version(), evs);
     }
 
     private void writeSchedule(UUID seriesId, Terms terms) {
@@ -375,7 +375,7 @@ public class SeriesService {
             SELECT id, program_id, series_code, currency, face_value_minor, issue_price_ppm, max_quantity, coupon_type,
                    coupon_frequency, day_count, issue_date, maturity_date, calendars, grace_business_days,
                    withholding_tax_ppm, holding_limit, investor_classes, terms_document_id, document_ids, terms_hash, status,
-                   isin, chain_id, controller_address, token_address, approval_request_id, version
+                   isin, chain_id, controller_address, token_address, approval_request_id, version, signing_proposal_id
             FROM issuance.series""";
 
     private static Series series(java.sql.ResultSet rs) throws java.sql.SQLException {
@@ -387,6 +387,6 @@ public class SeriesService {
                 rs.getObject(18, UUID.class), Arrays.asList((UUID[]) rs.getArray(19).getArray()));
         return new Series(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), terms, rs.getString(21),
                 rs.getString(20), rs.getString(22), rs.getObject(23, Long.class), rs.getString(24), rs.getString(25),
-                rs.getObject(26, UUID.class), rs.getInt(27), List.of());
+                rs.getObject(26, UUID.class), rs.getObject(28, UUID.class), rs.getInt(27), List.of());
     }
 }

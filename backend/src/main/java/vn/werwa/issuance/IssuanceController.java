@@ -24,6 +24,7 @@ import vn.werwa.platform.openapi.model.ProgramLimits;
 import vn.werwa.platform.openapi.model.Series;
 import vn.werwa.platform.openapi.model.SeriesCreate;
 import vn.werwa.platform.openapi.model.SeriesEvent;
+import vn.werwa.platform.openapi.model.SeriesUpdate;
 import vn.werwa.platform.openapi.model.SigningProposalRef;
 
 /** API Phát hành: tài liệu (B6a); Đề án, series, quyết định UBND (B6b). Triển khai series làm ở B6c; tới lúc đó trả 501 (Q20). */
@@ -77,8 +78,21 @@ class IssuanceController implements IssuanceApi {
                 body.getDayCount().getValue(), body.getIssueDate(), body.getMaturityDate(),
                 body.getCalendars() == null ? null : body.getCalendars().stream().map(c -> c.getValue()).toList(),
                 body.getGraceBusinessDays(), body.getWithholdingTaxPpm(), body.getHoldingLimit(), body.getInvestorClasses(),
-                body.getTermsDocumentId(), null));
+                body.getTermsDocumentId(), body.getDocumentIds()));
         return ResponseEntity.created(URI.create("/v1/series/" + s.id())).eTag(ETags.of(s.version())).body(view(s));
+    }
+
+    /** US-2.05-AC3 (Q36). */
+    @Override
+    public ResponseEntity<Series> updateSeries(UUID id, String ifMatch, String idempotencyKey, SeriesUpdate body) {
+        SeriesService.Series s = series.update(id, ifMatch, new SeriesService.Terms(null, body.getCurrency(),
+                money(body.getFaceValue()), body.getIssuePricePpm(), body.getMaxQuantity(),
+                body.getCouponType() == null ? null : body.getCouponType().getValue(), body.getCouponFrequency().getValue(),
+                body.getDayCount().getValue(), body.getIssueDate(), body.getMaturityDate(),
+                body.getCalendars() == null ? null : body.getCalendars().stream().map(c -> c.getValue()).toList(),
+                body.getGraceBusinessDays(), body.getWithholdingTaxPpm(), body.getHoldingLimit(), body.getInvestorClasses(),
+                body.getTermsDocumentId(), body.getDocumentIds()));
+        return ResponseEntity.ok().eTag(ETags.of(s.version())).body(view(s));
     }
 
     @Override
@@ -144,6 +158,9 @@ class IssuanceController implements IssuanceApi {
         v.setHoldingLimit(t.holdingLimit());
         v.setInvestorClasses(t.investorClasses());
         v.setTermsDocumentId(t.termsDocumentId());
+        v.setDocumentIds(t.documentIds());
+        v.setSigningProposalId(s.signingProposalId());
+        v.setVersion(s.version());
         v.setStatus(Series.StatusEnum.fromValue(s.status()));
         v.setTermsHash(s.termsHash());
         v.setIsin(s.isin());
