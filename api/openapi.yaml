@@ -3497,6 +3497,6 @@ components:
           format: date-time
         sha256:
           type: string
-          pattern: ^0x[0-9a-fA-F]{64}$
-          description: Để bên tải kiểm nội dung
+          pattern: ^[0-9a-f]{64}$
+          description: Để bên tải kiểm nội dung; cùng dạng với Document.sha256
       additionalProperties: false
