@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.7.0
+  version: 0.8.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1797,6 +1797,248 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /v1/parameters:
+    get:
+      tags:
+      - governance
+      operationId: listParameters
+      summary: 'Tham số hệ thống: giá trị đang hiệu lực và thay đổi đã lên lịch (Q60)'
+      x-werwa-function: '4.11'
+      x-werwa-callers: Holco, Cơ quan giám sát
+      x-werwa-roles:
+      - OPERATOR
+      - SUPERVISOR
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Parameter'
+                additionalProperties: false
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/parameters/{key}/changes:
+    post:
+      tags:
+      - governance
+      operationId: requestParameterChange
+      summary: Đề nghị đổi tham số; duyệt 4 mắt, có ngày hiệu lực (US-4.11-AC2, Q60)
+      x-werwa-function: '4.11'
+      x-werwa-callers: Holco · người lập
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParameterChangeCreate'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParameterChange'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/calendars/{code}/days:
+    get:
+      tags:
+      - governance
+      operationId: listCalendarDays
+      summary: 'Ngày nghỉ của một năm: theo luật và điều chỉnh (Q61)'
+      x-werwa-function: '4.11'
+      x-werwa-callers: Mọi bên có quyền
+      x-werwa-roles:
+      - ANY
+      parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - VN
+          - NY
+      - name: year
+        in: query
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarYear'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/calendars/{code}/adjustments:
+    post:
+      tags:
+      - governance
+      operationId: requestCalendarAdjustment
+      summary: Đề nghị thêm ngày nghỉ bù hoặc ngày làm bù; duyệt 4 mắt (US-4.11-AC1, Q61)
+      x-werwa-function: '4.11'
+      x-werwa-callers: Holco · người lập
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - VN
+          - NY
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarAdjustmentCreate'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarAdjustment'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/notifications:
+    get:
+      tags:
+      - governance
+      operationId: listNotifications
+      summary: Thông báo gửi tới tổ chức và vai của người dùng (US-4.11-AC3, Q62)
+      x-werwa-function: '4.11'
+      x-werwa-callers: Mọi bên có quyền
+      x-werwa-roles:
+      - ANY
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  nextCursor:
+                    type: string
+                additionalProperties: false
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/notifications/{id}/read:
+    post:
+      tags:
+      - governance
+      operationId: markNotificationRead
+      summary: Đánh dấu đã đọc cho người dùng hiện tại (Q62)
+      x-werwa-function: '4.11'
+      x-werwa-callers: Mọi bên có quyền
+      x-werwa-roles:
+      - ANY
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/audit-log:
     get:
       tags:
@@ -2137,6 +2379,10 @@ components:
           - PENDING_REVIEW
           - KYB_APPROVED
           - KYB_REJECTED
+        notificationEmail:
+          type: string
+          format: email
+          description: Hộp thư nhận thông báo của tổ chức (Q62); email theo người dùng để khi đồng bộ người dùng
       additionalProperties: false
     OrganizationCreate:
       type: object
@@ -2175,6 +2421,10 @@ components:
             type: string
             format: uuid
             description: UUIDv7
+        notificationEmail:
+          type: string
+          format: email
+          description: Hộp thư nhận thông báo của tổ chức (Q62); email theo người dùng để khi đồng bộ người dùng
       additionalProperties: false
     SignerCreate:
       type: object
@@ -4068,6 +4318,219 @@ components:
         acknowledgedAt:
           type: string
           format: date-time
+      additionalProperties: false
+    Parameter:
+      type: object
+      required:
+      - key
+      - type
+      - source
+      properties:
+        key:
+          type: string
+        type:
+          type: string
+          enum:
+          - INTEGER
+          - STRING_LIST
+          - ENUM
+        allowedValues:
+          type: array
+          items:
+            type: string
+        value:
+          description: Giá trị đang hiệu lực; không có nghĩa là dùng giá trị mặc định trong cấu hình
+        source:
+          type: string
+          enum:
+          - DEFAULT
+          - TABLE
+        effectiveFrom:
+          type: string
+          format: date
+        scheduled:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParameterChange'
+      additionalProperties: false
+    ParameterChangeCreate:
+      type: object
+      required:
+      - value
+      - effectiveFrom
+      - reason
+      properties:
+        value:
+          description: Kiểu theo khóa tham số
+        effectiveFrom:
+          type: string
+          format: date
+        reason:
+          type: string
+      additionalProperties: false
+    ParameterChange:
+      type: object
+      required:
+      - id
+      - key
+      - effectiveFrom
+      - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        key:
+          type: string
+        value: {}
+        effectiveFrom:
+          type: string
+          format: date
+        reason:
+          type: string
+        status:
+          type: string
+          enum:
+          - PENDING_APPROVAL
+          - APPROVED
+          - REJECTED
+        approvalRequestId:
+          type: string
+          format: uuid
+          description: UUIDv7
+      additionalProperties: false
+    CalendarDay:
+      type: object
+      required:
+      - day
+      - name
+      - source
+      properties:
+        day:
+          type: string
+          format: date
+        name:
+          type: string
+        source:
+          type: string
+          enum:
+          - RULE
+          - ADJUSTMENT
+      additionalProperties: false
+    CalendarYear:
+      type: object
+      required:
+      - calendarCode
+      - year
+      - holidays
+      - workingDays
+      properties:
+        calendarCode:
+          type: string
+        year:
+          type: integer
+        holidays:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarDay'
+        workingDays:
+          type: array
+          description: Ngày cuối tuần hoặc ngày lễ được đổi thành ngày làm việc (làm bù)
+          items:
+            $ref: '#/components/schemas/CalendarDay'
+      additionalProperties: false
+    CalendarAdjustmentCreate:
+      type: object
+      required:
+      - day
+      - kind
+      - name
+      properties:
+        day:
+          type: string
+          format: date
+        kind:
+          type: string
+          enum:
+          - HOLIDAY
+          - WORKING_DAY
+        name:
+          type: string
+      additionalProperties: false
+    CalendarAdjustment:
+      type: object
+      required:
+      - id
+      - calendarCode
+      - day
+      - kind
+      - name
+      - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        calendarCode:
+          type: string
+        day:
+          type: string
+          format: date
+        kind:
+          type: string
+          enum:
+          - HOLIDAY
+          - WORKING_DAY
+        name:
+          type: string
+        status:
+          type: string
+          enum:
+          - PENDING_APPROVAL
+          - APPROVED
+          - REJECTED
+        approvalRequestId:
+          type: string
+          format: uuid
+          description: UUIDv7
+      additionalProperties: false
+    Notification:
+      type: object
+      required:
+      - id
+      - kind
+      - title
+      - createdAt
+      - read
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        kind:
+          type: string
+          enum:
+          - APPROVAL_PENDING
+          - PAYMENT_MISMATCH
+          - ALLOCATION_OVERDUE
+          - INFRA_ALERT
+        severity:
+          type: string
+          enum:
+          - INFO
+          - WARNING
+          - CRITICAL
+        title:
+          type: string
+        body:
+          type: string
+        subjectRef:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        read:
+          type: boolean
       additionalProperties: false
     Ack:
       type: object

@@ -85,6 +85,11 @@ events:
   producerVi: Quản trị
   consumers: Mô-đun yêu cầu
   schema: werwa.governance.approval.decided.v1.schema.json
+- type: werwa.governance.calendar.changed.v1
+  producer: governance
+  producerVi: Quản trị
+  consumers: Phát hành
+  schema: werwa.governance.calendar.changed.v1.schema.json
 - type: werwa.governance.signing.threshold_reached.v1
   producer: governance
   producerVi: Quản trị

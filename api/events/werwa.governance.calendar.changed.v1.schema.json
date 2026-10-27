@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.governance.calendar.changed.v1.schema.json",
+  "title": "werwa.governance.calendar.changed.v1",
+  "description": "Bên phát: Quản trị. Bên nhận: Phát hành (tính lại lịch các kỳ chưa tới ngày chốt, Q32, Q61).",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.governance.calendar.changed.v1"
+    },
+    "source": {
+      "const": "/werwa/governance"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "calendarCode",
+        "day",
+        "kind"
+      ],
+      "properties": {
+        "calendarCode": {
+          "type": "string",
+          "enum": [
+            "VN",
+            "NY"
+          ]
+        },
+        "day": {
+          "type": "string",
+          "format": "date"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "HOLIDAY",
+            "WORKING_DAY"
+          ]
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
