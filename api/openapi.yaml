@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.8.0
+  version: 0.9.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1568,6 +1568,49 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
   /v1/enforcement-orders:
+    get:
+      tags:
+      - governance
+      operationId: listEnforcementOrders
+      summary: Danh sách lệnh phong tỏa, mới nhất trước (Q67)
+      x-werwa-function: '4.02'
+      x-werwa-callers: Holco, VSDC, Cơ quan giám sát
+      x-werwa-roles:
+      - OPERATOR
+      - REGISTRAR
+      - SUPERVISOR
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EnforcementOrder'
+                  nextCursor:
+                    type: string
+                additionalProperties: false
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
     post:
       tags:
       - governance
@@ -1587,6 +1630,39 @@ paths:
               $ref: '#/components/schemas/EnforcementOrderCreate'
       responses:
         '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnforcementOrder'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/enforcement-orders/{id}:
+    get:
+      tags:
+      - governance
+      operationId: getEnforcementOrder
+      summary: Xem lệnh phong tỏa (Q67)
+      x-werwa-function: '4.02'
+      x-werwa-callers: Holco, VSDC, Cơ quan giám sát
+      x-werwa-roles:
+      - OPERATOR
+      - REGISTRAR
+      - SUPERVISOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
           description: OK
           content:
             application/json:
