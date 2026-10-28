@@ -32,17 +32,64 @@ class GovernanceController implements GovernanceApi {
     private final vn.werwa.governance.parameter.ParameterService parameters;
     private final vn.werwa.governance.calendar.CalendarAdjustmentService calendars;
     private final vn.werwa.governance.notification.NotificationService notifications;
+    private final vn.werwa.governance.enforcement.EnforcementService enforcement;
 
     GovernanceController(ApprovalService approvals, JdbcTemplate jdbc, vn.werwa.governance.alert.AlertService alerts,
             vn.werwa.governance.parameter.ParameterService parameters,
             vn.werwa.governance.calendar.CalendarAdjustmentService calendars,
-            vn.werwa.governance.notification.NotificationService notifications) {
+            vn.werwa.governance.notification.NotificationService notifications,
+            vn.werwa.governance.enforcement.EnforcementService enforcement) {
+        this.enforcement = enforcement;
         this.approvals = approvals;
         this.jdbc = jdbc;
         this.alerts = alerts;
         this.parameters = parameters;
         this.calendars = calendars;
         this.notifications = notifications;
+    }
+
+    // ---------- Lệnh phong tỏa (B10a; Q64–Q67) ----------
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.EnforcementOrder> receiveEnforcementOrder(String idempotencyKey,
+            vn.werwa.platform.openapi.model.EnforcementOrderCreate body) {
+        var o = enforcement.receive(new vn.werwa.governance.enforcement.EnforcementService.Input(body.getAuthorityName(),
+                body.getOrderNo(), body.getIssuedOn(), body.getBasisDocumentId(), body.getAction().getValue(),
+                body.getSeriesId(), body.getWalletId(), body.getToWalletId(), body.getQuantity()));
+        return ResponseEntity.created(java.net.URI.create("/v1/enforcement-orders/" + o.id())).body(view(o));
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.EnforcementOrder> getEnforcementOrder(UUID id) {
+        return ResponseEntity.ok(view(enforcement.get(id)));
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ListEnforcementOrders200Response> listEnforcementOrders(
+            String cursor, Integer limit) {
+        Paging.Page<vn.werwa.governance.enforcement.EnforcementService.Order> page = enforcement.list(cursor, limit);
+        var out = new vn.werwa.platform.openapi.model.ListEnforcementOrders200Response();
+        out.setItems(page.items().stream().map(GovernanceController::view).toList());
+        out.setNextCursor(page.nextCursor());
+        return ResponseEntity.ok(out);
+    }
+
+    static vn.werwa.platform.openapi.model.EnforcementOrder view(vn.werwa.governance.enforcement.EnforcementService.Order o) {
+        var v = new vn.werwa.platform.openapi.model.EnforcementOrder();
+        v.setId(o.id());
+        v.setAuthorityName(o.authorityName());
+        v.setOrderNo(o.orderNo());
+        v.setIssuedOn(o.issuedOn());
+        v.setBasisDocumentId(o.basisDocumentId());
+        v.setAction(vn.werwa.platform.openapi.model.EnforcementOrder.ActionEnum.fromValue(o.action()));
+        v.setSeriesId(o.seriesId());
+        v.setWalletId(o.walletId());
+        v.setToWalletId(o.toWalletId());
+        v.setQuantity(o.quantity());
+        v.setBasisHash(o.basisHash());
+        v.setApprovalRequestId(o.approvalRequestId());
+        v.setStatus(vn.werwa.platform.openapi.model.EnforcementOrder.StatusEnum.fromValue(o.status()));
+        return v;
     }
 
     // ---------- Tham số (Q60) ----------

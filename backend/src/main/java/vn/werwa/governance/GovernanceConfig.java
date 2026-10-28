@@ -57,6 +57,23 @@ class GovernanceConfig {
         return new vn.werwa.governance.calendar.CalendarAdjustmentService(jdbc, calendar, approvals, audit, events, clock);
     }
 
+    /** B10a: lệnh phong tỏa (Q64–Q67). Ví, series, tài liệu qua SPI của platform để không phụ thuộc ngược. */
+    @Bean
+    vn.werwa.governance.enforcement.EnforcementService enforcement(JdbcTemplate jdbc,
+            vn.werwa.platform.registry.WalletRegistry wallets, vn.werwa.platform.registry.SeriesRegistry series,
+            vn.werwa.platform.documents.DocumentRegistry documents, ApprovalService approvals, AuditLogService audit,
+            Clock clock) {
+        return new vn.werwa.governance.enforcement.EnforcementService(jdbc, wallets, series, documents, approvals, audit,
+                clock);
+    }
+
+    @Bean
+    vn.werwa.governance.api.ApprovalHook enforcementApprovalHook(
+            vn.werwa.governance.enforcement.EnforcementService enforcement) {
+        return hook(vn.werwa.governance.enforcement.EnforcementService.APPROVE_ACTION,
+                d -> enforcement.applyDecision(d.approvalId(), d.approve(), d.comment()));
+    }
+
     /** Q60. */
     @Bean
     vn.werwa.governance.api.ApprovalHook parameterApprovalHook(vn.werwa.governance.parameter.ParameterService parameters) {

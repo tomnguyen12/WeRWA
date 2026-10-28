@@ -32,7 +32,7 @@ import vn.werwa.platform.web.ApiException;
  * Series: term sheet, lịch sự kiện, gửi duyệt và giữ chỗ hạn mức (US-2.04-AC2, US-2.05, máy Series cạnh 1–3).
  * Triển khai 3/3 và ISIN làm ở B6c.
  */
-public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog {
+public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog, vn.werwa.platform.registry.SeriesRegistry {
 
     public static final String SUBMIT_ACTION = "SERIES_SUBMIT";
     static final String APPROVED_EVENT = "werwa.issuance.series.approved.v1";
@@ -240,6 +240,12 @@ public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog {
         return java.util.Optional.of(new SeriesInfo(s.id(), s.status(), s.isin(), t.currency(), t.faceValue().amountMinor(),
                 t.issuePricePpm(), t.maxQuantity(), t.investorClasses(), basis.rateFloorPpm(), basis.rateCapPpm(),
                 s.controllerAddress(), periods, t.issueDate()));
+    }
+
+    @Override
+    public java.util.Optional<String> seriesStatus(UUID seriesId) {
+        return jdbc.queryForList("SELECT status FROM issuance.series WHERE id = ?", String.class, seriesId).stream()
+                .findFirst();
     }
 
     @Override

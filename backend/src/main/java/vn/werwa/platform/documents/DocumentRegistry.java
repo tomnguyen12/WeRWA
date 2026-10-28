@@ -11,4 +11,9 @@ public interface DocumentRegistry {
 
     /** Mã nào trong danh sách chưa có trong kho; rỗng nếu đủ cả. */
     Collection<UUID> missing(Collection<UUID> documentIds);
+
+    /** SHA-256 (hex, không tiền tố) của tài liệu; rỗng nếu không có (Q65). */
+    default java.util.Optional<String> sha256(UUID documentId) {
+        return java.util.Optional.empty();
+    }
 }

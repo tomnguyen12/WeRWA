@@ -11,20 +11,33 @@ public enum GovernanceError implements ErrorCode {
     PARAMETER_UNKNOWN(HttpStatus.UNPROCESSABLE_CONTENT, "Không có tham số này"),
     PARAMETER_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Giá trị tham số không hợp lệ"),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có thông báo này"),
+    ENFORCEMENT_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Lệnh phong tỏa không hợp lệ"),
+    ENFORCEMENT_WALLET_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Ví không đủ điều kiện cho lệnh"),
+    ENFORCEMENT_SERIES_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Series không ở trạng thái áp lệnh được"),
+    ENFORCEMENT_DOCUMENT_MISSING(HttpStatus.UNPROCESSABLE_CONTENT, "Văn bản căn cứ chưa có trong kho tài liệu",
+            "DOCUMENT_NOT_FOUND"),
+    ENFORCEMENT_ORDER_EXISTS(HttpStatus.CONFLICT, "Lệnh cùng cơ quan, số lệnh, hành động đã tiếp nhận"),
+    ENFORCEMENT_ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có lệnh phong tỏa này"),
     ALERT_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có cảnh báo này"),
     CHECKER_ROLE_REQUIRED(HttpStatus.FORBIDDEN, "Yêu cầu này phải do vai được chỉ định duyệt");
 
     private final HttpStatus status;
     private final String title;
+    private final String code;
 
     GovernanceError(HttpStatus status, String title) {
+        this(status, title, null);
+    }
+
+    GovernanceError(HttpStatus status, String title, String code) {
         this.status = status;
         this.title = title;
+        this.code = code;
     }
 
     @Override
     public String code() {
-        return name();
+        return code == null ? name() : code;
     }
 
     @Override

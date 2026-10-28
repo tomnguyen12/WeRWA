@@ -59,6 +59,23 @@ class OnboardingConfig {
                 """, String.class, org, java.sql.Timestamp.from(at)).stream().findFirst();
     }
 
+    /** Q66: ví và điều kiện nhà đầu tư cho Quản trị, qua SPI của platform. */
+    @Bean
+    vn.werwa.platform.registry.WalletRegistry walletRegistry(vn.werwa.onboarding.api.Wallets wallets,
+            vn.werwa.onboarding.api.Investors investors) {
+        return new vn.werwa.platform.registry.WalletRegistry() {
+            @Override
+            public java.util.Optional<Wallet> registeredWallet(java.util.UUID walletId) {
+                return wallets.registered(walletId).map(w -> new Wallet(w.id(), w.organizationId(), w.address()));
+            }
+
+            @Override
+            public boolean investorEligible(java.util.UUID organizationId, java.time.Instant at) {
+                return investors.eligibleClass(organizationId, at).isPresent();
+            }
+        };
+    }
+
     @Bean
     KycService kyc(JdbcTemplate jdbc, OrganizationService organizations, Screening screening, AuditLog audit,
             Events events, JsonMapper json, OnboardingProperties props, Clock clock) {

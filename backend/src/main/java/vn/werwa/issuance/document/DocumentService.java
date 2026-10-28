@@ -139,6 +139,12 @@ public class DocumentService implements DocumentRegistry {
         return out;
     }
 
+    @Override
+    public java.util.Optional<String> sha256(UUID documentId) {
+        return jdbc.queryForList("SELECT sha256 FROM issuance.document WHERE id = ?", String.class, documentId).stream()
+                .findFirst();
+    }
+
     Doc find(UUID id) {
         List<Doc> rows = jdbc.query("""
                 SELECT id, doc_type, title, version_no, sha256, supersedes_id, visibility, storage_key
