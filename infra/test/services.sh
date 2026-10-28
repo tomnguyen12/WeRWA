@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kiểm dịch vụ dùng chung cho backend (infra/services): PostgreSQL và NATS JetStream.
+# Kiểm dịch vụ dùng chung cho backend (infra/services): PostgreSQL, NATS JetStream và Mailpit.
 # Chạy sau `infra/services/services.sh up`. Cần: docker, curl, jq, nats (natscli).
 #
 #   P1  werwa_app đăng nhập DB werwa bằng mật khẩu
@@ -11,6 +11,9 @@
 #   N3  werwa_app chỉ phát được vào werwa.>
 #   N4  kết nối ẩn danh bị từ chối
 #   N5  consumer bền và sự kiện còn nguyên sau khi NATS khởi động lại
+#   M1  Mailpit nhận thư gửi qua SMTP theo SPRING_MAIL_HOST/PORT của backend.env: đúng người nhận, tiêu đề (Q62)
+#   M2  cổng SMTP và giao diện xem thư của Mailpit chỉ mở ở 127.0.0.1
+#   M3  thư còn sau khi Mailpit khởi động lại
 
 set -euo pipefail
 INFRA="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -93,6 +96,28 @@ if [ "$after_restart" -ge "$after" ] && [ "$pending" -ge 1 ]; then
   pass "N5 sau khi khởi động lại: stream còn $after_restart sự kiện, consumer bền còn $pending chờ đọc"
 else fail "N5 sau khi khởi động lại: stream $after_restart (trước $after), consumer chờ $pending"; fi
 admin consumer rm WERWA "$CONSUMER" -f >/dev/null 2>&1 || true
+
+# ── Mailpit (Q62) ─────────────────────────────────────────────────────────────
+MP=http://127.0.0.1:8025
+benv() { grep -E "^$1=" "$SVC/out/backend.env" | cut -d= -f2-; }
+MAIL_HOST=$(benv SPRING_MAIL_HOST); MAIL_PORT=$(benv SPRING_MAIL_PORT)
+TAG="m1-$(date +%s%N)"
+msg=$(mktemp)
+printf 'From: WeRWA <no-reply@werwa.local>\r\nTo: org@test.werwa.local\r\nSubject: %s\r\n\r\nKiem thu M1.\r\n' "$TAG" >"$msg"
+if curl -s --max-time 10 --url "smtp://$MAIL_HOST:$MAIL_PORT" --mail-from no-reply@werwa.local \
+     --mail-rcpt org@test.werwa.local --upload-file "$msg"; then :; else fail "M1 gửi SMTP tới $MAIL_HOST:$MAIL_PORT thất bại"; fi
+rm -f "$msg"
+found() { curl -sf "$MP/api/v1/search" --get --data-urlencode "query=subject:\"$1\"" | jq -c '[.messages[] | {to: [.To[].Address], subject: .Subject}]'; }
+check "M1 Mailpit nhận thư qua SMTP ($MAIL_HOST:$MAIL_PORT), đúng người nhận và tiêu đề" \
+  "$(found "$TAG")" '[{"to":["org@test.werwa.local"],"subject":"'"$TAG"'"}]'
+
+check "M2 SMTP Mailpit chỉ mở ở 127.0.0.1" "$(sc port mailpit 1025)" "127.0.0.1:1025"
+check "M2 giao diện xem thư Mailpit chỉ mở ở 127.0.0.1" "$(sc port mailpit 8025)" "127.0.0.1:8025"
+
+sc restart mailpit >/dev/null
+t=0; until curl -sf "$MP/readyz" >/dev/null 2>&1; do
+  [ "$t" -ge 60 ] && die "Mailpit không lên lại"; sleep 2; t=$((t + 2)); done
+check "M3 thư còn sau khi Mailpit khởi động lại" "$(found "$TAG" | jq length)" 1
 
 [ "$FAILED" = 0 ] || die "kiểm dịch vụ backend trượt"
 log "dịch vụ backend: tất cả đạt"

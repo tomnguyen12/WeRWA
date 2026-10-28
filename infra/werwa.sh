@@ -119,14 +119,14 @@ svc_secret() { grep -E "^$1=" "$INFRA/services/out/.env" | cut -d= -f2-; }
 
 render_env() {
   local v="$1" mon="$2" plat="$DEVNET_OUT/platform/devnet.json" safes="$DEVNET_OUT/safe/safes.json"
-  local pg nats kc_jwks read submit am where
+  local pg nats mail kc_jwks read submit am where
   if [ "$v" = host ]; then
     where="chạy trên máy"
-    pg=127.0.0.1:5432; nats=127.0.0.1:4222; kc_jwks=http://127.0.0.1:8180; am=http://127.0.0.1:9093
+    pg=127.0.0.1:5432; nats=127.0.0.1:4222; mail=127.0.0.1; kc_jwks=http://127.0.0.1:8180; am=http://127.0.0.1:9093
     read="$O1A_RPC,$O1B_RPC"; submit="$V1_RPC,$V2_RPC"
   else
     where="chạy trong mạng $APP_NETWORK"
-    pg=postgres.werwa.devnet:5432; nats=nats.werwa.devnet:4222; kc_jwks=http://keycloak.werwa.devnet:8080
+    pg=postgres.werwa.devnet:5432; nats=nats.werwa.devnet:4222; mail=mailpit.werwa.devnet; kc_jwks=http://keycloak.werwa.devnet:8080
     am=http://alertmanager.werwa.devnet:9093
     read=http://o1-a.werwa.devnet:8545,http://o1-b.werwa.devnet:8545
     submit=http://v1.werwa.devnet:8545,http://v2.werwa.devnet:8545
@@ -145,6 +145,10 @@ WERWA_NATS_URL=nats://$nats
 WERWA_NATS_USERNAME=werwa_app
 WERWA_NATS_PASSWORD=$(svc_secret NATS_APP_PASSWORD)
 WERWA_NATS_STREAM=WERWA
+
+# SMTP cho email thông báo (Q62): Mailpit nhận mọi thư, không chuyển ra ngoài; xem tại http://127.0.0.1:8025
+SPRING_MAIL_HOST=$mail
+SPRING_MAIL_PORT=1025
 
 # OIDC (Keycloak realm werwa, I3, I8): issuer cố định ở mọi biến thể, JWKS theo nơi chạy
 SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI=$KC_ISSUER
@@ -219,6 +223,7 @@ cmd_status() {
        --env-file "$INFRA/services/out/.env" exec -T postgres pg_isready -U postgres -q >/dev/null 2>&1; then pg="sẵn sàng"; fi
   row "PostgreSQL" "$pg" "127.0.0.1:5432, DB werwa"
   row "NATS JetStream" "$(ok_http 'http://127.0.0.1:8222/healthz?js-enabled-only=true')" "127.0.0.1:4222, stream WERWA"
+  row "Mailpit" "$(ok_http http://127.0.0.1:8025/readyz)" "SMTP 127.0.0.1:1025, xem thư http://127.0.0.1:8025"
   row "Keycloak" "$(ok_http http://127.0.0.1:9180/health/ready)" "http://localhost:8180/realms/werwa"
   if [ -f "$INFRA/signer/out/mode" ]; then
     row "WeHSM" "$(ok_http http://127.0.0.1:8745/health)" "http://127.0.0.1:8745, chế độ $(cat "$INFRA/signer/out/mode")"

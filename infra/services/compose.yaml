@@ -1,4 +1,5 @@
-# Dịch vụ dùng chung cho backend trên devnet: PostgreSQL và NATS JetStream (ADR-10, ADR-11).
+# Dịch vụ dùng chung cho backend trên devnet: PostgreSQL, NATS JetStream (ADR-10, ADR-11) và Mailpit
+# làm máy chủ SMTP thử cho email thông báo (Q62).
 # Chạy qua `./services.sh up`; script sinh mật khẩu vào out/.env trước (gitignore).
 #
 # Tham gia mạng werwa-devnet-app cùng V1, V2, O1 của devnet, để backend chạy trong container
@@ -39,9 +40,30 @@ services:
       app: { aliases: [nats.werwa.devnet] }
     ports: ["127.0.0.1:4222:4222", "127.0.0.1:8222:8222"]
 
+  # SMTP thử (Q62): nhận mọi thư, không chuyển ra ngoài, xem tại http://127.0.0.1:8025. Không xác thực,
+  # không TLS vì chỉ mở ở 127.0.0.1 và trong mạng werwa-devnet-app. Thư lưu trong volume, tối đa 5 000 thư.
+  mailpit:
+    image: ${MAILPIT_IMAGE:-axllent/mailpit:v1.31.5}
+    restart: unless-stopped
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "5000"
+      TZ: UTC
+    volumes:
+      - mailpitdata:/data
+    networks:
+      app: { aliases: [mailpit.werwa.devnet] }
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
 volumes:
   pgdata:
   natsdata:
+  mailpitdata:
 
 networks:
   app:
