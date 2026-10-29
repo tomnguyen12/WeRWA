@@ -22,6 +22,7 @@ public enum GovernanceError implements ErrorCode {
     RECONCILIATION_BREAK_RESOLVED(HttpStatus.CONFLICT, "Chênh lệch đã được đóng"),
     RECONCILIATION_REASON_REQUIRED(HttpStatus.UNPROCESSABLE_CONTENT, "Đóng chênh lệch phải ghi lý do"),
     ALERT_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có cảnh báo này"),
+    BLOCK_HASH_ALREADY_ATTESTED(HttpStatus.CONFLICT, "Khối này đã có mã băm VSDC gửi"),
     CHECKER_ROLE_REQUIRED(HttpStatus.FORBIDDEN, "Yêu cầu này phải do vai được chỉ định duyệt");
 
     private final HttpStatus status;

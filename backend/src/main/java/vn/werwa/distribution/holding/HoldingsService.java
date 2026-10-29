@@ -26,7 +26,7 @@ import vn.werwa.platform.web.Paging;
  * Sổ người sở hữu (US-3.07; Q83–Q89). Bộ chiếu ghi biến động và số dư từ sự kiện token mà indexer đọc trên O1; số dư là
  * tổng biến động nên sự kiện đến sai thứ tự hay lặp lại vẫn ra đúng. Chỉ bộ chiếu ghi; dựng lại được từ chuỗi.
  */
-public class HoldingsService {
+public class HoldingsService implements vn.werwa.platform.registry.HoldingsSummaries {
 
     static final String ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
     /** Loại hợp đồng của token series trong registry của indexer. */
@@ -190,6 +190,16 @@ public class HoldingsService {
         }
         List<Movement> items = List.copyOf(rows.subList(0, size));
         return new Paging.Page<>(items, Paging.encodeSeqCursor(items.getLast().position()));
+    }
+
+    /** Q91: tóm tắt sổ cho công cụ giám sát, gồm cả địa chỉ chưa có ví trong onboarding. */
+    @Override
+    public Summary summary(UUID seriesId) {
+        return jdbc.queryForObject("""
+                SELECT count(*) FILTER (WHERE balance > 0), COALESCE(sum(GREATEST(balance, 0)), 0),
+                       COALESCE(sum(GREATEST(frozen, 0)), 0)
+                FROM distribution.holding_view WHERE series_id = ?
+                """, (rs, i) -> new Summary(rs.getInt(1), rs.getLong(2), rs.getLong(3), asOfBlock()), seriesId);
     }
 
     /** Khối cuối bộ chiếu đã ghi (Q87); 0 khi chưa có biến động nào. */

@@ -35,9 +35,11 @@ class IssuanceController implements IssuanceApi {
     private final ProgramService programs;
     private final SeriesService series;
     private final IssuerDecisionService decisions;
+    private final vn.werwa.platform.registry.HoldingsSummaries holdings;
 
     IssuanceController(DocumentService documents, ProgramService programs, SeriesService series,
-            IssuerDecisionService decisions) {
+            IssuerDecisionService decisions, vn.werwa.platform.registry.HoldingsSummaries holdings) {
+        this.holdings = holdings;
         this.documents = documents;
         this.programs = programs;
         this.series = series;
@@ -93,6 +95,20 @@ class IssuanceController implements IssuanceApi {
                 body.getGraceBusinessDays(), body.getWithholdingTaxPpm(), body.getHoldingLimit(), body.getInvestorClasses(),
                 body.getTermsDocumentId(), body.getDocumentIds()));
         return ResponseEntity.ok().eTag(ETags.of(s.version())).body(view(s));
+    }
+
+    /** US-4.04 (Q91): series kèm tóm tắt sổ cho Cơ quan giám sát. */
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.SupervisionSeries> superviseSeries(UUID id) {
+        SeriesService.Series s = series.get(id);
+        vn.werwa.platform.registry.HoldingsSummaries.Summary sum = holdings.summary(id);
+        var v = new vn.werwa.platform.openapi.model.SupervisionSeries();
+        v.setSeries(view(s));
+        v.setHolderCount(sum.holderCount());
+        v.setTotalBalance(sum.totalBalance());
+        v.setFrozen(sum.frozen());
+        v.setAsOfBlock(sum.asOfBlock());
+        return ResponseEntity.ok(v);
     }
 
     @Override

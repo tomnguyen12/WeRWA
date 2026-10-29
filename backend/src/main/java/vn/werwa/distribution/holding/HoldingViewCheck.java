@@ -8,7 +8,8 @@ import vn.werwa.platform.reconciliation.ReconciliationCheck;
 
 /**
  * R5 (Q89; US-3.07-AC1): số dư từng ví trong bảng đọc bằng {@code balanceOf} trên chuỗi tại khối cuối bộ chiếu đã ghi.
- * Gồm cả địa chỉ chưa có ví trong onboarding (Q86). Không đọc được chuỗi thì ghi chênh lệch {@code CHAIN_UNAVAILABLE}.
+ * Gồm cả địa chỉ chưa có ví trong onboarding (Q86). Không đọc được chuỗi thì ghi một chênh lệch
+ * {@code CHAIN_UNAVAILABLE} và dừng.
  */
 public class HoldingViewCheck implements ReconciliationCheck {
 
@@ -45,8 +46,10 @@ public class HoldingViewCheck implements ReconciliationCheck {
                     out.add(new Finding("BALANCE_MISMATCH", subject, Long.toString(chain), Long.toString(h.balance())));
                 }
             } catch (RuntimeException e) {
-                out.add(new Finding("CHAIN_UNAVAILABLE", subject, "balanceOf tại khối " + block,
+                // O1 không trả lời: một chênh lệch cho cả lần chạy, không thử từng ví (mỗi lần thử chờ hết thời gian)
+                out.add(new Finding("CHAIN_UNAVAILABLE", "chain/block/" + block, "balanceOf tại khối " + block,
                         String.valueOf(e.getMessage())));
+                break;
             }
         }
         return out;

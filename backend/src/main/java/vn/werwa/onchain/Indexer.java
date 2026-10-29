@@ -122,11 +122,12 @@ public class Indexer {
         int logIndex = l.getLogIndex().intValueExact();
         int inserted = jdbc.update("""
                 INSERT INTO onchain.indexed_event
-                    (id, chain_id, block_number, log_index, tx_hash, contract_address, event_name, decoded, indexed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?)
+                    (id, chain_id, block_number, log_index, tx_hash, contract_address, event_name, decoded, indexed_at,
+                     block_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)
                 ON CONFLICT (chain_id, block_number, log_index) DO NOTHING
                 """, Ids.newId(), nodes.chainId(), block, logIndex, l.getTransactionHash(), entry.address(), eventName,
-                json.writeValueAsString(decoded), Timestamp.from(clock.instant()));
+                json.writeValueAsString(decoded), Timestamp.from(clock.instant()), Timestamp.from(blockTime));
         if (inserted == 0) {
             return;
         }

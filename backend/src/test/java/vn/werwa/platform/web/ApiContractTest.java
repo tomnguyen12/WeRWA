@@ -15,8 +15,15 @@ class ApiContractTest {
 
     @Test
     void readsEveryOperation() {
-        assertThat(CONTRACT.operations()).hasSize(65);
+        assertThat(CONTRACT.operations()).hasSize(68);
         assertThat(CONTRACT.operations()).allMatch(op -> op.anyRole() || !op.roles().isEmpty());
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("US-4.04-AC2 (Q94) không thao tác ghi nào cho vai Cơ quan giám sát")
+    void supervisorHasNoWriteOperation() {
+        assertThat(CONTRACT.operations()).filteredOn(op -> !HttpMethod.GET.equals(op.method()))
+                .noneMatch(op -> op.roles().contains(Role.SUPERVISOR));
     }
 
     @Test

@@ -34,13 +34,16 @@ class GovernanceController implements GovernanceApi {
     private final vn.werwa.governance.notification.NotificationService notifications;
     private final vn.werwa.governance.enforcement.EnforcementService enforcement;
     private final vn.werwa.governance.reconciliation.ReconciliationService reconciliation;
+    private final vn.werwa.governance.supervision.SupervisionService supervision;
 
     GovernanceController(ApprovalService approvals, JdbcTemplate jdbc, vn.werwa.governance.alert.AlertService alerts,
             vn.werwa.governance.parameter.ParameterService parameters,
             vn.werwa.governance.calendar.CalendarAdjustmentService calendars,
             vn.werwa.governance.notification.NotificationService notifications,
             vn.werwa.governance.enforcement.EnforcementService enforcement,
-            vn.werwa.governance.reconciliation.ReconciliationService reconciliation) {
+            vn.werwa.governance.reconciliation.ReconciliationService reconciliation,
+            vn.werwa.governance.supervision.SupervisionService supervision) {
+        this.supervision = supervision;
         this.enforcement = enforcement;
         this.reconciliation = reconciliation;
         this.approvals = approvals;
@@ -51,6 +54,70 @@ class GovernanceController implements GovernanceApi {
         this.notifications = notifications;
     }
 
+    // ---------- Công cụ giám sát (B12b; Q90–Q96) ----------
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ListSupervisionTransactions200Response> listSupervisionTransactions(
+            Long afterBlock, UUID seriesId, String cursor, Integer limit) {
+        Paging.Page<vn.werwa.onchain.api.IndexedEvents.ChainEvent> page = supervision.transactions(afterBlock, seriesId,
+                cursor, limit);
+        var out = new vn.werwa.platform.openapi.model.ListSupervisionTransactions200Response();
+        out.setItems(page.items().stream().map(e -> {
+            var v = new vn.werwa.platform.openapi.model.ChainEvent();
+            v.setBlock(e.block());
+            v.setLogIndex(e.logIndex());
+            v.setTxHash(e.txHash());
+            v.setBlockTime(e.blockTime() == null ? null : e.blockTime().atOffset(java.time.ZoneOffset.UTC));
+            v.setContract(e.contract());
+            v.setContractKind(e.contractKind() == null ? "unknown" : e.contractKind());
+            v.setEventName(e.eventName());
+            v.setSeriesId(e.seriesId());
+            v.setArgs(e.args());
+            return v;
+        }).toList());
+        out.setNextCursor(page.nextCursor());
+        return ResponseEntity.ok(out);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.SupervisionStatus> getSupervisionStatus() {
+        vn.werwa.governance.supervision.SupervisionService.Status s = supervision.status();
+        var v = new vn.werwa.platform.openapi.model.SupervisionStatus();
+        v.setHeadBlock(s.headBlock());
+        v.setIndexedBlock(s.indexedBlock());
+        v.setLagSeconds(s.lagSeconds());
+        v.setMaxLagSeconds(Math.toIntExact(s.maxLagSeconds()));
+        v.setWithinLimit(s.withinLimit());
+        v.setCheckedAt(s.checkedAt().atOffset(java.time.ZoneOffset.UTC));
+        return ResponseEntity.ok(v);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.BlockHashAttestation> attestBlockHash(String idempotencyKey,
+            vn.werwa.platform.openapi.model.BlockHashAttestationCreate body) {
+        vn.werwa.governance.supervision.SupervisionService.Attestation a = supervision.attest(body.getBlockNumber(),
+                body.getBlockHash());
+        var v = new vn.werwa.platform.openapi.model.BlockHashAttestation();
+        v.setId(a.id());
+        v.setBlockNumber(a.blockNumber());
+        v.setBlockHash(a.blockHash());
+        v.setO1BlockHash(a.o1BlockHash());
+        v.setStatus(vn.werwa.platform.openapi.model.BlockHashAttestation.StatusEnum.fromValue(a.status()));
+        v.setAttestedAt(a.attestedAt().atOffset(java.time.ZoneOffset.UTC));
+        return ResponseEntity.created(java.net.URI.create("/v1/supervision/block-hash-attestations/" + a.id())).body(v);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ListBlockHashChecks200Response> listBlockHashChecks(
+            String cursor, Integer limit) {
+        Paging.Page<vn.werwa.governance.reconciliation.ReconciliationService.Run> page = reconciliation.list(
+                "BLOCK_HASH_VSDC", cursor, limit);
+        var out = new vn.werwa.platform.openapi.model.ListBlockHashChecks200Response();
+        out.setItems(page.items().stream().map(GovernanceController::view).toList());
+        out.setNextCursor(page.nextCursor());
+        return ResponseEntity.ok(out);
+    }
+
     // ---------- Đối soát (B4c; Q73–Q76) ----------
 
     @Override
@@ -58,15 +125,7 @@ class GovernanceController implements GovernanceApi {
             String cursor, Integer limit) {
         Paging.Page<vn.werwa.governance.reconciliation.ReconciliationService.Run> page = reconciliation.list(cursor, limit);
         var out = new vn.werwa.platform.openapi.model.ListReconciliationRuns200Response();
-        out.setItems(page.items().stream().map(r -> {
-            var v = new vn.werwa.platform.openapi.model.ReconciliationRun();
-            v.setId(r.id());
-            v.setRunDate(r.runDate());
-            v.setScope(vn.werwa.platform.openapi.model.ReconciliationRun.ScopeEnum.fromValue(r.scope()));
-            v.setBreakCount(r.breakCount());
-            v.setBreaks(r.breaks().stream().map(GovernanceController::view).toList());
-            return v;
-        }).toList());
+        out.setItems(page.items().stream().map(GovernanceController::view).toList());
         out.setNextCursor(page.nextCursor());
         return ResponseEntity.ok(out);
     }
@@ -75,6 +134,17 @@ class GovernanceController implements GovernanceApi {
     public ResponseEntity<vn.werwa.platform.openapi.model.ReconciliationBreak> resolveReconciliationBreak(UUID id,
             String idempotencyKey, vn.werwa.platform.openapi.model.ReconciliationResolve body) {
         return ResponseEntity.ok(view(reconciliation.resolve(id, body.getReason())));
+    }
+
+    static vn.werwa.platform.openapi.model.ReconciliationRun view(
+            vn.werwa.governance.reconciliation.ReconciliationService.Run r) {
+        var v = new vn.werwa.platform.openapi.model.ReconciliationRun();
+        v.setId(r.id());
+        v.setRunDate(r.runDate());
+        v.setScope(vn.werwa.platform.openapi.model.ReconciliationRun.ScopeEnum.fromValue(r.scope()));
+        v.setBreakCount(r.breakCount());
+        v.setBreaks(r.breaks().stream().map(GovernanceController::view).toList());
+        return v;
     }
 
     static vn.werwa.platform.openapi.model.ReconciliationBreak view(

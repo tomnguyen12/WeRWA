@@ -78,10 +78,13 @@ public class ReconciliationService {
             audit.record("RECONCILIATION_RUN", "reconciliation-run/" + run,
                     Map.of("runDate", runDate.toString(), "scope", e.getKey(), "breakCount", breaks.size()));
             if (!breaks.isEmpty()) {
+                // Q96: lệch mã băm khối với VSDC là cảnh báo đỏ cho cả Cơ quan giám sát
+                boolean blockHash = "BLOCK_HASH_VSDC".equals(e.getKey());
                 notifications.notify(new Notifications.Notice(Notifications.Kind.RECONCILIATION_BREAK,
-                        Notifications.Severity.WARNING, "Đối soát " + e.getKey() + " ngày " + runDate + ": "
-                                + breaks.size() + " chênh lệch", null, "reconciliation-run/" + run,
-                        List.of(Role.OPERATOR), null));
+                        blockHash ? Notifications.Severity.CRITICAL : Notifications.Severity.WARNING,
+                        "Đối soát " + e.getKey() + " ngày " + runDate + ": " + breaks.size() + " chênh lệch", null,
+                        "reconciliation-run/" + run,
+                        blockHash ? List.of(Role.OPERATOR, Role.SUPERVISOR) : List.of(Role.OPERATOR), null));
             }
             runs.add(run);
         }
@@ -105,9 +108,15 @@ public class ReconciliationService {
 
     /** Mới nhất trước, kèm chênh lệch. */
     public Paging.Page<Run> list(String cursor, Integer limit) {
+        return list(null, cursor, limit);
+    }
+
+    /** Chỉ một phạm vi, ví dụ {@code BLOCK_HASH_VSDC} cho công cụ giám sát (Q96); null là mọi phạm vi được xem. */
+    public Paging.Page<Run> list(String scope, String cursor, Integer limit) {
         int size = Paging.limit(limit);
         UUID before = Paging.decodeCursor(cursor);
-        String[] scopes = visibleScopes(CurrentUser.get().roles()).toArray(String[]::new);
+        String[] scopes = visibleScopes(CurrentUser.get().roles()).stream().filter(s -> scope == null || s.equals(scope))
+                .toArray(String[]::new);
         List<Object> args = new ArrayList<>(List.of((Object) scopes));
         String sql = "SELECT id, run_date, scope, break_count FROM governance.reconciliation_run WHERE scope = ANY (?)"
                 + (before == null ? "" : " AND id < ?") + " ORDER BY id DESC LIMIT ?";

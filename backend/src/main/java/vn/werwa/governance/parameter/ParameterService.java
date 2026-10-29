@@ -42,7 +42,10 @@ public class ParameterService implements Parameters {
             "issuance.required-document-types",
             new Definition("issuance.required-document-types", Type.STRING_LIST, 1, null),
             "issuance.business-day-convention", new Definition("issuance.business-day-convention", Type.ENUM, 0,
-                    List.of("FOLLOWING", "MODIFIED_FOLLOWING")));
+                    List.of("FOLLOWING", "MODIFIED_FOLLOWING")),
+            // Q93: độ trễ tối đa của indexer so với đầu chuỗi (US-4.04-AC1)
+            "governance.supervision-max-lag-seconds",
+            new Definition("governance.supervision-max-lag-seconds", Type.INTEGER, 1, null));
 
     private final JdbcTemplate jdbc;
     private final Approvals approvals;

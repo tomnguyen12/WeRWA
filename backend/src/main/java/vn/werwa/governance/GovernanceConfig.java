@@ -106,6 +106,51 @@ class GovernanceConfig {
         };
     }
 
+    /** B12b: công cụ giám sát (Q90–Q96). */
+    @Bean
+    vn.werwa.governance.supervision.SupervisionService supervision(JdbcTemplate jdbc,
+            vn.werwa.onchain.api.IndexedEvents events, vn.werwa.governance.parameter.ParameterService parameters,
+            vn.werwa.governance.alert.AlertService alerts,
+            vn.werwa.governance.notification.NotificationService notifications, AuditLogService audit, Clock clock) {
+        return new vn.werwa.governance.supervision.SupervisionService(jdbc, events, parameters, alerts, notifications,
+                audit, clock);
+    }
+
+    /** R7 (Q95, Q96). */
+    @Bean
+    vn.werwa.governance.supervision.BlockHashCheck blockHashCheck(
+            vn.werwa.governance.supervision.SupervisionService supervision,
+            vn.werwa.governance.calendar.CalendarService calendar) {
+        return new vn.werwa.governance.supervision.BlockHashCheck(supervision, calendar);
+    }
+
+    /** Q93: theo dõi độ trễ indexer mỗi 10 giây. */
+    @Bean
+    @ConditionalOnProperty(name = "werwa.governance.supervision-monitor-enabled", havingValue = "true",
+            matchIfMissing = true)
+    SupervisionMonitor supervisionMonitor(vn.werwa.governance.supervision.SupervisionService supervision) {
+        return new SupervisionMonitor(supervision);
+    }
+
+    static class SupervisionMonitor {
+        private final vn.werwa.governance.supervision.SupervisionService supervision;
+
+        SupervisionMonitor(vn.werwa.governance.supervision.SupervisionService supervision) {
+            this.supervision = supervision;
+        }
+
+        @Scheduled(fixedDelayString = "${werwa.governance.supervision-monitor-interval:PT10S}", initialDelayString = "PT30S")
+        void check() {
+            try {
+                supervision.monitor();
+            } catch (RuntimeException e) {
+                // O1 không trả lời: vẫn là sự cố cần biết
+                org.slf4j.LoggerFactory.getLogger(SupervisionMonitor.class).warn("Không đo được độ trễ indexer: {}",
+                        e.toString());
+            }
+        }
+    }
+
     @Bean
     @ConditionalOnProperty(name = "werwa.governance.reconciliation-enabled", havingValue = "true", matchIfMissing = true)
     ReconciliationJob reconciliationJob(vn.werwa.governance.reconciliation.ReconciliationService reconciliation,

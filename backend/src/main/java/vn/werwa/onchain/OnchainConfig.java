@@ -113,6 +113,12 @@ class OnchainConfig {
         return new Indexer(nodes, registry, abi, jdbc, tx, events, json, props, werwa.chain().deployedAtBlock(), clock);
     }
 
+    /** Công cụ giám sát (Q92, Q93, Q95): đọc sự kiện đã đánh chỉ mục và khối trên O1. */
+    @Bean
+    JdbcIndexedEvents indexedEvents(JdbcTemplate jdbc, ChainNodes nodes, Indexer indexer, JsonMapper json) {
+        return new JdbcIndexedEvents(jdbc, nodes, indexer, json);
+    }
+
     @Bean
     TxTracker txTracker(
             ChainNodes nodes, Indexer indexer, JdbcTemplate jdbc, TransactionTemplate tx, Events events, Clock clock) {
