@@ -204,12 +204,15 @@ public class PaymentService {
                     "SELECT COALESCE(MAX(batch_no), 0) + 1 FROM distribution.payment_batch WHERE offering_id = ?",
                     Integer.class, offering);
             UUID batch = Ids.newId();
+            String currency = String.valueOf(items.getFirst().get("currency")).trim();
+            String batchHash = batchHash(controller, batchNo, items.size(), total, currency);
             jdbc.update("""
                     INSERT INTO distribution.payment_batch
-                        (id, offering_id, batch_no, item_count, total_amount_minor, currency, merkle_root, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'BUILT', ?)
-                    """, batch, offering, batchNo, items.size(), total, items.getFirst().get("currency"), root,
-                    Timestamp.from(clock.instant()));
+                        (id, offering_id, batch_no, item_count, total_amount_minor, currency, merkle_root, status, created_at,
+                         batch_hash)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'BUILT', ?, ?)
+                    """, batch, offering, batchNo, items.size(), total, currency, root, Timestamp.from(clock.instant()),
+                    batchHash);
             for (int i = 0; i < items.size(); i++) {
                 jdbc.update("""
                         UPDATE distribution.payment_confirmation SET payment_batch_id = ?, payment_leaf_hash = ? WHERE id = ?
@@ -217,10 +220,28 @@ public class PaymentService {
             }
             audit.record("PAYMENT_BATCH_BUILT", "payment-batch/" + batch, Map.of("offeringId", offering.toString(),
                     "batchNo", batchNo, "itemCount", items.size(), "totalAmountMinor", Long.toString(total),
-                    "merkleRoot", root));
+                    "merkleRoot", root, "batchHash", batchHash));
             created.add(batch);
         }
         return created;
+    }
+
+    /**
+     * Q129: {@code keccak256(abi.encode(seriesController, batchNo uint32, itemCount uint32, totalAmountMinor uint256,
+     * currency bytes3))}; {@code bytes3} căn trái, thêm 0 bên phải.
+     */
+    public static String batchHash(String controller, int batchNo, int itemCount, long totalAmountMinor, String currency) {
+        byte[] code = currency.getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        if (code.length != 3) {
+            throw new IllegalArgumentException("mã tiền phải 3 ký tự: " + currency);
+        }
+        java.nio.ByteBuffer buf = java.nio.ByteBuffer.allocate(160);
+        buf.position(12).put(org.web3j.utils.Numeric.hexStringToByteArray(controller));
+        buf.position(64 - 4).putInt(batchNo);
+        buf.position(96 - 4).putInt(itemCount);
+        buf.position(128 - 8).putLong(totalAmountMinor);
+        buf.position(128).put(code);
+        return AllocationMerkle.hex(org.web3j.crypto.Hash.sha3(buf.array()));
     }
 
     public enum Step { WAIT_LIST_SIGNED, TRACK_PAYMENTS, WAIT_BIDV_BATCH, MINTING, WAIT_VSDC, DONE }

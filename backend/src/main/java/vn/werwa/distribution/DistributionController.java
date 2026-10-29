@@ -34,7 +34,7 @@ import vn.werwa.platform.openapi.model.TransferCreate;
 import vn.werwa.platform.web.ETags;
 import vn.werwa.platform.web.Paging;
 
-/** API Phân phối (B7a, B8a, B11a, B9a, B9c). Thao tác chưa làm trả 501 (Q20). */
+/** API Phân phối (B7a, B8a, B11a, B9a, B9c, B7b, B8b). Thao tác chưa làm trả 501 (Q20). */
 @RestController
 class DistributionController implements DistributionApi {
 
@@ -46,12 +46,18 @@ class DistributionController implements DistributionApi {
     private final TransferService transfers;
     private final vn.werwa.distribution.holding.HoldingsService holdings;
     private final vn.werwa.distribution.allocation.AllocationSigning allocationSigning;
+    private final vn.werwa.distribution.payment.PaymentBatchSigning batchSigning;
+    private final vn.werwa.distribution.payment.MintOrchestrator mints;
 
     DistributionController(OfferingService offerings, OrderService orders, AllocationListService lists,
             vn.werwa.distribution.payment.PaymentService payments, vn.werwa.distribution.payout.PayoutService payouts,
             TransferService transfers, vn.werwa.distribution.holding.HoldingsService holdings,
-            vn.werwa.distribution.allocation.AllocationSigning allocationSigning) {
+            vn.werwa.distribution.allocation.AllocationSigning allocationSigning,
+            vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
+            vn.werwa.distribution.payment.MintOrchestrator mints) {
         this.allocationSigning = allocationSigning;
+        this.batchSigning = batchSigning;
+        this.mints = mints;
         this.holdings = holdings;
         this.transfers = transfers;
         this.payouts = payouts;
@@ -274,6 +280,76 @@ class DistributionController implements DistributionApi {
         ref.setApprovalRequestId(lists.get(id).approvalRequestId());
         ref.setStatus(SigningProposalRef.StatusEnum.fromValue(r.status()));
         return ResponseEntity.accepted().body(ref);
+    }
+
+    // ---------- B8b: lô xác nhận BIDV, mint (Q131, Q135) ----------
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ListPaymentBatches200Response> listPaymentBatches(
+            UUID offeringId, String status, String cursor, Integer limit) {
+        Paging.Page<vn.werwa.distribution.payment.PaymentBatchSigning.Batch> page =
+                batchSigning.list(offeringId, status, cursor, limit);
+        vn.werwa.platform.openapi.model.ListPaymentBatches200Response out =
+                new vn.werwa.platform.openapi.model.ListPaymentBatches200Response();
+        out.setItems(page.items().stream().map(DistributionController::view).toList());
+        out.setNextCursor(page.nextCursor());
+        return ResponseEntity.ok(out);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.PaymentBatch> getPaymentBatch(UUID id) {
+        return ResponseEntity.ok(view(batchSigning.get(id)));
+    }
+
+    @Override
+    public ResponseEntity<SigningProposalRef> proposePaymentBatchSigning(UUID id, String idempotencyKey) {
+        vn.werwa.governance.api.SigningProposals.Ref r = batchSigning.propose(id);
+        SigningProposalRef ref = new SigningProposalRef();
+        ref.setSigningProposalId(r.id());
+        ref.setStatus(SigningProposalRef.StatusEnum.fromValue(r.status()));
+        return ResponseEntity.accepted().body(ref);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ChainTxRef> retryMint(UUID id, String idempotencyKey) {
+        vn.werwa.distribution.payment.MintOrchestrator.Attempt a = mints.submit(id, true);
+        if (a.chainTxId() == null) {
+            // Đã mint trên chuỗi, chờ indexer
+            throw new vn.werwa.platform.web.ApiException(DistributionError.ALLOCATION_NOT_MINTABLE, a.skippedReason());
+        }
+        vn.werwa.platform.openapi.model.ChainTxRef ref = new vn.werwa.platform.openapi.model.ChainTxRef();
+        ref.setChainTxId(a.chainTxId());
+        ref.setStatus(vn.werwa.platform.openapi.model.ChainTxRef.StatusEnum.BUILT);
+        return ResponseEntity.accepted().body(ref);
+    }
+
+    static vn.werwa.platform.openapi.model.PaymentBatch view(vn.werwa.distribution.payment.PaymentBatchSigning.Batch b) {
+        vn.werwa.platform.openapi.model.PaymentBatch v = new vn.werwa.platform.openapi.model.PaymentBatch();
+        v.setId(b.id());
+        v.setOfferingId(b.offeringId());
+        v.setBatchNo(b.batchNo());
+        v.setStatus(vn.werwa.platform.openapi.model.PaymentBatch.StatusEnum.fromValue(b.status()));
+        v.setItemCount(b.itemCount());
+        v.setTotalAmount(money(b.totalAmountMinor(), b.currency()));
+        v.setMerkleRoot(b.merkleRoot());
+        v.setBatchHash(b.batchHash());
+        v.setSigningProposalId(b.signingProposalId());
+        v.setSignedTxHash(b.signedTxHash());
+        v.setCreatedAt(utc(b.createdAt()));
+        v.setItems(b.items().stream().map(i -> {
+            vn.werwa.platform.openapi.model.PaymentBatchItemsInner it =
+                    new vn.werwa.platform.openapi.model.PaymentBatchItemsInner();
+            it.setAllocationId(i.allocationId());
+            it.setAmount(money(i.amountMinor(), i.currency()));
+            it.setBankRefHash(i.bankRefHash());
+            it.setLeaf(i.leaf());
+            it.setAllocationStatus(vn.werwa.platform.openapi.model.PaymentBatchItemsInner.AllocationStatusEnum
+                    .fromValue(i.allocationStatus()));
+            it.setMintTxHash(i.mintTxHash());
+            it.setMintFailureReason(i.mintFailureReason());
+            return it;
+        }).toList());
+        return v;
     }
 
     @Override

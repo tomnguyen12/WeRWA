@@ -2,26 +2,21 @@ package vn.werwa.distribution;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.web3j.crypto.Hash;
-import vn.werwa.issuance.SeriesChainTest;
 import vn.werwa.issuance.TestDocuments;
-import vn.werwa.onchain.api.ContractCalls;
 import vn.werwa.onchain.api.contracts.SeriesController;
 import vn.werwa.platform.OpenApiSchemas;
 
@@ -29,62 +24,7 @@ import vn.werwa.platform.OpenApiSchemas;
  * UBND ký danh sách phân bổ trên chuỗi với Besu, Safe và nền tảng thật (US-3.03-AC3, AC4, US-2.06-AC3; Q121–Q127): series
  * Sẵn sàng, mở sổ, đặt lệnh, lập và duyệt danh sách, Safe UBND ký 2/3, indexer đọc AllocationSet.
  */
-class AllocationSignIT extends SeriesChainTest {
-
-    static final String SYNDICATE = "01a15bc1-f402-7188-aa1d-f504e6afe7e1";
-
-    @Autowired
-    ContractCalls calls;
-
-    static RequestPostProcessor user(String org, String role) {
-        return jwt().jwt(j -> j.subject(UUID.randomUUID().toString()).claim("org_id", org).claim("roles", List.of(role)));
-    }
-
-    static final RequestPostProcessor SYNDICATE_USER = user(SYNDICATE, "SYNDICATE");
-
-    /** Nhà đầu tư đã qua KYC (loại FOREIGN_INSTITUTION) và có ví đã đăng ký (B5b nạp thẳng). */
-    record Investor(UUID org, UUID wallet, RequestPostProcessor user) {}
-
-    Investor investor() throws Exception {
-        UUID org = UUID.randomUUID();
-        jdbc.update("""
-                INSERT INTO onboarding.organization (id, legal_name, registration_no, country, roles, kyb_status, created_at, updated_at)
-                VALUES (?, ?, ?, 'SG', ARRAY['INVESTOR'], 'KYB_APPROVED', now(), now())
-                """, org, "Nhà đầu tư thử " + org, "A-" + org);
-        MvcResult kyc = post("/v1/kyc-cases", SYNDICATE_USER, Map.of("organizationId", org.toString()));
-        status(kyc, 201);
-        status(post("/v1/kyc-cases/" + body(kyc).get("id") + "/decision", as("holco"),
-                Map.of("decision", "APPROVE", "investorClass", "FOREIGN_INSTITUTION")), 200);
-        UUID wallet = UUID.randomUUID();
-        byte[] address = new byte[20];
-        RANDOM.nextBytes(address);
-        jdbc.update("""
-                INSERT INTO onboarding.wallet (id, organization_id, chain_id, address, wallet_type, status, created_at, updated_at)
-                VALUES (?, ?, 20261, ?, 'SELF', 'REGISTERED', now(), now())
-                """, wallet, org, "0x" + HexFormat.of().formatHex(address));
-        return new Investor(org, wallet, user(org.toString(), "INVESTOR"));
-    }
-
-    UUID order(UUID offering, Investor who, long quantity) throws Exception {
-        MvcResult r = post("/v1/offerings/" + offering + "/orders", who.user(), Map.of("investorOrgId", who.org().toString(),
-                "walletId", who.wallet().toString(), "ratePpm", 50_000, "quantity", quantity));
-        status(r, 201);
-        return id(r);
-    }
-
-    static Map<String, Object> item(UUID order, long quantity, String reason) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("orderId", order.toString());
-        m.put("quantity", quantity);
-        if (reason != null) {
-            m.put("adjustmentReason", reason);
-        }
-        return m;
-    }
-
-    String orderStatus(UUID order) {
-        return jdbc.queryForObject("SELECT status FROM distribution.\"order\" WHERE id = ?", String.class, order);
-    }
+class AllocationSignIT extends AllocationChainTest {
 
     /** OZ MerkleProof: băm cặp theo thứ tự tăng. */
     static byte[] fold(byte[] leaf, List<String> proof) {

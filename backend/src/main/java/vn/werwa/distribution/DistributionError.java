@@ -45,7 +45,13 @@ public enum DistributionError implements ErrorCode {
     TRANSFER_RECIPIENT_NOT_ELIGIBLE(HttpStatus.UNPROCESSABLE_CONTENT, "Bên nhận không đủ điều kiện nắm giữ series"),
     TRANSFER_SERIES_NOT_ACTIVE(HttpStatus.CONFLICT, "Series không ở Đang lưu hành"),
     TRANSFER_NOT_PENDING(HttpStatus.CONFLICT, "Yêu cầu chuyển không còn chờ xác nhận"),
-    TRANSFER_ALREADY_CONFIRMED(HttpStatus.CONFLICT, "Bên nhận đã xác nhận");
+    TRANSFER_ALREADY_CONFIRMED(HttpStatus.CONFLICT, "Bên nhận đã xác nhận"),
+    // B8b (Q131, Q135)
+    PAYMENT_BATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có lô xác nhận này"),
+    PAYMENT_BATCH_SIGNING_PENDING(HttpStatus.CONFLICT, "Lô đã có đề nghị ký đang mở"),
+    PAYMENT_BATCH_NOT_SIGNABLE(HttpStatus.CONFLICT, "Lô đã được BIDV ký"),
+    ALLOCATION_NOT_MINTABLE(HttpStatus.CONFLICT, "Phân bổ chưa đủ điều kiện mint"),
+    MINT_PENDING(HttpStatus.CONFLICT, "Phân bổ đang có giao dịch mint chờ");
 
     private final HttpStatus status;
     private final String title;

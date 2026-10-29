@@ -11,6 +11,7 @@ import vn.werwa.onchain.api.TokenBalances;
 class Web3jTokenBalances implements TokenBalances {
 
     private static final String BALANCE_OF = "0x70a08231";
+    private static final String TOTAL_SUPPLY = "0x18160ddd";
     private static final String ZERO = "0x0000000000000000000000000000000000000000";
 
     private final ChainNodes nodes;
@@ -21,11 +22,20 @@ class Web3jTokenBalances implements TokenBalances {
 
     @Override
     public long balanceOf(String token, String wallet, long block) {
-        String data = BALANCE_OF + Numeric.toHexStringNoPrefixZeroPadded(Numeric.toBigInt(wallet), 64);
+        return call(token, BALANCE_OF + Numeric.toHexStringNoPrefixZeroPadded(Numeric.toBigInt(wallet), 64), block,
+                "balanceOf");
+    }
+
+    @Override
+    public long totalSupply(String token, long block) {
+        return call(token, TOTAL_SUPPLY, block, "totalSupply");
+    }
+
+    private long call(String token, String data, long block, String what) {
         EthCall result = nodes.read("eth_call", w -> w.ethCall(Transaction.createEthCallTransaction(ZERO, token, data),
                 DefaultBlockParameter.valueOf(BigInteger.valueOf(block))).send());
         if (result.hasError() || result.isReverted()) {
-            throw new IllegalStateException("balanceOf lỗi tại khối " + block + ": "
+            throw new IllegalStateException(what + " lỗi tại khối " + block + ": "
                     + (result.hasError() ? result.getError().getMessage() : result.getRevertReason()));
         }
         String value = result.getValue();

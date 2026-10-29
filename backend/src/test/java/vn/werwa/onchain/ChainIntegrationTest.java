@@ -42,6 +42,8 @@ public abstract class ChainIntegrationTest extends IntegrationTest {
 
     public static final Credentials OPERATOR = Credentials.create(newKey());
     static final Credentials DEPLOYER = Credentials.create(newKey());
+    /** Khóa ký claim thử của Holco (Q136): ClaimIssuer của nền tảng nhận khóa này với mục đích CLAIM. */
+    public static final Credentials CLAIM_SIGNER = Credentials.create(newKey());
     static final ECKeyPair VALIDATOR = newKey();
 
     @SuppressWarnings("resource")
@@ -87,6 +89,11 @@ public abstract class ChainIntegrationTest extends IntegrationTest {
         Deployment d = deployPlatform();
         CONTRACTS = d.contracts();
         DEPLOYED_AT_BLOCK = d.lastBlock();
+    }
+
+    /** Địa chỉ hợp đồng dùng chung của nền tảng theo tên trong kết quả triển khai, ví dụ {@code identityRegistry}. */
+    public static String contract(String name) {
+        return CONTRACTS.get(name);
     }
 
     /** Khóa người ký thử thứ {@code i} (1–3) của Safe tổ chức {@code org}, do safe.sh sinh. */
@@ -210,7 +217,7 @@ public abstract class ChainIntegrationTest extends IntegrationTest {
                 "WERWA_GOVERNANCE_3OF3", SAFES.get("governance3of3"),
                 "WERWA_CANCELLERS", SAFES.get("ubnd") + "," + SAFES.get("vsdc") + "," + SAFES.get("holco"),
                 "WERWA_HOLCO_SAFE", SAFES.get("holco"),
-                "WERWA_HOLCO_CLAIM_SIGNER", "0x00000000000000000000000000000000000000C2",
+                "WERWA_HOLCO_CLAIM_SIGNER", CLAIM_SIGNER.getAddress(),
                 "WERWA_HOLCO_OPERATOR", OPERATOR.getAddress(),
                 "WERWA_TIMELOCK_DELAY", "3600");
         run(contracts, env, "forge", "script", "script/DeployPlatform.s.sol",

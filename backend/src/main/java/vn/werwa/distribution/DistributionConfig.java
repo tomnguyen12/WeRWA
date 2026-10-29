@@ -137,7 +137,9 @@ class DistributionConfig {
     /** Q84, Q85: bộ chiếu nhận sự kiện indexer; xử lý lặp lại an toàn nhờ khóa (chuỗi, khối, log, ví). */
     @Bean
     vn.werwa.platform.events.EventHandler distributionOnEventIndexed(vn.werwa.distribution.holding.HoldingsService holdings,
-            vn.werwa.distribution.allocation.AllocationSigning allocationSigning) {
+            vn.werwa.distribution.allocation.AllocationSigning allocationSigning,
+            vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
+            vn.werwa.distribution.payment.MintOrchestrator mints) {
         return new vn.werwa.platform.events.EventHandler() {
             @Override
             public String consumer() {
@@ -157,6 +159,18 @@ class DistributionConfig {
                     // B7b (Q124): UBND đã ký danh sách phân bổ
                     allocationSigning.onAllocationSet(String.valueOf(d.get("contract")),
                             (Map<String, Object>) d.get("args"), String.valueOf(d.get("txHash")));
+                    return;
+                }
+                if ("series.controller".equals(d.get("contractKind")) && "PaymentBatchAdded".equals(d.get("eventName"))) {
+                    // B8b (Q132): BIDV đã ký gốc lô
+                    batchSigning.onPaymentBatchAdded(String.valueOf(d.get("contract")),
+                            (Map<String, Object>) d.get("args"), String.valueOf(d.get("txHash")));
+                    return;
+                }
+                if ("series.controller".equals(d.get("contractKind")) && "Minted".equals(d.get("eventName"))) {
+                    // B8b (Q134): phân bổ đã mint
+                    mints.onMinted(String.valueOf(d.get("contract")), (Map<String, Object>) d.get("args"),
+                            String.valueOf(d.get("txHash")), ((Number) d.get("block")).longValue());
                     return;
                 }
                 if (!vn.werwa.distribution.holding.HoldingsService.TOKEN_KIND.equals(d.get("contractKind"))) {
@@ -245,17 +259,66 @@ class DistributionConfig {
     /** Q53, Q54: việc định kỳ của bộ điều phối ghi sổ. */
     @Bean
     @ConditionalOnProperty(name = "werwa.distribution.book-scheduler-enabled", havingValue = "true", matchIfMissing = true)
-    PaymentJobs paymentJobs(vn.werwa.distribution.payment.PaymentService payments, Clock clock) {
-        return new PaymentJobs(payments, clock);
+    PaymentJobs paymentJobs(vn.werwa.distribution.payment.PaymentService payments,
+            vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
+            vn.werwa.distribution.payment.MintOrchestrator mints,
+            org.springframework.transaction.PlatformTransactionManager txManager, AuditLog audit, Clock clock) {
+        return new PaymentJobs(payments, batchSigning, mints, separate(txManager), audit, clock);
+    }
+
+    static org.springframework.transaction.support.TransactionTemplate separate(
+            org.springframework.transaction.PlatformTransactionManager txManager) {
+        org.springframework.transaction.support.TransactionTemplate t =
+                new org.springframework.transaction.support.TransactionTemplate(txManager);
+        t.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return t;
+    }
+
+    /** Q130: mỗi lô một đề nghị ký, giao dịch riêng; không tạo được thì ghi nhật ký (Holco tạo lại qua API). */
+    static void proposeBatches(java.util.List<UUID> batches,
+            vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
+            org.springframework.transaction.support.TransactionTemplate separate, AuditLog audit) {
+        for (UUID batch : batches) {
+            try {
+                separate.executeWithoutResult(s -> batchSigning.propose(batch));
+            } catch (RuntimeException e) {
+                audit.record("PAYMENT_BATCH_SIGNING_PROPOSAL_FAILED", "payment-batch/" + batch,
+                        Map.of("reason", String.valueOf(e.getMessage())));
+            }
+        }
+    }
+
+    /** Q133: mỗi phân bổ một giao dịch riêng; lỗi một mục không chặn mục khác. */
+    static void mintEach(java.util.List<UUID> allocations, vn.werwa.distribution.payment.MintOrchestrator mints,
+            org.springframework.transaction.support.TransactionTemplate separate) {
+        for (UUID allocation : allocations) {
+            try {
+                separate.executeWithoutResult(s -> mints.submit(allocation, false));
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(DistributionConfig.class)
+                        .warn("Chưa gửi được mint phân bổ {}: {}", allocation, e.toString());
+            }
+        }
     }
 
     static class PaymentJobs {
 
         private final vn.werwa.distribution.payment.PaymentService payments;
+        private final vn.werwa.distribution.payment.PaymentBatchSigning batchSigning;
+        private final vn.werwa.distribution.payment.MintOrchestrator mints;
+        private final org.springframework.transaction.support.TransactionTemplate separate;
+        private final AuditLog audit;
         private final Clock clock;
 
-        PaymentJobs(vn.werwa.distribution.payment.PaymentService payments, Clock clock) {
+        PaymentJobs(vn.werwa.distribution.payment.PaymentService payments,
+                vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
+                vn.werwa.distribution.payment.MintOrchestrator mints,
+                org.springframework.transaction.support.TransactionTemplate separate, AuditLog audit, Clock clock) {
             this.payments = payments;
+            this.batchSigning = batchSigning;
+            this.mints = mints;
+            this.separate = separate;
+            this.audit = audit;
             this.clock = clock;
         }
 
@@ -263,11 +326,93 @@ class DistributionConfig {
         void tick() {
             try {
                 payments.markOverdue(clock.instant());
-                payments.buildBatches();
+                proposeBatches(payments.buildBatches(), batchSigning, separate, audit);
             } catch (RuntimeException e) {
                 org.slf4j.LoggerFactory.getLogger(PaymentJobs.class).warn("Lượt theo dõi tiền lỗi: {}", e.toString());
             }
         }
+
+        /** Q133: quét bù các phân bổ có tiền trong lô đã ký mà chưa gửi mint. */
+        @Scheduled(fixedDelayString = "${werwa.distribution.mint-sweep-interval:PT5M}")
+        void mintSweep() {
+            try {
+                mintEach(mints.pendingAll(), mints, separate);
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(PaymentJobs.class).warn("Lượt quét mint lỗi: {}", e.toString());
+            }
+        }
+    }
+
+    /** B8b: BIDV ký gốc lô (Q129–Q132). */
+    @Bean
+    vn.werwa.distribution.payment.PaymentBatchSigning paymentBatchSigning(JdbcTemplate jdbc, SeriesCatalog series,
+            vn.werwa.governance.api.SigningProposals proposals, vn.werwa.governance.api.OperationalAlerts alerts,
+            Events events, AuditLog audit, Clock clock) {
+        return new vn.werwa.distribution.payment.PaymentBatchSigning(jdbc, series, proposals, alerts, events, audit,
+                clock);
+    }
+
+    /** B8b: bộ điều phối mint (Q133–Q135). */
+    @Bean
+    vn.werwa.distribution.payment.MintOrchestrator mintOrchestrator(JdbcTemplate jdbc, AllocationListService lists,
+            vn.werwa.onchain.api.ChainTransactions chain, vn.werwa.onchain.api.ContractCalls calls,
+            vn.werwa.governance.api.OperationalAlerts alerts, Events events, AuditLog audit, Clock clock) {
+        return new vn.werwa.distribution.payment.MintOrchestrator(jdbc, lists, chain, calls, alerts, events, audit,
+                clock);
+    }
+
+    /** R4 (Q138): tổng cung token bằng tổng đã mint. */
+    @Bean
+    vn.werwa.distribution.payment.SupplyCheck supplyCheck(vn.werwa.distribution.payment.MintOrchestrator mints,
+            SeriesCatalog series, vn.werwa.onchain.api.ContractCalls calls, vn.werwa.onchain.api.TokenBalances balances,
+            vn.werwa.onchain.api.IndexedEvents indexed) {
+        return new vn.werwa.distribution.payment.SupplyCheck(mints, series, calls, balances, indexed);
+    }
+
+    /** Q133: lô vừa được BIDV ký thì gửi mint các phân bổ trong lô. */
+    @Bean
+    vn.werwa.platform.events.EventHandler distributionOnPaymentBatchSigned(
+            vn.werwa.distribution.payment.MintOrchestrator mints,
+            org.springframework.transaction.PlatformTransactionManager txManager) {
+        org.springframework.transaction.support.TransactionTemplate separate = separate(txManager);
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "distribution";
+            }
+
+            @Override
+            public String eventType() {
+                return vn.werwa.distribution.payment.PaymentBatchSigning.SIGNED_EVENT;
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                mintEach(mints.pending(UUID.fromString(String.valueOf(event.data().get("batchId")))), mints, separate);
+            }
+        };
+    }
+
+    /** Q135: giao dịch mint revert trên chuỗi. */
+    @Bean
+    vn.werwa.platform.events.EventHandler distributionOnTxFailed(vn.werwa.distribution.payment.MintOrchestrator mints) {
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "distribution";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.onchain.tx.failed.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                mints.onTxFailed(UUID.fromString(String.valueOf(event.data().get("txId"))),
+                        String.valueOf(event.data().get("reason")));
+            }
+        };
     }
 
     /** R2 (Q73): tổng danh sách đã ký không vượt khối lượng tối đa series và bằng tổng các mục. */
