@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.10.0
+  version: 0.11.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -2158,6 +2158,44 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /v1/reconciliation/breaks/{id}/resolve:
+    post:
+      tags:
+      - governance
+      operationId: resolveReconciliationBreak
+      summary: Người xử lý đóng chênh lệch đối soát, ghi lý do (US-4.09-AC2, Q75)
+      x-werwa-function: '4.09'
+      x-werwa-callers: Holco vận hành
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconciliationResolve'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationBreak'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/reconciliation/runs:
     get:
       tags:
@@ -2170,6 +2208,7 @@ paths:
       - OPERATOR
       - PAYING_AGENT
       - REGISTRAR
+      - SUPERVISOR
       parameters:
       - $ref: '#/components/parameters/Cursor'
       - $ref: '#/components/parameters/Limit'
@@ -4215,29 +4254,65 @@ components:
           - CHAIN_VS_VIEW
           - CHAIN_VS_BANK
           - BLOCK_HASH_VSDC
+          - LIMITS
+          - AUDIT_CHAIN
+          description: LIMITS (R1, R2) và AUDIT_CHAIN (R8) kiểm ngoài chuỗi (Q74)
         breakCount:
           type: integer
         breaks:
           type: array
           items:
-            type: object
-            required:
-            - kind
-            - subjectRef
-            properties:
-              kind:
-                type: string
-              subjectRef:
-                type: string
-              expected:
-                type: string
-              actual:
-                type: string
-              resolvedBy:
-                type: string
-                format: uuid
-                description: UUIDv7
-            additionalProperties: false
+            $ref: '#/components/schemas/ReconciliationBreak'
+      additionalProperties: false
+    ReconciliationBreak:
+      type: object
+      required:
+      - id
+      - rule
+      - kind
+      - subjectRef
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        rule:
+          type: string
+          enum:
+          - R1
+          - R2
+          - R3
+          - R4
+          - R5
+          - R6
+          - R7
+          - R8
+        kind:
+          type: string
+        subjectRef:
+          type: string
+        expected:
+          type: string
+        actual:
+          type: string
+        resolvedBy:
+          type: string
+          format: uuid
+          description: UUIDv7
+        resolvedAt:
+          type: string
+          format: date-time
+        resolution:
+          type: string
+      additionalProperties: false
+    ReconciliationResolve:
+      type: object
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 1
       additionalProperties: false
     BidvCreditNotification:
       type: object
