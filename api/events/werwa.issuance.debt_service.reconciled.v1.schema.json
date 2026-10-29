@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.issuance.debt_service.reconciled.v1.schema.json",
+  "title": "werwa.issuance.debt_service.reconciled.v1",
+  "description": "Bên phát: Phát hành. Bên nhận: Onchain (kỳ gốc: mature, hủy trái phiếu ở B13b). Kỳ trả nợ đã chi và khớp (Q105).",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.issuance.debt_service.reconciled.v1"
+    },
+    "source": {
+      "const": "/werwa/issuance"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "seriesId",
+        "period",
+        "eventType",
+        "paidMinor",
+        "withheldMinor",
+        "currency"
+      ],
+      "properties": {
+        "seriesId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "period": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "eventType": {
+          "type": "string",
+          "enum": [
+            "COUPON",
+            "MATURITY"
+          ]
+        },
+        "paidMinor": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Số tiền theo đơn vị nhỏ nhất, dạng chuỗi"
+        },
+        "withheldMinor": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Phần giữ lại tại IPA (vị thế phong tỏa)"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

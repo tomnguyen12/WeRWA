@@ -45,6 +45,11 @@ events:
   producerVi: Phát hành
   consumers: Quản trị (cảnh báo)
   schema: werwa.issuance.debt_service.funding_short.v1.schema.json
+- type: werwa.issuance.debt_service.reconciled.v1
+  producer: issuance
+  producerVi: Phát hành
+  consumers: Onchain
+  schema: werwa.issuance.debt_service.reconciled.v1.schema.json
 - type: werwa.distribution.offering.closed.v1
   producer: distribution
   producerVi: Phân phối
