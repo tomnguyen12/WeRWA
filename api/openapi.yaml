@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.18.0
+  version: 0.19.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1202,6 +1202,168 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SigningProposalRef'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/payment-batches:
+    get:
+      tags:
+      - distribution
+      operationId: listPaymentBatches
+      summary: Lô xác nhận đã nhận tiền của một đợt chào bán, mới nhất trước (Q131)
+      description: BIDV xem lô trước khi ký gốc lô qua Safe BIDV.
+      x-werwa-function: '3.05'
+      x-werwa-callers: BIDV, Holco, UBND, VSDC, Cơ quan giám sát
+      x-werwa-roles:
+      - OPERATOR
+      - PAYING_AGENT
+      - ISSUER
+      - REGISTRAR
+      - SUPERVISOR
+      parameters:
+      - name: offeringId
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - BUILT
+          - SIGNING
+          - SIGNED
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaymentBatch'
+                  nextCursor:
+                    type: string
+                additionalProperties: false
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/payment-batches/{id}:
+    get:
+      tags:
+      - distribution
+      operationId: getPaymentBatch
+      summary: Một lô xác nhận kèm các mục và lá Merkle (Q131)
+      x-werwa-function: '3.05'
+      x-werwa-callers: BIDV, Holco, UBND, VSDC, Cơ quan giám sát
+      x-werwa-roles:
+      - OPERATOR
+      - PAYING_AGENT
+      - ISSUER
+      - REGISTRAR
+      - SUPERVISOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentBatch'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/payment-batches/{id}/signing-proposal:
+    post:
+      tags:
+      - distribution
+      operationId: proposePaymentBatchSigning
+      summary: Tạo lại đề nghị ký addPaymentBatch khi đề nghị trước FAILED hoặc CANCELLED (Q130, Q131)
+      description: Đề nghị tự tạo khi lô được gom; thao tác này chỉ dùng khi đề nghị trước không thành. Đề nghị cũ còn mở thì 409 PAYMENT_BATCH_SIGNING_PENDING; lô đã ký thì 409 PAYMENT_BATCH_NOT_SIGNABLE.
+      x-werwa-function: '3.05'
+      x-werwa-callers: Holco
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã tạo đề nghị ký
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SigningProposalRef'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/allocations/{id}/mint:
+    post:
+      tags:
+      - distribution
+      operationId: retryMint
+      summary: Gửi lại giao dịch mint một phân bổ sau khi mint bị từ chối (Q135)
+      description: Bộ điều phối không tự thử lại khi hợp đồng từ chối. Phân bổ phải PAID, nằm trong lô BIDV đã ký, chưa mint trên chuỗi; ví phải đã xác minh định danh. Đang có giao dịch mint chờ thì 409 MINT_PENDING; không đủ điều kiện thì 409 ALLOCATION_NOT_MINTABLE.
+      x-werwa-function: '3.05'
+      x-werwa-callers: Holco
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã xếp giao dịch mint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChainTxRef'
         4XX:
           description: Lỗi
           content:
@@ -2902,6 +3064,24 @@ components:
         code:
           type: string
           description: Mã lỗi nghiệp vụ, ví dụ ALLOCATION_EXCEEDS_MAX
+    ChainTxRef:
+      type: object
+      required:
+      - chainTxId
+      - status
+      properties:
+        chainTxId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        status:
+          type: string
+          enum:
+          - BUILT
+          - SENT
+          - MINED
+          - FAILED
+      additionalProperties: false
     SigningProposalRef:
       type: object
       required:
@@ -4174,6 +4354,96 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AllocationItem'
+      additionalProperties: false
+    PaymentBatch:
+      type: object
+      required:
+      - id
+      - offeringId
+      - batchNo
+      - status
+      - itemCount
+      - totalAmount
+      - merkleRoot
+      - batchHash
+      - items
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        offeringId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        batchNo:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+          - BUILT
+          - SIGNING
+          - SIGNED
+        itemCount:
+          type: integer
+          minimum: 1
+        totalAmount:
+          $ref: '#/components/schemas/Money'
+        merkleRoot:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        batchHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+          description: keccak256(abi.encode(seriesController, batchNo uint32, itemCount uint32, totalAmountMinor uint256, currency bytes3)) (Q129)
+        signingProposalId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        signedTxHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - allocationId
+            - amount
+            - bankRefHash
+            - leaf
+            - allocationStatus
+            properties:
+              allocationId:
+                type: string
+                format: uuid
+                description: UUIDv7
+              amount:
+                $ref: '#/components/schemas/Money'
+              bankRefHash:
+                type: string
+                pattern: ^0x[0-9a-fA-F]{64}$
+              leaf:
+                type: string
+                pattern: ^0x[0-9a-fA-F]{64}$
+              allocationStatus:
+                type: string
+                enum:
+                - PAID
+                - MINTED
+                - CONFIRMED
+                - NEEDS_CORRECTION
+              mintTxHash:
+                type: string
+                pattern: ^0x[0-9a-fA-F]{64}$
+              mintFailureReason:
+                type: string
+            additionalProperties: false
+        createdAt:
+          type: string
+          format: date-time
       additionalProperties: false
     AllocationProof:
       type: object
