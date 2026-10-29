@@ -53,6 +53,10 @@
           "type": "string",
           "format": "date-time",
           "description": "Giờ của khối theo header (Q84)"
+        },
+        "chainId": {
+          "type": "integer",
+          "description": "Mã chuỗi; khóa chống trùng cùng block và logIndex (Q85)"
         }
       },
       "additionalProperties": true
