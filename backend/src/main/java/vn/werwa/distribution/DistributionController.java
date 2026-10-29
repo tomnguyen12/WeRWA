@@ -34,9 +34,11 @@ class DistributionController implements DistributionApi {
     private final OrderService orders;
     private final AllocationListService lists;
     private final vn.werwa.distribution.payment.PaymentService payments;
+    private final vn.werwa.distribution.payout.PayoutService payouts;
 
     DistributionController(OfferingService offerings, OrderService orders, AllocationListService lists,
-            vn.werwa.distribution.payment.PaymentService payments) {
+            vn.werwa.distribution.payment.PaymentService payments, vn.werwa.distribution.payout.PayoutService payouts) {
+        this.payouts = payouts;
         this.payments = payments;
         this.offerings = offerings;
         this.orders = orders;
@@ -148,6 +150,43 @@ class DistributionController implements DistributionApi {
         v.setOverdue(p.overdue());
         v.setAlerts(p.alerts());
         return ResponseEntity.ok(v);
+    }
+
+    /** US-2.09 (B11a): danh sách chốt đã tính dòng chi trả. */
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.Snapshot> getSnapshot(UUID id, Integer period) {
+        vn.werwa.distribution.payout.PayoutService.Snapshot s = payouts.snapshot(id, period);
+        var v = new vn.werwa.platform.openapi.model.Snapshot();
+        v.setSeriesId(s.seriesId());
+        v.setPeriodNo(s.periodNo());
+        v.setRecordBlock((int) s.recordBlock());
+        v.setRegisterHash(s.registerHash());
+        v.setRegistrarAttestedAt(s.registrarAttestedAt() == null ? null : s.registrarAttestedAt().atOffset(ZoneOffset.UTC));
+        v.setHolderCount(s.holderCount());
+        v.setTotalQuantity(s.totalQuantity());
+        v.setRatePpm(s.ratePpm());
+        v.setAmountDue(s.amountDueMinor() == null ? null : money(s.amountDueMinor(), s.currency()));
+        v.setRoundingResidual(s.roundingResidualMinor() == null ? null : money(s.roundingResidualMinor(), s.currency()));
+        v.setLines(s.lines().stream().map(l -> {
+            var line = new vn.werwa.platform.openapi.model.SnapshotLinesInner();
+            line.setWalletId(l.walletId());
+            line.setInvestorOrgId(l.investorOrgId());
+            line.setQuantity(l.quantity());
+            line.setGross(money(l.grossMinor(), s.currency()));
+            line.setTax(money(l.taxMinor(), s.currency()));
+            line.setNet(money(l.netMinor(), s.currency()));
+            line.setWithheldReason(l.withheldReason() == null ? null
+                    : vn.werwa.platform.openapi.model.SnapshotLinesInner.WithheldReasonEnum.fromValue(l.withheldReason()));
+            return line;
+        }).toList());
+        return ResponseEntity.ok(v);
+    }
+
+    static Money money(long minor, String currency) {
+        Money m = new Money();
+        m.setAmountMinor(Long.toString(minor));
+        m.setCurrency(currency);
+        return m;
     }
 
     static Offering view(OfferingService.Offering o) {

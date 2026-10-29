@@ -243,6 +243,43 @@ public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog, vn.we
     }
 
     @Override
+    public java.util.Optional<Period> period(UUID seriesId, int periodNo) {
+        return jdbc.query("""
+                SELECT e.id, e.period_no, e.period_start, e.period_end, e.rate_ppm, s.day_count, s.coupon_frequency,
+                       s.face_value_minor, s.currency, s.withholding_tax_ppm
+                FROM issuance.series_event e JOIN issuance.series s ON s.id = e.series_id
+                WHERE e.series_id = ? AND e.period_no = ? AND e.event_type = 'COUPON'
+                """, (rs, i) -> new Period(rs.getObject(1, UUID.class), rs.getInt(2), rs.getObject(3, LocalDate.class),
+                        rs.getObject(4, LocalDate.class), rs.getObject(5, Integer.class), rs.getString(6), rs.getString(7),
+                        rs.getLong(8), rs.getString(9), rs.getInt(10)), seriesId, periodNo).stream().findFirst();
+    }
+
+    @Override
+    @Transactional
+    public void recordAmountDue(UUID seriesId, int periodNo, long amountDueMinor, long roundingResidualMinor) {
+        Period p = period(seriesId, periodNo).orElseThrow(() -> new ApiException(IssuanceError.SERIES_NOT_FOUND));
+        jdbc.update("""
+                INSERT INTO issuance.debt_service
+                    (id, series_event_id, amount_due_minor, rounding_residual_minor, currency, status, calculated_at)
+                VALUES (?, ?, ?, ?, ?, 'CALCULATED', ?)
+                ON CONFLICT (series_event_id) DO UPDATE SET amount_due_minor = excluded.amount_due_minor,
+                    rounding_residual_minor = excluded.rounding_residual_minor, calculated_at = excluded.calculated_at
+                """, Ids.newId(), p.eventId(), amountDueMinor, roundingResidualMinor, p.currency(),
+                Timestamp.from(clock.instant()));
+        audit.record("DEBT_SERVICE_CALCULATED", "series/" + seriesId, Map.of("periodNo", periodNo,
+                "amountDueMinor", Long.toString(amountDueMinor), "roundingResidualMinor", Long.toString(roundingResidualMinor)));
+    }
+
+    @Override
+    public java.util.Optional<DebtService> debtService(UUID seriesId, int periodNo) {
+        return jdbc.query("""
+                SELECT d.amount_due_minor, d.rounding_residual_minor FROM issuance.debt_service d
+                JOIN issuance.series_event e ON e.id = d.series_event_id
+                WHERE e.series_id = ? AND e.period_no = ? AND e.event_type = 'COUPON'
+                """, (rs, i) -> new DebtService(rs.getLong(1), rs.getLong(2)), seriesId, periodNo).stream().findFirst();
+    }
+
+    @Override
     public java.util.Optional<String> seriesStatus(UUID seriesId) {
         return jdbc.queryForList("SELECT status FROM issuance.series WHERE id = ?", String.class, seriesId).stream()
                 .findFirst();

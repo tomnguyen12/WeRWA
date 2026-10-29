@@ -55,6 +55,12 @@ class DistributionConfig {
                 props.paymentGraceBusinessDays(), parameters, notifications, clock);
     }
 
+    @Bean
+    vn.werwa.distribution.payout.PayoutService payouts(JdbcTemplate jdbc, SeriesCatalog series, AuditLog audit,
+            Clock clock) {
+        return new vn.werwa.distribution.payout.PayoutService(jdbc, series, audit, clock);
+    }
+
     /** US-3.05-AC2: đối chiếu báo có từ mô-đun Tích hợp. */
     @Bean
     vn.werwa.platform.events.EventHandler distributionOnCreditReceived(vn.werwa.distribution.payment.PaymentService payments) {

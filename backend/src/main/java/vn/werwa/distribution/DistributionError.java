@@ -32,6 +32,10 @@ public enum DistributionError implements ErrorCode {
     ALLOCATION_EXCEEDS_MAX(HttpStatus.UNPROCESSABLE_CONTENT, "Tổng phân bổ vượt khối lượng tối đa của series"),
     ISSUER_DECISION_REQUIRED(HttpStatus.UNPROCESSABLE_CONTENT, "Chưa có quyết định của UBND về lãi suất"),
     SERIES_NOT_DEPLOYED(HttpStatus.CONFLICT, "Series chưa có địa chỉ hợp đồng"),
+    SNAPSHOT_NOT_FOUND(HttpStatus.NOT_FOUND, "Chưa có danh sách chốt của kỳ này"),
+    SNAPSHOT_NOT_CALCULATED(HttpStatus.CONFLICT, "Danh sách chốt chưa tính dòng chi trả"),
+    PERIOD_RATE_MISSING(HttpStatus.CONFLICT, "Kỳ chưa có lãi suất"),
+    PAYOUT_ALREADY_INSTRUCTED(HttpStatus.CONFLICT, "Kỳ đã có lệnh chi, không tính lại"),
     ALLOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có phân bổ này");
 
     private final HttpStatus status;
