@@ -18,6 +18,9 @@ public enum GovernanceError implements ErrorCode {
             "DOCUMENT_NOT_FOUND"),
     ENFORCEMENT_ORDER_EXISTS(HttpStatus.CONFLICT, "Lệnh cùng cơ quan, số lệnh, hành động đã tiếp nhận"),
     ENFORCEMENT_ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có lệnh phong tỏa này"),
+    RECONCILIATION_BREAK_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có chênh lệch này"),
+    RECONCILIATION_BREAK_RESOLVED(HttpStatus.CONFLICT, "Chênh lệch đã được đóng"),
+    RECONCILIATION_REASON_REQUIRED(HttpStatus.UNPROCESSABLE_CONTENT, "Đóng chênh lệch phải ghi lý do"),
     ALERT_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có cảnh báo này"),
     CHECKER_ROLE_REQUIRED(HttpStatus.FORBIDDEN, "Yêu cầu này phải do vai được chỉ định duyệt");
 

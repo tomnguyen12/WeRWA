@@ -115,6 +115,84 @@ class DistributionConfig {
         }
     }
 
+    /** R2 (Q73): tổng danh sách đã ký không vượt khối lượng tối đa series và bằng tổng các mục. */
+    @Bean
+    vn.werwa.platform.reconciliation.ReconciliationCheck allocationTotalCheck(JdbcTemplate jdbc, SeriesCatalog series) {
+        return new vn.werwa.platform.reconciliation.ReconciliationCheck() {
+            @Override
+            public String rule() {
+                return "R2";
+            }
+
+            @Override
+            public String scope() {
+                return "LIMITS";
+            }
+
+            @Override
+            public java.util.List<Finding> run(java.time.LocalDate runDate) {
+                java.util.List<Finding> out = new java.util.ArrayList<>();
+                jdbc.query("""
+                        SELECT l.id, l.total_quantity, o.series_id, COALESCE(SUM(a.quantity), 0)
+                        FROM distribution.allocation_list l JOIN distribution.offering o ON o.id = l.offering_id
+                        LEFT JOIN distribution.allocation a ON a.allocation_list_id = l.id
+                        WHERE l.status = 'SIGNED' GROUP BY l.id, l.total_quantity, o.series_id
+                        """, rs -> {
+                    UUID list = rs.getObject(1, UUID.class);
+                    long total = rs.getLong(2);
+                    long items = rs.getLong(4);
+                    long max = series.find(rs.getObject(3, UUID.class)).map(SeriesCatalog.SeriesInfo::maxQuantity)
+                            .orElse(0L);
+                    if (total > max) {
+                        out.add(new Finding("ALLOCATION_EXCEEDS_MAX", "allocation-list/" + list, "≤ " + max,
+                                Long.toString(total)));
+                    }
+                    if (items != total) {
+                        out.add(new Finding("LIST_TOTAL_MISMATCH", "allocation-list/" + list, Long.toString(total),
+                                Long.toString(items)));
+                    }
+                });
+                return out;
+            }
+        };
+    }
+
+    /** R6 (Q73): mỗi phân bổ đã có tiền có đúng một xác nhận MATCHED, đúng số tiền phải trả; và ngược lại. */
+    @Bean
+    vn.werwa.platform.reconciliation.ReconciliationCheck paymentCheck(JdbcTemplate jdbc) {
+        return new vn.werwa.platform.reconciliation.ReconciliationCheck() {
+            @Override
+            public String rule() {
+                return "R6";
+            }
+
+            @Override
+            public String scope() {
+                return "CHAIN_VS_BANK";
+            }
+
+            @Override
+            public java.util.List<Finding> run(java.time.LocalDate runDate) {
+                java.util.List<Finding> out = new java.util.ArrayList<>(jdbc.query("""
+                        SELECT a.id, a.amount_due_minor, count(p.id), COALESCE(SUM(p.amount_minor), 0)
+                        FROM distribution.allocation a
+                        LEFT JOIN distribution.payment_confirmation p ON p.allocation_id = a.id AND p.match_result = 'MATCHED'
+                        WHERE a.status IN ('PAID', 'MINTED', 'CONFIRMED')
+                        GROUP BY a.id, a.amount_due_minor
+                        HAVING count(p.id) <> 1 OR COALESCE(SUM(p.amount_minor), 0) <> a.amount_due_minor
+                        """, (rs, i) -> new Finding("PAYMENT_MISMATCH", "allocation/" + rs.getObject(1),
+                        "1 xác nhận, " + rs.getLong(2), rs.getLong(3) + " xác nhận, " + rs.getLong(4))));
+                out.addAll(jdbc.query("""
+                        SELECT p.bank_ref, a.id, a.status FROM distribution.payment_confirmation p
+                        JOIN distribution.allocation a ON a.id = p.allocation_id
+                        WHERE p.match_result = 'MATCHED' AND a.status NOT IN ('PAID', 'MINTED', 'CONFIRMED')
+                        """, (rs, i) -> new Finding("ALLOCATION_STATUS_MISMATCH", "allocation/" + rs.getObject(2),
+                        "PAID (báo có " + rs.getString(1) + ")", rs.getString(3))));
+                return out;
+            }
+        };
+    }
+
     /** Q40: UBND duyệt danh sách phân bổ. */
     @Bean
     ApprovalHook allocationListApprovalHook(AllocationListService lists) {

@@ -33,19 +33,63 @@ class GovernanceController implements GovernanceApi {
     private final vn.werwa.governance.calendar.CalendarAdjustmentService calendars;
     private final vn.werwa.governance.notification.NotificationService notifications;
     private final vn.werwa.governance.enforcement.EnforcementService enforcement;
+    private final vn.werwa.governance.reconciliation.ReconciliationService reconciliation;
 
     GovernanceController(ApprovalService approvals, JdbcTemplate jdbc, vn.werwa.governance.alert.AlertService alerts,
             vn.werwa.governance.parameter.ParameterService parameters,
             vn.werwa.governance.calendar.CalendarAdjustmentService calendars,
             vn.werwa.governance.notification.NotificationService notifications,
-            vn.werwa.governance.enforcement.EnforcementService enforcement) {
+            vn.werwa.governance.enforcement.EnforcementService enforcement,
+            vn.werwa.governance.reconciliation.ReconciliationService reconciliation) {
         this.enforcement = enforcement;
+        this.reconciliation = reconciliation;
         this.approvals = approvals;
         this.jdbc = jdbc;
         this.alerts = alerts;
         this.parameters = parameters;
         this.calendars = calendars;
         this.notifications = notifications;
+    }
+
+    // ---------- Đối soát (B4c; Q73–Q76) ----------
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ListReconciliationRuns200Response> listReconciliationRuns(
+            String cursor, Integer limit) {
+        Paging.Page<vn.werwa.governance.reconciliation.ReconciliationService.Run> page = reconciliation.list(cursor, limit);
+        var out = new vn.werwa.platform.openapi.model.ListReconciliationRuns200Response();
+        out.setItems(page.items().stream().map(r -> {
+            var v = new vn.werwa.platform.openapi.model.ReconciliationRun();
+            v.setId(r.id());
+            v.setRunDate(r.runDate());
+            v.setScope(vn.werwa.platform.openapi.model.ReconciliationRun.ScopeEnum.fromValue(r.scope()));
+            v.setBreakCount(r.breakCount());
+            v.setBreaks(r.breaks().stream().map(GovernanceController::view).toList());
+            return v;
+        }).toList());
+        out.setNextCursor(page.nextCursor());
+        return ResponseEntity.ok(out);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ReconciliationBreak> resolveReconciliationBreak(UUID id,
+            String idempotencyKey, vn.werwa.platform.openapi.model.ReconciliationResolve body) {
+        return ResponseEntity.ok(view(reconciliation.resolve(id, body.getReason())));
+    }
+
+    static vn.werwa.platform.openapi.model.ReconciliationBreak view(
+            vn.werwa.governance.reconciliation.ReconciliationService.Break b) {
+        var v = new vn.werwa.platform.openapi.model.ReconciliationBreak();
+        v.setId(b.id());
+        v.setRule(vn.werwa.platform.openapi.model.ReconciliationBreak.RuleEnum.fromValue(b.rule()));
+        v.setKind(b.kind());
+        v.setSubjectRef(b.subjectRef());
+        v.setExpected(b.expected());
+        v.setActual(b.actual());
+        v.setResolvedBy(b.resolvedBy() == null ? null : UUID.fromString(b.resolvedBy()));
+        v.setResolvedAt(b.resolvedAt() == null ? null : b.resolvedAt().atOffset(ZoneOffset.UTC));
+        v.setResolution(b.resolution());
+        return v;
     }
 
     // ---------- Lệnh phong tỏa (B10a; Q64–Q67) ----------

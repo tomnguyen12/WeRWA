@@ -13,7 +13,7 @@ public interface Notifications {
      */
     void notify(Notice notice);
 
-    enum Kind { APPROVAL_PENDING, PAYMENT_MISMATCH, ALLOCATION_OVERDUE, INFRA_ALERT }
+    enum Kind { APPROVAL_PENDING, PAYMENT_MISMATCH, ALLOCATION_OVERDUE, INFRA_ALERT, RECONCILIATION_BREAK }
 
     enum Severity { INFO, WARNING, CRITICAL }
 

@@ -53,6 +53,48 @@ class IssuanceConfig {
                 () -> parameters.stringList("issuance.required-document-types", props.requiredDocumentTypes()), clock);
     }
 
+    /** R1 (Q73): hạn mức đã giữ chỗ và đã dùng không vượt khối lượng Đề án; series đã qua duyệt phải có giữ chỗ. */
+    @Bean
+    vn.werwa.platform.reconciliation.ReconciliationCheck programLimitCheck(JdbcTemplate jdbc) {
+        return new vn.werwa.platform.reconciliation.ReconciliationCheck() {
+            @Override
+            public String rule() {
+                return "R1";
+            }
+
+            @Override
+            public String scope() {
+                return "LIMITS";
+            }
+
+            @Override
+            public java.util.List<Finding> run(java.time.LocalDate runDate) {
+                java.util.List<Finding> out = new java.util.ArrayList<>(jdbc.query("""
+                        SELECT p.id, p.max_principal_minor,
+                               COALESCE(SUM(CASE e.entry_type WHEN 'RESERVE' THEN e.principal_minor
+                                                              WHEN 'RELEASE' THEN -e.principal_minor ELSE 0 END), 0)
+                        FROM issuance.issuance_program p
+                        LEFT JOIN issuance.issuance_program c ON c.root_program_id = p.root_program_id
+                        LEFT JOIN issuance.limit_ledger_entry e ON e.program_id = c.id
+                        WHERE p.status = 'EFFECTIVE'
+                        GROUP BY p.id, p.max_principal_minor
+                        HAVING COALESCE(SUM(CASE e.entry_type WHEN 'RESERVE' THEN e.principal_minor
+                                                              WHEN 'RELEASE' THEN -e.principal_minor ELSE 0 END), 0)
+                               > p.max_principal_minor
+                        """, (rs, i) -> new Finding("PROGRAM_LIMIT_EXCEEDED", "program/" + rs.getObject(1),
+                        "≤ " + rs.getLong(2), Long.toString(rs.getLong(3)))));
+                out.addAll(jdbc.query("""
+                        SELECT s.id, s.status FROM issuance.series s
+                        WHERE s.status NOT IN ('DRAFT', 'PENDING_REVIEW', 'CANCELLED')
+                          AND NOT EXISTS (SELECT 1 FROM issuance.limit_ledger_entry e
+                                          WHERE e.series_id = s.id AND e.entry_type = 'RESERVE')
+                        """, (rs, i) -> new Finding("RESERVE_MISSING", "series/" + rs.getObject(1),
+                        "có bút toán RESERVE", "không có (series " + rs.getString(2) + ")")));
+                return out;
+            }
+        };
+    }
+
     /** Q61: lịch ngày làm việc đổi thì tính lại lịch các kỳ chưa tới ngày chốt. */
     @Bean
     vn.werwa.platform.events.EventHandler issuanceOnCalendarChanged(SeriesService series) {

@@ -74,6 +74,66 @@ class GovernanceConfig {
                 d -> enforcement.applyDecision(d.approvalId(), d.approve(), d.comment()));
     }
 
+    /** B4c: đối soát hằng ngày (Q73–Q76). */
+    @Bean
+    vn.werwa.governance.reconciliation.ReconciliationService reconciliation(JdbcTemplate jdbc,
+            org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.reconciliation.ReconciliationCheck> checks,
+            AuditLogService audit, vn.werwa.governance.notification.NotificationService notifications, Clock clock) {
+        return new vn.werwa.governance.reconciliation.ReconciliationService(jdbc, checks, audit, notifications, clock);
+    }
+
+    /** R8: chuỗi nhật ký liền mạch và khớp lần neo đã lên chuỗi. */
+    @Bean
+    vn.werwa.platform.reconciliation.ReconciliationCheck auditChainCheck(AuditVerifier verifier) {
+        return new vn.werwa.platform.reconciliation.ReconciliationCheck() {
+            @Override
+            public String rule() {
+                return "R8";
+            }
+
+            @Override
+            public String scope() {
+                return "AUDIT_CHAIN";
+            }
+
+            @Override
+            public java.util.List<Finding> run(java.time.LocalDate runDate) {
+                vn.werwa.governance.api.AuditVerification.Result r = verifier.verify();
+                return r.intact() ? java.util.List.of()
+                        : java.util.List.of(new Finding("AUDIT_CHAIN_BROKEN", "audit-log/" + r.brokenAtSeq(),
+                                "liền mạch, khớp neo", String.valueOf(r.reason())));
+            }
+        };
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "werwa.governance.reconciliation-enabled", havingValue = "true", matchIfMissing = true)
+    ReconciliationJob reconciliationJob(vn.werwa.governance.reconciliation.ReconciliationService reconciliation,
+            Clock clock) {
+        return new ReconciliationJob(reconciliation, clock);
+    }
+
+    /** Q76: 00:30 giờ VN, sau neo nhật ký 00:15; đối soát cho ngày hôm trước. */
+    static class ReconciliationJob {
+        private final vn.werwa.governance.reconciliation.ReconciliationService reconciliation;
+        private final Clock clock;
+
+        ReconciliationJob(vn.werwa.governance.reconciliation.ReconciliationService reconciliation, Clock clock) {
+            this.reconciliation = reconciliation;
+            this.clock = clock;
+        }
+
+        @Scheduled(cron = "0 30 0 * * *", zone = "Asia/Ho_Chi_Minh")
+        void daily() {
+            try {
+                reconciliation.runAll(clock.instant().atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate()
+                        .minusDays(1));
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(ReconciliationJob.class).warn("Đối soát hằng ngày lỗi: {}", e.toString());
+            }
+        }
+    }
+
     /** Q60. */
     @Bean
     vn.werwa.governance.api.ApprovalHook parameterApprovalHook(vn.werwa.governance.parameter.ParameterService parameters) {
