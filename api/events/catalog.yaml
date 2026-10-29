@@ -60,6 +60,11 @@ events:
   producerVi: Phân phối
   consumers: Bộ điều phối
   schema: werwa.distribution.payment.matched.v1.schema.json
+- type: werwa.distribution.transfer.confirmed.v1
+  producer: distribution
+  producerVi: Phân phối
+  consumers: Onchain
+  schema: werwa.distribution.transfer.confirmed.v1.schema.json
 - type: werwa.distribution.payment_batch.signed.v1
   producer: distribution
   producerVi: Phân phối
