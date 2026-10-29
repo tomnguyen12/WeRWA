@@ -38,6 +38,56 @@ class DistributionConfig {
         return new OrderService(jdbc, offerings, series, investors, wallets, audit, props, parameters, clock);
     }
 
+    /** B9c: sổ người sở hữu, sao kê (Q83–Q89). */
+    @Bean
+    vn.werwa.distribution.holding.HoldingsService holdings(JdbcTemplate jdbc, SeriesCatalog series, Wallets wallets,
+            vn.werwa.governance.api.OperationalAlerts alerts, Clock clock) {
+        return new vn.werwa.distribution.holding.HoldingsService(jdbc, series, wallets, alerts, clock);
+    }
+
+    /** Q84, Q85: bộ chiếu nhận sự kiện indexer; xử lý lặp lại an toàn nhờ khóa (chuỗi, khối, log, ví). */
+    @Bean
+    vn.werwa.platform.events.EventHandler distributionOnEventIndexed(vn.werwa.distribution.holding.HoldingsService holdings) {
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "distribution";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.onchain.event.indexed.v1";
+            }
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                Map<String, Object> d = event.data();
+                if (!vn.werwa.distribution.holding.HoldingsService.TOKEN_KIND.equals(d.get("contractKind"))) {
+                    return;
+                }
+                Object blockTime = d.get("blockTime");
+                Object args = d.get("args");
+                if (blockTime == null || !(args instanceof Map)) {
+                    throw new IllegalStateException("sự kiện indexer thiếu blockTime hoặc args (Q84): " + event.id());
+                }
+                holdings.project(new vn.werwa.distribution.holding.HoldingsService.IndexedLog(
+                        ((Number) d.get("chainId")).longValue(), String.valueOf(d.get("contract")),
+                        String.valueOf(d.get("contractKind")), String.valueOf(d.get("eventName")),
+                        ((Number) d.get("block")).longValue(), ((Number) d.get("logIndex")).intValue(),
+                        String.valueOf(d.get("txHash")), java.time.Instant.parse(String.valueOf(blockTime)),
+                        (Map<String, Object>) args));
+            }
+        };
+    }
+
+    /** R5 (Q89): số dư trong bảng đọc bằng số dư trên chuỗi tại cùng số khối (US-3.07-AC1). */
+    @Bean
+    vn.werwa.distribution.holding.HoldingViewCheck holdingViewCheck(vn.werwa.distribution.holding.HoldingsService holdings,
+            vn.werwa.onchain.api.TokenBalances balances) {
+        return new vn.werwa.distribution.holding.HoldingViewCheck(holdings, balances);
+    }
+
     /** B9a: chuyển OTC, phần ngoài chuỗi (Q77–Q82). */
     @Bean
     vn.werwa.distribution.transfer.TransferService transfers(JdbcTemplate jdbc, SeriesCatalog series, Wallets wallets,

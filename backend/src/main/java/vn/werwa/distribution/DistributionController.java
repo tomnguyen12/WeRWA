@@ -23,6 +23,10 @@ import vn.werwa.platform.openapi.model.OfferingCreate;
 import vn.werwa.platform.openapi.model.Order;
 import vn.werwa.platform.openapi.model.OrderAmend;
 import vn.werwa.platform.openapi.model.OrderPlace;
+import vn.werwa.platform.openapi.model.Holding;
+import vn.werwa.platform.openapi.model.HoldingMovement;
+import vn.werwa.platform.openapi.model.ListHoldingMovements200Response;
+import vn.werwa.platform.openapi.model.ListHoldings200Response;
 import vn.werwa.platform.openapi.model.ListTransfers200Response;
 import vn.werwa.platform.openapi.model.SigningProposalRef;
 import vn.werwa.platform.openapi.model.Transfer;
@@ -30,7 +34,7 @@ import vn.werwa.platform.openapi.model.TransferCreate;
 import vn.werwa.platform.web.ETags;
 import vn.werwa.platform.web.Paging;
 
-/** API Phân phối (B7a, B8a, B11a, B9a). Thao tác chưa làm (số dư, chụp danh sách) trả 501 (Q20). */
+/** API Phân phối (B7a, B8a, B11a, B9a, B9c). Thao tác chưa làm trả 501 (Q20). */
 @RestController
 class DistributionController implements DistributionApi {
 
@@ -40,10 +44,12 @@ class DistributionController implements DistributionApi {
     private final vn.werwa.distribution.payment.PaymentService payments;
     private final vn.werwa.distribution.payout.PayoutService payouts;
     private final TransferService transfers;
+    private final vn.werwa.distribution.holding.HoldingsService holdings;
 
     DistributionController(OfferingService offerings, OrderService orders, AllocationListService lists,
             vn.werwa.distribution.payment.PaymentService payments, vn.werwa.distribution.payout.PayoutService payouts,
-            TransferService transfers) {
+            TransferService transfers, vn.werwa.distribution.holding.HoldingsService holdings) {
+        this.holdings = holdings;
         this.transfers = transfers;
         this.payouts = payouts;
         this.payments = payments;
@@ -209,6 +215,49 @@ class DistributionController implements DistributionApi {
         v.setAnnouncementDocumentId(o.announcementDocumentId());
         v.setStatus(Offering.StatusEnum.fromValue(o.status()));
         return v;
+    }
+
+    @Override
+    public ResponseEntity<ListHoldings200Response> listHoldings(UUID seriesId, UUID walletId, String cursor,
+            Integer limit) {
+        vn.werwa.distribution.holding.HoldingsService.HoldingsPage page = holdings.list(seriesId, walletId, cursor, limit);
+        ListHoldings200Response out = new ListHoldings200Response();
+        out.setItems(page.items().stream().map(h -> {
+            Holding v = new Holding();
+            v.setSeriesId(h.seriesId());
+            v.setWalletId(h.walletId());
+            v.setBalance(h.balance());
+            v.setFrozen(h.frozen());
+            v.setLocked(h.locked());
+            v.setAsOfBlock(Math.toIntExact(page.asOfBlock()));
+            return v;
+        }).toList());
+        out.setNextCursor(page.nextCursor());
+        return ResponseEntity.ok(out);
+    }
+
+    @Override
+    public ResponseEntity<ListHoldingMovements200Response> listHoldingMovements(UUID walletId, UUID seriesId,
+            java.time.OffsetDateTime from, java.time.OffsetDateTime to, String cursor, Integer limit) {
+        Paging.Page<vn.werwa.distribution.holding.HoldingsService.Movement> page = holdings.movements(walletId, seriesId,
+                from == null ? null : from.toInstant(), to == null ? null : to.toInstant(), cursor, limit);
+        ListHoldingMovements200Response out = new ListHoldingMovements200Response();
+        out.setItems(page.items().stream().map(m -> {
+            HoldingMovement v = new HoldingMovement();
+            v.setId(m.id());
+            v.setSeriesId(m.seriesId());
+            v.setWalletId(m.walletId());
+            v.setKind(HoldingMovement.KindEnum.fromValue(m.kind()));
+            v.setQuantity(m.quantity());
+            v.setCounterpartyWallet(m.counterparty());
+            v.setBlock(m.block());
+            v.setLogIndex(m.logIndex());
+            v.setTxHash(m.txHash());
+            v.setBlockTime(m.blockTime().atOffset(ZoneOffset.UTC));
+            return v;
+        }).toList());
+        out.setNextCursor(page.nextCursor());
+        return ResponseEntity.ok(out);
     }
 
     @Override

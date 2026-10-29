@@ -41,12 +41,26 @@ class OnboardingConfig {
 
     @Bean
     vn.werwa.onboarding.api.Wallets wallets(JdbcTemplate jdbc) {
-        return id -> jdbc.query("""
-                SELECT id, organization_id, chain_id, address, wallet_type FROM onboarding.wallet
-                WHERE id = ? AND status = 'REGISTERED'
-                """, (rs, i) -> new vn.werwa.onboarding.api.Wallets.Wallet(rs.getObject(1, java.util.UUID.class),
-                        rs.getObject(2, java.util.UUID.class), rs.getLong(3), rs.getString(4), rs.getString(5)), id)
-                .stream().findFirst();
+        org.springframework.jdbc.core.RowMapper<vn.werwa.onboarding.api.Wallets.Wallet> row = (rs, i) ->
+                new vn.werwa.onboarding.api.Wallets.Wallet(rs.getObject(1, java.util.UUID.class),
+                        rs.getObject(2, java.util.UUID.class), rs.getLong(3), rs.getString(4), rs.getString(5));
+        return new vn.werwa.onboarding.api.Wallets() {
+            @Override
+            public java.util.Optional<Wallet> registered(java.util.UUID walletId) {
+                return jdbc.query("""
+                        SELECT id, organization_id, chain_id, address, wallet_type FROM onboarding.wallet
+                        WHERE id = ? AND status = 'REGISTERED'
+                        """, row, walletId).stream().findFirst();
+            }
+
+            @Override
+            public java.util.Optional<Wallet> byAddress(long chainId, String address) {
+                return jdbc.query("""
+                        SELECT id, organization_id, chain_id, address, wallet_type FROM onboarding.wallet
+                        WHERE chain_id = ? AND address = ?
+                        """, row, chainId, address.toLowerCase(java.util.Locale.ROOT)).stream().findFirst();
+            }
+        };
     }
 
     /** Q79: lưu ký của ví omnibus phải đã qua KYB. */

@@ -21,7 +21,7 @@ import vn.werwa.platform.web.Paging;
  * Hàng chờ cảnh báo vận hành (I5, US-6.01-AC3; Q57–Q59). Cảnh báo hạ tầng vào từ Alertmanager; cảnh báo nghiệp vụ dùng
  * chung hàng chờ ở các nhóm sau.
  */
-public class AlertService {
+public class AlertService implements vn.werwa.governance.api.OperationalAlerts {
 
     private final JdbcTemplate jdbc;
     private final AuditLog audit;
@@ -46,6 +46,21 @@ public class AlertService {
     public record Alert(
             UUID id, String fingerprint, String name, String severity, String summary, Map<String, String> labels,
             String status, Instant startsAt, Instant endsAt, String acknowledgedBy, Instant acknowledgedAt) {}
+
+    /** Cảnh báo của ứng dụng (Q85): đã có cảnh báo cùng fingerprint chưa RESOLVED thì không tạo lại. */
+    @Override
+    @Transactional
+    public void raise(String fingerprint, String name, String severity, String summary) {
+        String fp = "app:" + fingerprint;
+        Boolean open = jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM governance.operational_alert WHERE fingerprint = ? AND status <> 'RESOLVED')
+                """, Boolean.class, fp);
+        if (Boolean.TRUE.equals(open)) {
+            return;
+        }
+        receive("werwa", List.of(new Incoming(fp, true, Map.of("alertname", name, "severity", severity),
+                Map.of("summary", summary), clock.instant(), null)));
+    }
 
     /** Q57: chống trùng theo (fingerprint, startsAt); cảnh báo hết thì RESOLVED, giữ thông tin người xác nhận. */
     @Transactional

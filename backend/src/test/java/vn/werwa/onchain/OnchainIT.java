@@ -103,9 +103,10 @@ class OnchainIT extends ChainIntegrationTest {
         assertThat(EventSchemas.validate(TxTracker.MINED,
                         nats.jetStreamManagement().getLastMessage("WERWA", TxTracker.MINED).getData()))
                 .isEmpty();
-        assertThat(EventSchemas.validate(Indexer.INDEXED,
-                        nats.jetStreamManagement().getLastMessage("WERWA", Indexer.INDEXED).getData()))
-                .isEmpty();
+        byte[] indexed = nats.jetStreamManagement().getLastMessage("WERWA", Indexer.INDEXED).getData();
+        assertThat(EventSchemas.validate(Indexer.INDEXED, indexed)).isEmpty();
+        // Q84: tham số đã giải mã, mã chuỗi, giờ khối
+        assertThat(new String(indexed)).contains("\"args\":{").contains("\"chainId\":").contains("\"blockTime\":\"");
     }
 
     @Test

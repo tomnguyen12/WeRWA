@@ -21,7 +21,8 @@ import vn.werwa.platform.id.Ids;
  * Indexer đọc log từ O1 (ADR-12): mỗi lượt đọc tối đa {@code werwa.onchain.log-batch-blocks} khối kể từ khối đã đọc
  * xong, giữ log của hợp đồng có trong registry, giải mã theo ABI, ghi {@code indexed_event} và phát
  * {@code werwa.onchain.event.indexed.v1} (Q17). Cả lượt nằm trong một giao dịch DB cùng con trỏ khối, nên chạy lại an
- * toàn. {@code SeriesCreated} của factory thêm bộ hợp đồng series vào registry ngay trong lượt đó.
+ * toàn. Sự kiện mang tham số đã giải mã, mã chuỗi và giờ khối (Q84). {@code SeriesCreated} của factory thêm bộ
+ * hợp đồng series vào registry ngay trong lượt đó.
  */
 public class Indexer {
 
@@ -79,9 +80,14 @@ public class Indexer {
         long from = last + 1;
         long to = Math.min(head, last + props.logBatchBlocks());
         List<Log> logs = nodes.logs(from, to);
+        // Q84: giờ của khối cho sao kê; đọc header một lần cho mỗi khối có log, ngoài giao dịch DB
+        Map<Long, java.time.Instant> blockTimes = new java.util.HashMap<>();
+        for (Log l : logs) {
+            blockTimes.computeIfAbsent(l.getBlockNumber().longValueExact(), this::blockTime);
+        }
         tx.executeWithoutResult(status -> {
             for (Log l : logs) {
-                index(l);
+                index(l, blockTimes.get(l.getBlockNumber().longValueExact()));
             }
             jdbc.update("""
                     INSERT INTO onchain.indexer_cursor (chain_id, last_block, updated_at) VALUES (?, ?, ?)
@@ -94,7 +100,14 @@ public class Indexer {
         return to - last;
     }
 
-    private void index(Log l) {
+    private java.time.Instant blockTime(long block) {
+        java.math.BigInteger seconds = nodes.read("eth_getBlockByNumber", w -> w.ethGetBlockByNumber(
+                org.web3j.protocol.core.DefaultBlockParameter.valueOf(java.math.BigInteger.valueOf(block)), false).send()
+                .getBlock().getTimestamp());
+        return java.time.Instant.ofEpochSecond(seconds.longValueExact());
+    }
+
+    private void index(Log l, java.time.Instant blockTime) {
         Optional<Entry> contract = registry.find(l.getAddress());
         if (contract.isEmpty() || l.getTopics().isEmpty()) {
             return;
@@ -127,6 +140,9 @@ public class Indexer {
         data.put("logIndex", logIndex);
         data.put("txHash", l.getTransactionHash());
         data.put("contractKind", entry.kind());
+        data.put("chainId", nodes.chainId());
+        data.put("blockTime", blockTime.toString());
+        data.put("args", decoded);
         events.publish(INDEXED, "contract/" + entry.address(), data);
     }
 }

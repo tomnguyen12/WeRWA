@@ -55,6 +55,12 @@ class OnchainConfig {
         return registry;
     }
 
+    /** R5 (Q89): số dư token tại một số khối. */
+    @Bean
+    Web3jTokenBalances tokenBalances(ChainNodes nodes) {
+        return new Web3jTokenBalances(nodes);
+    }
+
     @Bean
     Web3jContractCalls contractCalls(ChainNodes nodes, ContractRegistry registry) {
         return new Web3jContractCalls(nodes, registry);
