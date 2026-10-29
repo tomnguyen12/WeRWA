@@ -116,6 +116,13 @@ class GovernanceConfig {
                 audit, clock);
     }
 
+    /** Q97: thao tác ghi Cơ quan giám sát được làm, theo tham số hệ thống. */
+    @Bean
+    vn.werwa.governance.supervision.SupervisorWrites supervisorWrites(
+            vn.werwa.governance.parameter.ParameterService parameters) {
+        return new vn.werwa.governance.supervision.SupervisorWrites(parameters);
+    }
+
     /** R7 (Q95, Q96). */
     @Bean
     vn.werwa.governance.supervision.BlockHashCheck blockHashCheck(

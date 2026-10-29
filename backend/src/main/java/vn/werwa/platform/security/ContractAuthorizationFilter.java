@@ -39,10 +39,13 @@ public class ContractAuthorizationFilter extends OncePerRequestFilter {
     private final OrganizationDirectory organizations;
     private final org.springframework.beans.factory.ObjectProvider<BankChannel> bankChannel;
     private final org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.inbound.InboundToken> inboundToken;
+    private final org.springframework.beans.factory.ObjectProvider<SupervisorWritePolicy> supervisorWrites;
 
     public ContractAuthorizationFilter(ApiContract contract, OrganizationDirectory organizations,
             org.springframework.beans.factory.ObjectProvider<BankChannel> bankChannel,
-            org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.inbound.InboundToken> inboundToken) {
+            org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.inbound.InboundToken> inboundToken,
+            org.springframework.beans.factory.ObjectProvider<SupervisorWritePolicy> supervisorWrites) {
+        this.supervisorWrites = supervisorWrites;
         this.contract = contract;
         this.organizations = organizations;
         this.bankChannel = bankChannel;
@@ -116,9 +119,12 @@ public class ContractAuthorizationFilter extends OncePerRequestFilter {
         if (!orgRoles.containsAll(user.roles())) {
             throw new ApiException(PlatformError.ROLE_NOT_IN_ORGANIZATION);
         }
-        // US-4.04-AC2 (Q94): Cơ quan giám sát chỉ đọc, kể cả thao tác mở cho mọi vai
+        // US-4.04-AC2 (Q94, Q97): Cơ quan giám sát chỉ đọc, kể cả thao tác mở cho mọi vai, trừ thao tác tham số cho phép
         if (user.roles().contains(Role.SUPERVISOR) && !org.springframework.http.HttpMethod.GET.equals(op.method())) {
-            throw new ApiException(PlatformError.ROLE_NOT_ALLOWED, "Cơ quan giám sát chỉ được đọc");
+            SupervisorWritePolicy policy = supervisorWrites.getIfAvailable();
+            if (policy == null || !policy.allowedOperations().contains(op.operationId())) {
+                throw new ApiException(PlatformError.ROLE_NOT_ALLOWED, "Cơ quan giám sát chỉ được đọc");
+            }
         }
         if (!op.anyRole() && !user.hasAnyRole(op.roles())) {
             throw new ApiException(PlatformError.ROLE_NOT_ALLOWED, op.operationId() + " cần một trong " + op.roles());

@@ -45,7 +45,11 @@ public class ParameterService implements Parameters {
                     List.of("FOLLOWING", "MODIFIED_FOLLOWING")),
             // Q93: độ trễ tối đa của indexer so với đầu chuỗi (US-4.04-AC1)
             "governance.supervision-max-lag-seconds",
-            new Definition("governance.supervision-max-lag-seconds", Type.INTEGER, 1, null));
+            new Definition("governance.supervision-max-lag-seconds", Type.INTEGER, 1, null),
+            // Q97: thao tác ghi Cơ quan giám sát được làm (US-4.04-AC2); mặc định READ_ONLY
+            vn.werwa.governance.supervision.SupervisorWrites.KEY,
+            new Definition(vn.werwa.governance.supervision.SupervisorWrites.KEY, Type.ENUM, 0,
+                    List.copyOf(vn.werwa.governance.supervision.SupervisorWrites.OPTIONS.keySet())));
 
     private final JdbcTemplate jdbc;
     private final Approvals approvals;

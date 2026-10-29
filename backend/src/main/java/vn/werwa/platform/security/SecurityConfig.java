@@ -35,7 +35,8 @@ public class SecurityConfig {
             IdempotencyStore idempotency,
             org.springframework.beans.factory.ObjectProvider<AuditSink> audit,
             org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.inbound.BankChannel> bankChannel,
-            org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.inbound.InboundToken> inboundToken)
+            org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.inbound.InboundToken> inboundToken,
+            org.springframework.beans.factory.ObjectProvider<SupervisorWritePolicy> supervisorWrites)
             throws Exception {
         JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();
         authorities.setAuthoritiesClaimName("roles");
@@ -50,7 +51,8 @@ public class SecurityConfig {
         AccessDeniedHandler denied =
                 (request, response, ex) -> Problems.write(request, response, PlatformError.ROLE_NOT_ALLOWED, null);
 
-        ContractAuthorizationFilter contractFilter = new ContractAuthorizationFilter(contract, organizations, bankChannel, inboundToken);
+        ContractAuthorizationFilter contractFilter = new ContractAuthorizationFilter(contract, organizations, bankChannel,
+                inboundToken, supervisorWrites);
         return http.csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a

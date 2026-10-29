@@ -223,6 +223,42 @@ class SupervisionIT extends ChainIntegrationTest {
         assertThat(tried).isGreaterThan(30);
     }
 
+    /** Đặt thẳng tham số đã duyệt (luồng duyệt 4 mắt của tham số đã kiểm ở OperationsIT). */
+    void supervisorWritePolicy(String value, int order) {
+        jdbc.update("""
+                INSERT INTO governance.parameter_change (id, key, value, effective_from, reason, status, created_by,
+                    created_at, decided_at)
+                VALUES (?, 'governance.supervisor-write-policy', to_jsonb(?::text), current_date - 1, 'kiểm thử Q97',
+                    'APPROVED', 'test', now(), now() + make_interval(secs => ?))
+                """, UUID.randomUUID(), value, order);
+    }
+
+    int write(HttpMethod method, String path) throws Exception {
+        return mvc.perform(MockMvcRequestBuilders.request(method, path).with(SUPERVISOR)
+                .header("Idempotency-Key", "k-" + UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                .content("{}")).andReturn().getResponse().getStatus();
+    }
+
+    @Test
+    @DisplayName("Q97 tham số chọn thao tác ghi được miễn cho Cơ quan giám sát; mặc định chặn tất cả")
+    void supervisorWritePolicyIsAChoice() throws Exception {
+        String read = "/v1/notifications/" + UUID.randomUUID() + "/read";
+        try {
+            supervisorWritePolicy("ALLOW_NOTIFICATION_READ", 1);
+            assertThat(write(HttpMethod.POST, read)).isNotEqualTo(403);
+            assertThat(write(HttpMethod.POST, "/v1/documents")).isEqualTo(403);
+            assertThat(write(HttpMethod.POST, "/v1/enforcement-orders")).isEqualTo(403);
+
+            supervisorWritePolicy("ALLOW_NOTIFICATION_READ_AND_DOCUMENTS", 2);
+            assertThat(write(HttpMethod.POST, read)).isNotEqualTo(403);
+            assertThat(write(HttpMethod.POST, "/v1/documents")).isNotEqualTo(403);
+            assertThat(write(HttpMethod.POST, "/v1/approvals/" + UUID.randomUUID() + "/decision")).isEqualTo(403);
+        } finally {
+            supervisorWritePolicy("READ_ONLY", 3);
+        }
+        assertThat(write(HttpMethod.POST, read)).isEqualTo(403);
+    }
+
     @Test
     @DisplayName("US-4.04-AC3 mã băm khối VSDC lệch O1 thì có chênh lệch R7 và cảnh báo đỏ")
     @SuppressWarnings("unchecked")
