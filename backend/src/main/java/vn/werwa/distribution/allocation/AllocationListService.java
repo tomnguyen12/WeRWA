@@ -269,6 +269,12 @@ public class AllocationListService {
                 AllocationMerkle.proof(leaves, index).stream().map(AllocationMerkle::hex).toList(), list.merkleRoot());
     }
 
+    /** Đề nghị ký setAllocation gần nhất của danh sách (Q122); null nếu chưa có. */
+    public UUID signingProposalId(UUID id) {
+        return jdbc.queryForList("SELECT signing_proposal_id FROM distribution.allocation_list WHERE id = ?", UUID.class, id)
+                .stream().filter(java.util.Objects::nonNull).findFirst().orElse(null);
+    }
+
     public AllocationList get(UUID id) {
         List<AllocationList> rows = jdbc.query(SELECT + " WHERE id = ?", (rs, i) -> list(rs), id);
         if (rows.isEmpty()) {

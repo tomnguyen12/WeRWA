@@ -25,6 +25,8 @@ public enum DistributionError implements ErrorCode {
     LIST_ALREADY_SUBMITTED(HttpStatus.CONFLICT, "Đợt chào bán đã có danh sách gửi UBND"),
     LIST_NOT_DRAFT(HttpStatus.CONFLICT, "Danh sách không ở trạng thái Nháp"),
     LIST_NOT_SIGNED(HttpStatus.CONFLICT, "Danh sách chưa được UBND ký"),
+    LIST_NOT_APPROVED(HttpStatus.CONFLICT, "Danh sách chưa được UBND duyệt hoặc không còn chờ ký"),
+    ALLOCATION_SIGNING_PENDING(HttpStatus.CONFLICT, "Danh sách đã có đề nghị ký đang mở"),
     ALLOCATION_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Mục phân bổ không hợp lệ"),
     ALLOCATION_EXCEEDS_ORDER(HttpStatus.UNPROCESSABLE_CONTENT, "Phân bổ vượt số lượng đặt"),
     ADJUSTMENT_REASON_REQUIRED(HttpStatus.UNPROCESSABLE_CONTENT, "Điều chỉnh tay phải có lý do"),

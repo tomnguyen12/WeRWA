@@ -136,7 +136,8 @@ class DistributionConfig {
 
     /** Q84, Q85: bộ chiếu nhận sự kiện indexer; xử lý lặp lại an toàn nhờ khóa (chuỗi, khối, log, ví). */
     @Bean
-    vn.werwa.platform.events.EventHandler distributionOnEventIndexed(vn.werwa.distribution.holding.HoldingsService holdings) {
+    vn.werwa.platform.events.EventHandler distributionOnEventIndexed(vn.werwa.distribution.holding.HoldingsService holdings,
+            vn.werwa.distribution.allocation.AllocationSigning allocationSigning) {
         return new vn.werwa.platform.events.EventHandler() {
             @Override
             public String consumer() {
@@ -152,6 +153,12 @@ class DistributionConfig {
             @SuppressWarnings("unchecked")
             public void handle(vn.werwa.platform.events.InboundEvent event) {
                 Map<String, Object> d = event.data();
+                if ("series.controller".equals(d.get("contractKind")) && "AllocationSet".equals(d.get("eventName"))) {
+                    // B7b (Q124): UBND đã ký danh sách phân bổ
+                    allocationSigning.onAllocationSet(String.valueOf(d.get("contract")),
+                            (Map<String, Object>) d.get("args"), String.valueOf(d.get("txHash")));
+                    return;
+                }
                 if (!vn.werwa.distribution.holding.HoldingsService.TOKEN_KIND.equals(d.get("contractKind"))) {
                     return;
                 }
@@ -342,6 +349,52 @@ class DistributionConfig {
     }
 
     /** Q40: UBND duyệt danh sách phân bổ. */
+    /** B7b: UBND ký danh sách phân bổ trên chuỗi (Q121–Q127). */
+    @Bean
+    vn.werwa.distribution.allocation.AllocationSigning allocationSigning(JdbcTemplate jdbc, AllocationListService lists,
+            OfferingService offerings, SeriesCatalog series, vn.werwa.governance.api.SigningProposals proposals,
+            vn.werwa.governance.api.OperationalAlerts alerts, Events events, AuditLog audit, Clock clock) {
+        return new vn.werwa.distribution.allocation.AllocationSigning(jdbc, lists, offerings, series, proposals, alerts,
+                events, audit, clock);
+    }
+
+    /** Q122: UBND duyệt đạt thì tạo đề nghị ký trong giao dịch riêng; không tạo được thì ghi nhật ký (Holco tạo lại). */
+    @Bean
+    vn.werwa.platform.events.EventHandler distributionOnApprovalDecided(
+            vn.werwa.distribution.allocation.AllocationSigning allocationSigning,
+            org.springframework.transaction.PlatformTransactionManager txManager, AuditLog audit) {
+        org.springframework.transaction.support.TransactionTemplate separate =
+                new org.springframework.transaction.support.TransactionTemplate(txManager);
+        separate.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "distribution";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.governance.approval.decided.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                Map<String, Object> d = event.data();
+                if (!AllocationListService.SUBMIT_ACTION.equals(d.get("actionType")) || !"APPROVE".equals(d.get("decision"))) {
+                    return;
+                }
+                allocationSigning.listOfApproval(UUID.fromString(String.valueOf(d.get("approvalId")))).ifPresent(list -> {
+                    try {
+                        separate.executeWithoutResult(s -> allocationSigning.propose(list));
+                    } catch (RuntimeException e) {
+                        audit.record("ALLOCATION_LIST_SIGNING_PROPOSAL_FAILED", "allocation-list/" + list,
+                                Map.of("reason", String.valueOf(e.getMessage())));
+                    }
+                });
+            }
+        };
+    }
+
     @Bean
     ApprovalHook allocationListApprovalHook(AllocationListService lists) {
         return new ApprovalHook() {

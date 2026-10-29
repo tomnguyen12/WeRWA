@@ -12,6 +12,9 @@ public interface SeriesCatalog {
     /** Series có hợp đồng token ở địa chỉ này (bảng đọc số dư, Q86); rỗng nếu chưa biết. */
     Optional<UUID> findByToken(String tokenAddress);
 
+    /** Series có hợp đồng điều khiển ở địa chỉ này (B7b); rỗng nếu chưa biết. */
+    Optional<UUID> findByController(String controllerAddress);
+
     /** Máy Series cạnh 6: READY → OFFERING khi mở sổ. */
     void markOffering(UUID seriesId);
 

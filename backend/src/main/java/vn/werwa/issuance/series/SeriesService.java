@@ -243,6 +243,12 @@ public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog, vn.we
     }
 
     @Override
+    public java.util.Optional<UUID> findByController(String controllerAddress) {
+        return jdbc.queryForList("SELECT id FROM issuance.series WHERE lower(controller_address) = lower(?)", UUID.class,
+                controllerAddress).stream().findFirst();
+    }
+
+    @Override
     public java.util.Optional<UUID> findByToken(String tokenAddress) {
         return jdbc.queryForList("SELECT id FROM issuance.series WHERE lower(token_address) = lower(?)", UUID.class,
                 tokenAddress).stream().findFirst();

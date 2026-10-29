@@ -98,6 +98,7 @@ class GovernanceController implements GovernanceApi {
         v.setTargetContract(p.targetContract());
         v.setFunctionName(p.functionName());
         v.setCalldataHash(p.calldataHash());
+        v.setBasisHash(p.basisHash());
         v.setThreshold(p.threshold() == null ? p.parties().size() : p.threshold());
         v.setParties(p.parties().stream().map(x -> {
             var pv = new vn.werwa.platform.openapi.model.SigningProposalPartiesInner();

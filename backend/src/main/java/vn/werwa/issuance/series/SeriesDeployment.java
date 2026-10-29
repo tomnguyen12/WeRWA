@@ -105,7 +105,7 @@ public class SeriesDeployment {
         String calldata = deployCalldata(s);
         SigningProposals.Ref ref = proposals.create(new SigningProposals.Request(DEPLOY_PURPOSE, "series/" + seriesId,
                 s.approvalRequestId(), "governance3of3", werwa.contract("seriesFactory").toLowerCase(Locale.ROOT),
-                "deploySeries", calldata));
+                "deploySeries", calldata, s.termsHash()));
         jdbc.update("UPDATE issuance.series SET signing_proposal_id = ?, updated_at = ? WHERE id = ?", ref.id(),
                 Timestamp.from(clock.instant()), seriesId);
         audit.record("SERIES_DEPLOY_PROPOSED", "series/" + seriesId, Map.of("signingProposalId", ref.id().toString()));
@@ -255,6 +255,7 @@ public class SeriesDeployment {
                     audit.record("SERIES_ISIN_ASSIGNED", "series/" + seriesId, Map.of("isin", isin, "txHash", txHash));
                 }
             }
+            case "AllocationSet" -> recordRates(seriesId, args.get("periodRatePpm"), txHash);
             case "StateChanged" -> applyState(seriesId, CHAIN_STATES.get(Integer.parseInt(String.valueOf(args.get("to")))),
                     txHash);
             default -> {
@@ -281,6 +282,20 @@ public class SeriesDeployment {
         ev.put("txHash", txHash);
         events.publish(STATE_EVENT, "series/" + seriesId, ev);
         audit.record("SERIES_STATE_CHANGED", "series/" + seriesId, ev);
+    }
+
+    /** Q72, Q124: lãi suất từng kỳ coupon từ {@code AllocationSet} UBND đã ký; ghi lại an toàn. */
+    void recordRates(UUID seriesId, Object rates, String txHash) {
+        if (!(rates instanceof List<?> list)) {
+            throw new IllegalStateException("AllocationSet thiếu periodRatePpm");
+        }
+        for (int i = 0; i < list.size(); i++) {
+            jdbc.update("""
+                    UPDATE issuance.series_event SET rate_ppm = ?, rate_source = 'FIXED_AT_PRICING'
+                    WHERE series_id = ? AND event_type = 'COUPON' AND period_no = ?
+                    """, Integer.parseInt(String.valueOf(list.get(i))), seriesId, i + 1);
+        }
+        audit.record("SERIES_RATES_RECORDED", "series/" + seriesId, Map.of("periods", list.size(), "txHash", txHash));
     }
 
     // ---------- tiện ích ----------

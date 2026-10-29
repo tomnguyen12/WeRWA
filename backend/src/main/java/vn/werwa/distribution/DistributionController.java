@@ -45,10 +45,13 @@ class DistributionController implements DistributionApi {
     private final vn.werwa.distribution.payout.PayoutService payouts;
     private final TransferService transfers;
     private final vn.werwa.distribution.holding.HoldingsService holdings;
+    private final vn.werwa.distribution.allocation.AllocationSigning allocationSigning;
 
     DistributionController(OfferingService offerings, OrderService orders, AllocationListService lists,
             vn.werwa.distribution.payment.PaymentService payments, vn.werwa.distribution.payout.PayoutService payouts,
-            TransferService transfers, vn.werwa.distribution.holding.HoldingsService holdings) {
+            TransferService transfers, vn.werwa.distribution.holding.HoldingsService holdings,
+            vn.werwa.distribution.allocation.AllocationSigning allocationSigning) {
+        this.allocationSigning = allocationSigning;
         this.holdings = holdings;
         this.transfers = transfers;
         this.payouts = payouts;
@@ -126,7 +129,9 @@ class DistributionController implements DistributionApi {
 
     @Override
     public ResponseEntity<AllocationList> getAllocationList(UUID id) {
-        return ResponseEntity.ok(view(lists.get(id)));
+        AllocationList v = view(lists.get(id));
+        v.setSigningProposalId(lists.signingProposalId(id));
+        return ResponseEntity.ok(v);
     }
 
     @Override
@@ -258,6 +263,17 @@ class DistributionController implements DistributionApi {
         }).toList());
         out.setNextCursor(page.nextCursor());
         return ResponseEntity.ok(out);
+    }
+
+    /** Q127: tạo lại đề nghị ký setAllocation. */
+    @Override
+    public ResponseEntity<SigningProposalRef> proposeAllocationSigning(UUID id, String idempotencyKey) {
+        vn.werwa.governance.api.SigningProposals.Ref r = allocationSigning.propose(id);
+        SigningProposalRef ref = new SigningProposalRef();
+        ref.setSigningProposalId(r.id());
+        ref.setApprovalRequestId(lists.get(id).approvalRequestId());
+        ref.setStatus(SigningProposalRef.StatusEnum.fromValue(r.status()));
+        return ResponseEntity.accepted().body(ref);
     }
 
     @Override

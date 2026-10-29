@@ -308,9 +308,12 @@ class GovernanceConfig {
     vn.werwa.governance.signing.SigningService signing(JdbcTemplate jdbc, vn.werwa.onchain.api.Safes safes,
             vn.werwa.onchain.api.ChainTransactions chain, vn.werwa.platform.registry.SignerRegistry signers,
             vn.werwa.platform.config.WerwaProperties werwa, vn.werwa.governance.signing.SigningProperties props,
-            Events events, AuditLogService audit, tools.jackson.databind.json.JsonMapper json, Clock clock) {
-        return new vn.werwa.governance.signing.SigningService(jdbc, safes, chain, signers, werwa, props, events, audit,
-                json, clock);
+            Events events, AuditLogService audit, tools.jackson.databind.json.JsonMapper json, Clock clock,
+            vn.werwa.governance.notification.NotificationService notifications) {
+        var service = new vn.werwa.governance.signing.SigningService(jdbc, safes, chain, signers, werwa, props, events,
+                audit, json, clock);
+        service.setNotifications(notifications);
+        return service;
     }
 
     /** Neo hằng ngày (Q21): 00:15 giờ Việt Nam neo ngày hôm trước; mỗi 10 phút bù ngày còn thiếu hoặc lỗi. */

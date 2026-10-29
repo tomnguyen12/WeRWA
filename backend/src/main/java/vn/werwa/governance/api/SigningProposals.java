@@ -13,10 +13,17 @@ public interface SigningProposals {
      * @param safe tên Safe trong cấu hình ({@code governance3of3}, {@code vsdc}...) hoặc địa chỉ
      * @param functionName tên hàm của hợp đồng đích, để người ký đọc
      * @param calldata calldata hex của lời gọi hợp đồng đích
+     * @param basisHash mã băm căn cứ (quyết định UBND, termsHash, orderHash; Q126); null nếu không có
      */
     record Request(
             String purpose, String subjectRef, UUID approvalRequestId, String safe, String targetContract,
-            String functionName, String calldata) {}
+            String functionName, String calldata, String basisHash) {
+
+        public Request(String purpose, String subjectRef, UUID approvalRequestId, String safe, String targetContract,
+                String functionName, String calldata) {
+            this(purpose, subjectRef, approvalRequestId, safe, targetContract, functionName, calldata, null);
+        }
+    }
 
     record Ref(UUID id, String status) {}
 

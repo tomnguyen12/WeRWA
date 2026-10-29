@@ -63,6 +63,12 @@ public class SigningService implements SigningProposals {
     private final AuditLog audit;
     private final JsonMapper json;
     private final Clock clock;
+    private vn.werwa.governance.api.Notifications notifications;
+
+    /** Q127: thông báo SIGNATURE_REQUESTED khi đề nghị bắt đầu thu chữ ký. */
+    public void setNotifications(vn.werwa.governance.api.Notifications notifications) {
+        this.notifications = notifications;
+    }
 
     public SigningService(JdbcTemplate jdbc, Safes safes, ChainTransactions chain,
             vn.werwa.platform.registry.SignerRegistry signers, WerwaProperties werwa,
@@ -86,7 +92,8 @@ public class SigningService implements SigningProposals {
 
     public record Proposal(
             UUID id, String purpose, String subjectRef, UUID approvalRequestId, String safe, String targetContract,
-            String functionName, String calldata, String calldataHash, Long nonce, String safeTxHash, Integer threshold,
+            String functionName, String calldata, String calldataHash, String basisHash, Long nonce, String safeTxHash,
+            Integer threshold,
             List<Party> parties, String status, String txHash, String failureReason, Instant createdAt,
             List<Signature> signatures) {
 
@@ -120,10 +127,11 @@ public class SigningService implements SigningProposals {
         jdbc.update("""
                 INSERT INTO governance.signing_proposal
                     (id, purpose, subject_ref, approval_request_id, safe_address, target_contract, function_name, calldata,
-                     calldata_hash, parties, status, created_by, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, 'QUEUED', ?, ?, ?)
+                     calldata_hash, basis_hash, parties, status, created_by, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, 'QUEUED', ?, ?, ?)
                 """, id, r.purpose(), r.subjectRef(), r.approvalRequestId(), safe, target, r.functionName(), data,
-                Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(data))), json.writeValueAsString(parties),
+                Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(data))),
+                r.basisHash() == null ? null : lower(r.basisHash()), json.writeValueAsString(parties),
                 user == null ? "system" : user.subject(), now, now);
         audit.record("SIGNING_PROPOSAL_CREATED", "signing-proposal/" + id, Map.of("purpose", r.purpose(),
                 "subjectRef", r.subjectRef(), "safe", safe, "target", target, "functionName", r.functionName()));
@@ -166,6 +174,15 @@ public class SigningService implements SigningProposals {
                 json.writeValueAsString(parties), safeTxHash, Timestamp.from(clock.instant()), p.id());
         audit.record("SIGNING_PROPOSAL_COLLECTING", "signing-proposal/" + p.id(), Map.of("nonce", nonce, "safeTxHash",
                 safeTxHash));
+        if (notifications != null) {
+            for (Party party : parties) {
+                notifications.notify(new vn.werwa.governance.api.Notifications.Notice(
+                        vn.werwa.governance.api.Notifications.Kind.SIGNATURE_REQUESTED,
+                        vn.werwa.governance.api.Notifications.Severity.INFO,
+                        "Cần ký: " + p.functionName() + " (" + p.purpose() + ")", p.subjectRef(),
+                        "signing-proposal/" + p.id(), List.of(), party.organizationId()));
+            }
+        }
     }
 
     /** Bên ký của Safe thực hiện: chính nó nếu là Safe tổ chức, không thì từng owner (phải là Safe tổ chức). */
@@ -408,7 +425,8 @@ public class SigningService implements SigningProposals {
 
     private static final String SELECT = """
             SELECT id, purpose, subject_ref, approval_request_id, safe_address, target_contract, function_name, calldata,
-                   calldata_hash, nonce, safe_tx_hash, threshold, parties::text, status, tx_hash, failure_reason, created_at
+                   calldata_hash, nonce, safe_tx_hash, threshold, parties::text, status, tx_hash, failure_reason, created_at,
+                   basis_hash
             FROM governance.signing_proposal""";
 
     private Proposal row(java.sql.ResultSet rs) throws java.sql.SQLException {
@@ -428,7 +446,8 @@ public class SigningService implements SigningProposals {
                 """, (r, i) -> new Signature(r.getString(1), r.getString(2), r.getString(3),
                         r.getTimestamp(4).toInstant()), id);
         return new Proposal(id, rs.getString(2), rs.getString(3), rs.getObject(4, UUID.class), rs.getString(5),
-                rs.getString(6), rs.getString(7), rs.getString(8), rs.getString(9), rs.getObject(10, Long.class),
+                rs.getString(6), rs.getString(7), rs.getString(8), rs.getString(9), rs.getString(18),
+                rs.getObject(10, Long.class),
                 rs.getString(11), rs.getObject(12, Integer.class), parties, rs.getString(14), rs.getString(15),
                 rs.getString(16), rs.getTimestamp(17).toInstant(), sigs);
     }
