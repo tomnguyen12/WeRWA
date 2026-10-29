@@ -36,6 +36,23 @@
         },
         "logIndex": {
           "type": "integer"
+        },
+        "txHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "contractKind": {
+          "type": "string"
+        },
+        "args": {
+          "type": "object",
+          "description": "Tham số sự kiện đã giải mã theo ABI; số nguyên dạng chuỗi thập phân, địa chỉ và bytes dạng hex (Q84)",
+          "additionalProperties": true
+        },
+        "blockTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Giờ của khối theo header (Q84)"
         }
       },
       "additionalProperties": true
