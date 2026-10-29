@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.16.0
+  version: 0.17.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -695,6 +695,7 @@ paths:
       - issuance
       operationId: deploySeries
       summary: Tạo đề nghị ký triển khai 3/3
+      description: Đề nghị tự tạo khi duyệt series đạt; thao tác này chỉ tạo lại khi đề nghị trước FAILED hoặc CANCELLED, đề nghị cũ còn mở thì 409 SERIES_DEPLOY_PENDING (Q115).
       x-werwa-function: '2.07'
       x-werwa-callers: Holco
       x-werwa-roles:
@@ -1207,6 +1208,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AllocationProof'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/series/{id}/isin:
+    post:
+      tags:
+      - issuance
+      operationId: assignIsin
+      summary: VSDC gắn ISIN; tạo đề nghị ký Safe VSDC gọi setIsin (US-2.07-AC2; Q118)
+      description: Kiểm ISO 6166 (2 chữ cái quốc gia, A–Z0–9, chữ số kiểm tra), series ở Đã triển khai, chưa có ISIN và chưa có đề nghị gắn ISIN đang mở. Series sang Sẵn sàng khi indexer đọc IsinAssigned.
+      x-werwa-function: '2.07'
+      x-werwa-callers: VSDC
+      x-werwa-roles:
+      - REGISTRAR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IsinAssign'
+      responses:
+        '202':
+          description: Đã tạo đề nghị ký
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SigningProposalRef'
         4XX:
           description: Lỗi
           content:
@@ -4612,6 +4652,15 @@ components:
           format: date-time
         comment:
           type: string
+      additionalProperties: false
+    IsinAssign:
+      type: object
+      required:
+      - isin
+      properties:
+        isin:
+          type: string
+          pattern: ^[A-Z]{2}[A-Z0-9]{9}[0-9]$
       additionalProperties: false
     SigningProposal:
       type: object
