@@ -12,6 +12,9 @@ public interface Wallets {
     /** Ví theo địa chỉ trên một chuỗi, mọi trạng thái (bảng đọc số dư, Q86); rỗng nếu chưa có trong onboarding. */
     Optional<Wallet> byAddress(long chainId, String address);
 
+    /** Địa chỉ ví omnibus đã đăng ký trên một chuỗi, cho danh sách omnibus ban đầu của series (Q116). */
+    java.util.List<String> registeredOmnibus(long chainId);
+
     /** @param walletType {@code SELF} hoặc {@code OMNIBUS} (ví omnibus thuộc lưu ký) */
     record Wallet(UUID id, UUID organizationId, long chainId, String address, String walletType) {}
 }

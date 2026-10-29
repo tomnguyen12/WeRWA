@@ -8,4 +8,7 @@ public interface InvestorClasses {
 
     /** Các mã không có trong danh mục, giữ thứ tự đầu vào. */
     List<String> unknown(Collection<String> keys);
+
+    /** Mã {@code uint16} trên chuỗi của từng loại (Q25), giữ thứ tự đầu vào; loại không có thì bỏ qua. */
+    java.util.Map<String, Integer> codes(Collection<String> keys);
 }

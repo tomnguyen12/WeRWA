@@ -6,16 +6,10 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,8 +19,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -35,7 +27,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.WebApplicationContext;
 import org.web3j.crypto.Credentials;
-import org.web3j.crypto.Keys;
 import org.web3j.crypto.Sign;
 import org.web3j.utils.Numeric;
 import tools.jackson.databind.json.JsonMapper;
@@ -48,58 +39,20 @@ import vn.werwa.onchain.signing.TransactionSigner;
 import vn.werwa.platform.OpenApiSchemas;
 
 /**
- * Thu chữ ký multisig và gửi giao dịch Safe với Besu và Safe 1.4.1 thật (US-6.04 AC2, AC3; Q106–Q113). Safe dựng bằng
- * chính {@code infra/safe/safe.sh} như devnet: Safe UBND, VSDC, BIDV, Holco 2/3; {@code governance3of3} có owner là Safe
+ * Thu chữ ký multisig và gửi giao dịch Safe với Besu và Safe 1.4.1 thật (US-6.04 AC2, AC3; Q106–Q113). Safe do
+ * {@link ChainIntegrationTest} dựng bằng chính {@code infra/safe/safe.sh} như devnet: Safe UBND, VSDC, BIDV, Holco 2/3; {@code governance3of3} có owner là Safe
  * UBND, VSDC, Holco. Khóa người ký thử do script sinh, chỉ sống trong thư mục tạm của kiểm thử.
  */
 class SigningIT extends ChainIntegrationTest {
 
-    static final Map<String, String> ORGS = Map.of(
-            "ubnd", "01a15bc1-f400-7c28-a7a8-d5d4cc19328b",
-            "vsdc", "01a15bc1-f403-7f0b-8fb9-a75cdc4b5b00",
-            "bidv", "01a15bc1-f404-72f3-86c3-4f3f7c24f440",
-            "holco", "01a15bc1-f409-7589-aef1-774ceddccf3f");
+    static final Map<String, String> ORGS = SAFE_ORGS;
     static final Map<String, String> ROLES = Map.of("ubnd", "ISSUER", "vsdc", "REGISTRAR", "bidv", "PAYING_AGENT",
             "holco", "OPERATOR");
     static final JsonMapper JSON = JsonMapper.builder().build();
     static final Duration WAIT = Duration.ofSeconds(60);
-    static final Path OUT;
-    static final Map<String, String> SAFES = new HashMap<>();
-
-    static {
-        try {
-            OUT = Files.createTempDirectory("werwa-safe-");
-            Path bootstrap = OUT.resolve("accounts/bootstrap/key");
-            Files.createDirectories(bootstrap.getParent());
-            Files.writeString(bootstrap, Numeric.toHexStringWithPrefixZeroPadded(Keys.createEcKeyPair().getPrivateKey(), 64));
-            String rpc = "http://" + BESU.getHost() + ":" + BESU.getMappedPort(8545);
-            ProcessBuilder pb = new ProcessBuilder("bash", "../infra/safe/safe.sh", "up").redirectErrorStream(true);
-            pb.environment().putAll(Map.of("DEVNET_OUT", OUT.toString(), "O1A_RPC", rpc, "V1_RPC", rpc));
-            Process p = pb.start();
-            String log = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            if (!p.waitFor(10, TimeUnit.MINUTES) || p.exitValue() != 0) {
-                throw new IllegalStateException("safe.sh up lỗi:\n" + log);
-            }
-            Map<?, ?> json = JSON.readValue(Files.readString(OUT.resolve("safe/safes.json")), Map.class);
-            ((Map<?, ?>) json.get("safes")).forEach((name, v) ->
-                    SAFES.put((String) name, ((String) ((Map<?, ?>) v).get("address")).toLowerCase()));
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
-    @DynamicPropertySource
-    static void safeProperties(DynamicPropertyRegistry registry) {
-        SAFES.forEach((name, address) -> registry.add("werwa.safes." + name, () -> address));
-        ORGS.forEach((name, org) -> registry.add("werwa.signing.safe-organizations." + name, () -> org));
-    }
 
     static Credentials signer(String org, int i) {
-        try {
-            return Credentials.create(Files.readString(OUT.resolve("safe/signers/" + org + "-" + i + "/key")).trim());
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
+        return safeSigner(org, i);
     }
 
     static RequestPostProcessor as(String org) {
@@ -131,17 +84,7 @@ class SigningIT extends ChainIntegrationTest {
     void setUp() {
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
         // Người ký 1, 2 của mỗi tổ chức được ủy quyền (B5a); người ký 3 là owner Safe nhưng chưa ủy quyền
-        for (String org : ORGS.keySet()) {
-            for (int i = 1; i <= 2; i++) {
-                jdbc.update("""
-                        INSERT INTO onboarding.authorized_signer (id, organization_id, user_id, signing_address, scopes,
-                            valid_from, authorization_doc_id, created_at)
-                        VALUES (?, ?::uuid, ?, ?, ARRAY['ALL'], current_date - 1, ?, now())
-                        ON CONFLICT (signing_address) DO NOTHING
-                        """, UUID.randomUUID(), ORGS.get(org), UUID.randomUUID(),
-                        signer(org, i).getAddress().toLowerCase(), UUID.randomUUID());
-            }
-        }
+        authorizeSafeSigners(jdbc);
     }
 
     // ---------- tiện ích ----------

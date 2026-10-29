@@ -66,12 +66,71 @@ public abstract class ChainIntegrationTest extends IntegrationTest {
     static final Map<String, String> CONTRACTS;
     static final long DEPLOYED_AT_BLOCK;
 
+    /** Tổ chức thử (orgs.json) của Safe tổ chức (Q107). */
+    public static final Map<String, String> SAFE_ORGS = Map.of(
+            "ubnd", "01a15bc1-f400-7c28-a7a8-d5d4cc19328b",
+            "vsdc", "01a15bc1-f403-7f0b-8fb9-a75cdc4b5b00",
+            "bidv", "01a15bc1-f404-72f3-86c3-4f3f7c24f440",
+            "holco", "01a15bc1-f409-7589-aef1-774ceddccf3f");
+
+    /** Thư mục kết quả của {@code safe.sh}: safes.json và khóa người ký thử. */
+    static final Path SAFE_OUT;
+
+    /** Tên Safe ({@code ubnd}, {@code governance3of3}...) sang địa chỉ chữ thường. */
+    public static final Map<String, String> SAFES = new java.util.HashMap<>();
+
     static {
         BESU.start();
         awaitBlocks();
+        // Q113, Q120: Safe 1.4.1 thật dựng bằng chính infra/safe/safe.sh, trước khi triển khai nền tảng với Safe đó
+        SAFE_OUT = deploySafes();
         Deployment d = deployPlatform();
         CONTRACTS = d.contracts();
         DEPLOYED_AT_BLOCK = d.lastBlock();
+    }
+
+    /** Khóa người ký thử thứ {@code i} (1–3) của Safe tổ chức {@code org}, do safe.sh sinh. */
+    public static Credentials safeSigner(String org, int i) {
+        try {
+            return Credentials.create(Files.readString(SAFE_OUT.resolve("safe/signers/" + org + "-" + i + "/key")).trim());
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** Người ký 1, 2 của mỗi Safe tổ chức là người ký được ủy quyền của tổ chức đó (B5a); người ký 3 thì chưa. */
+    public static void authorizeSafeSigners(org.springframework.jdbc.core.JdbcTemplate jdbc) {
+        for (Map.Entry<String, String> org : SAFE_ORGS.entrySet()) {
+            for (int i = 1; i <= 2; i++) {
+                jdbc.update("""
+                        INSERT INTO onboarding.authorized_signer (id, organization_id, user_id, signing_address, scopes,
+                            valid_from, authorization_doc_id, created_at)
+                        VALUES (?, ?::uuid, ?, ?, ARRAY['ALL'], current_date - 1, ?, now())
+                        ON CONFLICT (signing_address) DO NOTHING
+                        """, java.util.UUID.randomUUID(), org.getValue(), java.util.UUID.randomUUID(),
+                        safeSigner(org.getKey(), i).getAddress().toLowerCase(java.util.Locale.ROOT), java.util.UUID.randomUUID());
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Path deploySafes() {
+        try {
+            Path out = Files.createTempDirectory("werwa-safe-");
+            Path bootstrap = out.resolve("accounts/bootstrap/key");
+            Files.createDirectories(bootstrap.getParent());
+            Files.writeString(bootstrap, Numeric.toHexStringWithPrefixZeroPadded(DEPLOYER.getEcKeyPair().getPrivateKey(), 64));
+            Path repo = Path.of("..").toAbsolutePath().normalize();
+            run(repo.toFile(), Map.of("DEVNET_OUT", out.toString(), "O1A_RPC", rpcUrl(), "V1_RPC", rpcUrl()),
+                    "bash", "infra/safe/safe.sh", "up");
+            Map<String, Object> json = JsonMapper.builder().build().readValue(Files.readString(out.resolve("safe/safes.json")),
+                    Map.class);
+            ((Map<String, Map<String, Object>>) json.get("safes")).forEach((name, v) ->
+                    SAFES.put(name, ((String) v.get("address")).toLowerCase(java.util.Locale.ROOT)));
+            return out;
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     static String rpcUrl() {
@@ -93,6 +152,8 @@ public abstract class ChainIntegrationTest extends IntegrationTest {
         registry.add("werwa.onchain.resend-after", () -> "PT3S");
         registry.add("werwa.onchain.rpc-timeout", () -> "PT2S");
         CONTRACTS.forEach((name, address) -> registry.add("werwa.contracts." + name, () -> address));
+        SAFES.forEach((name, address) -> registry.add("werwa.safes." + name, () -> address));
+        SAFE_ORGS.forEach((name, org) -> registry.add("werwa.signing.safe-organizations." + name, () -> org));
     }
 
     private static ECKeyPair newKey() {
@@ -146,9 +207,9 @@ public abstract class ChainIntegrationTest extends IntegrationTest {
         Path repo = Path.of("..").toAbsolutePath().normalize();
         File contracts = repo.resolve("contracts").toFile();
         Map<String, String> env = Map.of(
-                "WERWA_GOVERNANCE_3OF3", "0x00000000000000000000000000000000000000A3",
-                "WERWA_CANCELLERS", "0x00000000000000000000000000000000000000B1,0x00000000000000000000000000000000000000B2,0x00000000000000000000000000000000000000B3",
-                "WERWA_HOLCO_SAFE", "0x00000000000000000000000000000000000000C1",
+                "WERWA_GOVERNANCE_3OF3", SAFES.get("governance3of3"),
+                "WERWA_CANCELLERS", SAFES.get("ubnd") + "," + SAFES.get("vsdc") + "," + SAFES.get("holco"),
+                "WERWA_HOLCO_SAFE", SAFES.get("holco"),
                 "WERWA_HOLCO_CLAIM_SIGNER", "0x00000000000000000000000000000000000000C2",
                 "WERWA_HOLCO_OPERATOR", OPERATOR.getAddress(),
                 "WERWA_TIMELOCK_DELAY", "3600");

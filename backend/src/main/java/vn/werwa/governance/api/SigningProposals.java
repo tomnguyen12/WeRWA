@@ -22,4 +22,7 @@ public interface SigningProposals {
 
     /** Gọi trong giao dịch DB của mô-đun gọi. Safe đang có đề nghị khác thì đề nghị mới ở {@code QUEUED} (Q110). */
     Ref create(Request request);
+
+    /** Trạng thái hiện tại của đề nghị; rỗng nếu không có. */
+    java.util.Optional<String> status(UUID id);
 }

@@ -207,9 +207,10 @@ class GovernanceIT extends IntegrationTest {
 
     @Test
     void apiNotYetBuiltAnswers501ProblemJson() throws Exception {
-        // Triển khai series (B6c) chưa làm; mọi API của Quản trị đã làm
-        MvcResult r = mvc.perform(post("/v1/series/" + UUID.randomUUID() + "/deploy").with(as(CHECKER, HOLCO, "OPERATOR"))
-                        .header("Idempotency-Key", "k-" + UUID.randomUUID()))
+        // Đăng ký ví (B5b) chưa làm; mọi API của Quản trị đã làm
+        MvcResult r = mvc.perform(post("/v1/wallet-challenges").with(as(CHECKER, "01a15bc1-f40a-7520-aeb5-19bb9d2faaa5",
+                        "INVESTOR")).header("Idempotency-Key", "k-" + UUID.randomUUID())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().is(501))
                 .andExpect(jsonPath("$.code").value("NOT_IMPLEMENTED"))
                 .andReturn();

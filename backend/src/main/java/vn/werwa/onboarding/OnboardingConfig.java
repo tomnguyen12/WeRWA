@@ -33,9 +33,23 @@ class OnboardingConfig {
 
     @Bean
     vn.werwa.onboarding.api.InvestorClasses investorClasses(JdbcTemplate jdbc) {
-        return keys -> {
-            java.util.List<String> known = jdbc.queryForList("SELECT key FROM onboarding.investor_class", String.class);
-            return keys.stream().filter(k -> !known.contains(k)).toList();
+        return new vn.werwa.onboarding.api.InvestorClasses() {
+            @Override
+            public java.util.List<String> unknown(java.util.Collection<String> keys) {
+                java.util.List<String> known = jdbc.queryForList("SELECT key FROM onboarding.investor_class", String.class);
+                return keys.stream().filter(k -> !known.contains(k)).toList();
+            }
+
+            @Override
+            public java.util.Map<String, Integer> codes(java.util.Collection<String> keys) {
+                java.util.Map<String, Integer> all = new java.util.HashMap<>();
+                jdbc.query("SELECT key, code FROM onboarding.investor_class", rs -> {
+                    all.put(rs.getString(1), rs.getInt(2));
+                });
+                java.util.Map<String, Integer> out = new java.util.LinkedHashMap<>();
+                keys.stream().filter(all::containsKey).forEach(k -> out.put(k, all.get(k)));
+                return out;
+            }
         };
     }
 
@@ -51,6 +65,14 @@ class OnboardingConfig {
                         SELECT id, organization_id, chain_id, address, wallet_type FROM onboarding.wallet
                         WHERE id = ? AND status = 'REGISTERED'
                         """, row, walletId).stream().findFirst();
+            }
+
+            @Override
+            public java.util.List<String> registeredOmnibus(long chainId) {
+                return jdbc.queryForList("""
+                        SELECT address FROM onboarding.wallet
+                        WHERE chain_id = ? AND wallet_type = 'OMNIBUS' AND status = 'REGISTERED' ORDER BY address
+                        """, String.class, chainId);
             }
 
             @Override

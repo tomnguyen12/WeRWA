@@ -55,6 +55,12 @@ class OnchainConfig {
         return registry;
     }
 
+    /** B6c (Q116): địa chỉ khóa vận hành cho vai operator của series. */
+    @Bean
+    vn.werwa.onchain.api.Accounts accounts(TransactionSigner signer) {
+        return () -> signer.address(vn.werwa.onchain.api.SignerKey.HOLCO_OPERATOR).toLowerCase(java.util.Locale.ROOT);
+    }
+
     /** B4b (Q107): owner, ngưỡng, nonce của Safe. */
     @Bean
     Web3jSafes safes(ChainNodes nodes) {

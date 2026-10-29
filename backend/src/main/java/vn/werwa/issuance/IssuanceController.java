@@ -36,9 +36,12 @@ class IssuanceController implements IssuanceApi {
     private final SeriesService series;
     private final IssuerDecisionService decisions;
     private final vn.werwa.platform.registry.HoldingsSummaries holdings;
+    private final vn.werwa.issuance.series.SeriesDeployment deployment;
 
     IssuanceController(DocumentService documents, ProgramService programs, SeriesService series,
-            IssuerDecisionService decisions, vn.werwa.platform.registry.HoldingsSummaries holdings) {
+            IssuerDecisionService decisions, vn.werwa.platform.registry.HoldingsSummaries holdings,
+            vn.werwa.issuance.series.SeriesDeployment deployment) {
+        this.deployment = deployment;
         this.holdings = holdings;
         this.documents = documents;
         this.programs = programs;
@@ -95,6 +98,27 @@ class IssuanceController implements IssuanceApi {
                 body.getGraceBusinessDays(), body.getWithholdingTaxPpm(), body.getHoldingLimit(), body.getInvestorClasses(),
                 body.getTermsDocumentId(), body.getDocumentIds()));
         return ResponseEntity.ok().eTag(ETags.of(s.version())).body(view(s));
+    }
+
+    /** Q115: tạo lại đề nghị ký triển khai 3/3 khi đề nghị trước FAILED hoặc CANCELLED. */
+    @Override
+    public ResponseEntity<SigningProposalRef> deploySeries(UUID id, String idempotencyKey) {
+        return ResponseEntity.accepted().body(ref(deployment.proposeDeploy(id), series.get(id).approvalRequestId()));
+    }
+
+    /** US-2.07-AC2 (Q118): VSDC gắn ISIN qua đề nghị ký Safe VSDC. */
+    @Override
+    public ResponseEntity<SigningProposalRef> assignIsin(UUID id, String idempotencyKey,
+            vn.werwa.platform.openapi.model.IsinAssign body) {
+        return ResponseEntity.accepted().body(ref(deployment.assignIsin(id, body.getIsin()), null));
+    }
+
+    static SigningProposalRef ref(vn.werwa.governance.api.SigningProposals.Ref r, UUID approvalRequestId) {
+        SigningProposalRef ref = new SigningProposalRef();
+        ref.setSigningProposalId(r.id());
+        ref.setApprovalRequestId(approvalRequestId);
+        ref.setStatus(SigningProposalRef.StatusEnum.fromValue(r.status()));
+        return ref;
     }
 
     /** US-4.04 (Q91): series kèm tóm tắt sổ cho Cơ quan giám sát. */

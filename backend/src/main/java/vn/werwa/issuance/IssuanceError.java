@@ -24,6 +24,9 @@ public enum IssuanceError implements ErrorCode {
     SERIES_NOT_DRAFT(HttpStatus.CONFLICT, "Chỉ gửi duyệt được series ở trạng thái Nháp"),
     REQUIRED_DOCUMENTS_MISSING(HttpStatus.UNPROCESSABLE_CONTENT, "Thiếu tài liệu bắt buộc"),
     SERIES_NOT_READY(HttpStatus.CONFLICT, "Series không ở trạng thái cho bước này"),
+    SERIES_DEPLOY_PENDING(HttpStatus.CONFLICT, "Series đã có đề nghị ký triển khai đang mở"),
+    ISIN_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "ISIN không đúng ISO 6166"),
+    ISIN_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "Series đã có ISIN hoặc đề nghị gắn ISIN đang mở"),
     ISSUER_DECISION_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Quyết định thiếu đối tượng áp dụng"),
     ISSUER_DECISION_EXISTS(HttpStatus.CONFLICT, "Số quyết định đã được ghi");
 

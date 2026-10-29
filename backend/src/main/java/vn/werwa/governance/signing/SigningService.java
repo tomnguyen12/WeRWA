@@ -131,6 +131,12 @@ public class SigningService implements SigningProposals {
         return new Ref(id, get(id).status());
     }
 
+    @Override
+    public Optional<String> status(UUID id) {
+        return jdbc.queryForList("SELECT status FROM governance.signing_proposal WHERE id = ?", String.class, id).stream()
+                .findFirst();
+    }
+
     /** Đề nghị QUEUED cũ nhất của Safe nhận nonce hiện tại trên chuỗi, nếu Safe không có đề nghị đang mở. */
     void activateNext(String safe) {
         Integer open = jdbc.queryForObject("""

@@ -103,6 +103,74 @@ class IssuanceConfig {
     }
 
     /** Q61: lịch ngày làm việc đổi thì tính lại lịch các kỳ chưa tới ngày chốt. */
+    /** B6c: triển khai 3/3, ISIN, đồng bộ trạng thái từ chuỗi (Q114–Q119). */
+    @Bean
+    vn.werwa.issuance.series.SeriesDeployment seriesDeployment(JdbcTemplate jdbc, SeriesService series,
+            ProgramService programs, vn.werwa.governance.api.SigningProposals proposals, InvestorClasses investorClasses,
+            vn.werwa.onboarding.api.Wallets wallets, vn.werwa.onchain.api.Accounts accounts,
+            vn.werwa.platform.config.WerwaProperties werwa, Events events, AuditLog audit, Clock clock) {
+        return new vn.werwa.issuance.series.SeriesDeployment(jdbc, series, programs, proposals, investorClasses, wallets,
+                accounts, werwa, events, audit, clock);
+    }
+
+    /**
+     * Q115: duyệt series đạt thì tạo đề nghị ký triển khai, trong giao dịch riêng. Không tạo được (chuỗi hay cấu hình Safe
+     * chưa sẵn) thì ghi nhật ký; Holco tạo lại bằng {@code POST /v1/series/{id}/deploy}.
+     */
+    @Bean
+    vn.werwa.platform.events.EventHandler issuanceOnSeriesApproved(vn.werwa.issuance.series.SeriesDeployment deployment,
+            org.springframework.transaction.PlatformTransactionManager txManager, AuditLog audit) {
+        org.springframework.transaction.support.TransactionTemplate separate =
+                new org.springframework.transaction.support.TransactionTemplate(txManager);
+        separate.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "issuance";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.issuance.series.approved.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                java.util.UUID seriesId = java.util.UUID.fromString(String.valueOf(event.data().get("seriesId")));
+                try {
+                    separate.executeWithoutResult(s -> deployment.proposeDeploy(seriesId));
+                } catch (RuntimeException e) {
+                    audit.record("SERIES_DEPLOY_PROPOSAL_FAILED", "series/" + seriesId,
+                            java.util.Map.of("reason", String.valueOf(e.getMessage())));
+                }
+            }
+        };
+    }
+
+    /** Q117: địa chỉ hợp đồng, ISIN, trạng thái series từ sự kiện indexer. */
+    @Bean
+    vn.werwa.platform.events.EventHandler issuanceOnEventIndexed(vn.werwa.issuance.series.SeriesDeployment deployment) {
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "issuance";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.onchain.event.indexed.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                Object kind = event.data().get("contractKind");
+                if ("seriesfactory".equals(kind) || "series.controller".equals(kind)) {
+                    deployment.onIndexed(event.data());
+                }
+            }
+        };
+    }
+
     @Bean
     vn.werwa.platform.events.EventHandler issuanceOnCalendarChanged(SeriesService series) {
         return new vn.werwa.platform.events.EventHandler() {
