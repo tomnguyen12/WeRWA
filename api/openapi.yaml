@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.12.0
+  version: 0.13.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1460,12 +1460,15 @@ paths:
       - distribution
       operationId: listHoldings
       summary: Số dư theo ví, theo series
+      description: Nhà đầu tư, lưu ký chỉ thấy ví của tổ chức mình; VSDC, Holco, Cơ quan giám sát thấy toàn bộ (US-3.07-AC2; Q88). Mọi dòng cùng asOfBlock (Q87).
       x-werwa-function: '3.07'
-      x-werwa-callers: Nhà đầu tư, lưu ký, VSDC
+      x-werwa-callers: Nhà đầu tư, lưu ký, VSDC, Holco, Cơ quan giám sát
       x-werwa-roles:
       - INVESTOR
       - CUSTODIAN
       - REGISTRAR
+      - OPERATOR
+      - SUPERVISOR
       parameters:
       - name: seriesId
         in: query
@@ -1495,6 +1498,75 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Holding'
+                  nextCursor:
+                    type: string
+                additionalProperties: false
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/holdings/movements:
+    get:
+      tags:
+      - distribution
+      operationId: listHoldingMovements
+      summary: Sao kê biến động số dư, mới nhất trước (US-3.07-AC3; Q88)
+      description: Lọc theo ví, series và giờ của khối (from bao gồm, to không bao gồm). Quyền xem như /v1/holdings.
+      x-werwa-function: '3.07'
+      x-werwa-callers: Nhà đầu tư, lưu ký, VSDC, Holco, Cơ quan giám sát
+      x-werwa-roles:
+      - INVESTOR
+      - CUSTODIAN
+      - REGISTRAR
+      - OPERATOR
+      - SUPERVISOR
+      parameters:
+      - name: walletId
+        in: query
+        schema:
+          type: string
+          format: uuid
+          description: UUIDv7
+      - name: seriesId
+        in: query
+        schema:
+          type: string
+          format: uuid
+          description: UUIDv7
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HoldingMovement'
                   nextCursor:
                     type: string
                 additionalProperties: false
@@ -3979,6 +4051,61 @@ components:
         txHash:
           type: string
           pattern: ^0x[0-9a-fA-F]{64}$
+      additionalProperties: false
+    HoldingMovement:
+      type: object
+      required:
+      - id
+      - seriesId
+      - walletId
+      - kind
+      - quantity
+      - block
+      - logIndex
+      - txHash
+      - blockTime
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        seriesId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        walletId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        kind:
+          type: string
+          enum:
+          - MINT
+          - TRANSFER_IN
+          - TRANSFER_OUT
+          - BURN
+          - FREEZE
+          - UNFREEZE
+        quantity:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Số trái phiếu (decimals 0)
+        counterpartyWallet:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
+          description: Địa chỉ ví đối ứng, chỉ cho TRANSFER_IN, TRANSFER_OUT
+        block:
+          type: integer
+          format: int64
+        logIndex:
+          type: integer
+        txHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        blockTime:
+          type: string
+          format: date-time
       additionalProperties: false
     Holding:
       type: object
