@@ -53,7 +53,7 @@ class WeHsmSignerTest {
         });
         server.start();
         URI url = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
-        return new WeHsmSigner(url, "bi-mat-thu", JSON, Duration.ofSeconds(2), key::getAddress);
+        return new WeHsmSigner(url, "bi-mat-thu", JSON, Duration.ofSeconds(2), key::getAddress, null);
     }
 
     static RawTransaction tx(long nonce) {

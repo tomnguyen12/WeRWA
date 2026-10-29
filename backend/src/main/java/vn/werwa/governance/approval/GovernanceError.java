@@ -23,6 +23,13 @@ public enum GovernanceError implements ErrorCode {
     RECONCILIATION_REASON_REQUIRED(HttpStatus.UNPROCESSABLE_CONTENT, "Đóng chênh lệch phải ghi lý do"),
     ALERT_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có cảnh báo này"),
     BLOCK_HASH_ALREADY_ATTESTED(HttpStatus.CONFLICT, "Khối này đã có mã băm VSDC gửi"),
+    SIGNING_PROPOSAL_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có đề nghị ký này"),
+    SIGNING_PROPOSAL_NOT_COLLECTING(HttpStatus.CONFLICT, "Đề nghị ký không còn thu chữ ký"),
+    SIGNING_PROPOSAL_NOT_CANCELLABLE(HttpStatus.CONFLICT, "Đề nghị ký đã gửi lên chuỗi, không hủy được"),
+    SIGNATURE_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Chữ ký không khớp người ký hoặc dữ liệu cần ký"),
+    SIGNER_NOT_AUTHORIZED(HttpStatus.FORBIDDEN, "Người ký không phải owner Safe hoặc người ký được ủy quyền của tổ chức"),
+    SIGNATURE_DUPLICATE(HttpStatus.CONFLICT, "Người ký đã nộp chữ ký cho đề nghị này"),
+    SAFE_UNKNOWN(HttpStatus.UNPROCESSABLE_CONTENT, "Safe không có trong cấu hình hoặc owner không phải Safe tổ chức"),
     CHECKER_ROLE_REQUIRED(HttpStatus.FORBIDDEN, "Yêu cầu này phải do vai được chỉ định duyệt");
 
     private final HttpStatus status;

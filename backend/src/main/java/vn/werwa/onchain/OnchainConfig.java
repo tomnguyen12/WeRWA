@@ -55,6 +55,12 @@ class OnchainConfig {
         return registry;
     }
 
+    /** B4b (Q107): owner, ngưỡng, nonce của Safe. */
+    @Bean
+    Web3jSafes safes(ChainNodes nodes) {
+        return new Web3jSafes(nodes);
+    }
+
     /** R5 (Q89): số dư token tại một số khối. */
     @Bean
     Web3jTokenBalances tokenBalances(ChainNodes nodes) {
@@ -72,7 +78,7 @@ class OnchainConfig {
     TransactionSigner weHsmSigner(
             WerwaProperties werwa, OnchainProperties props, JsonMapper json, ChainNodes nodes, ContractRegistry registry) {
         return new WeHsmSigner(werwa.signer().url(), werwa.signer().token(), json, props.rpcTimeout(),
-                () -> operatorOf(nodes, registry));
+                () -> operatorOf(nodes, registry), werwa.signer().relayerAddress());
     }
 
     @Bean

@@ -35,6 +35,7 @@ class GovernanceController implements GovernanceApi {
     private final vn.werwa.governance.enforcement.EnforcementService enforcement;
     private final vn.werwa.governance.reconciliation.ReconciliationService reconciliation;
     private final vn.werwa.governance.supervision.SupervisionService supervision;
+    private final vn.werwa.governance.signing.SigningService signing;
 
     GovernanceController(ApprovalService approvals, JdbcTemplate jdbc, vn.werwa.governance.alert.AlertService alerts,
             vn.werwa.governance.parameter.ParameterService parameters,
@@ -42,7 +43,9 @@ class GovernanceController implements GovernanceApi {
             vn.werwa.governance.notification.NotificationService notifications,
             vn.werwa.governance.enforcement.EnforcementService enforcement,
             vn.werwa.governance.reconciliation.ReconciliationService reconciliation,
-            vn.werwa.governance.supervision.SupervisionService supervision) {
+            vn.werwa.governance.supervision.SupervisionService supervision,
+            vn.werwa.governance.signing.SigningService signing) {
+        this.signing = signing;
         this.supervision = supervision;
         this.enforcement = enforcement;
         this.reconciliation = reconciliation;
@@ -52,6 +55,74 @@ class GovernanceController implements GovernanceApi {
         this.parameters = parameters;
         this.calendars = calendars;
         this.notifications = notifications;
+    }
+
+    // ---------- Đề nghị ký multisig (B4b; Q106–Q113) ----------
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ListSigningProposals200Response> listSigningProposals(
+            String status, String cursor, Integer limit) {
+        Paging.Page<vn.werwa.governance.signing.SigningService.Proposal> page = signing.list(status, cursor, limit);
+        var out = new vn.werwa.platform.openapi.model.ListSigningProposals200Response();
+        out.setItems(page.items().stream().map(this::view).toList());
+        out.setNextCursor(page.nextCursor());
+        return ResponseEntity.ok(out);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.SigningProposal> getSigningProposal(UUID id) {
+        return ResponseEntity.ok(view(signing.view(id)));
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.SigningProposal> submitSignature(UUID id, String idempotencyKey,
+            vn.werwa.platform.openapi.model.SignatureSubmit body) {
+        return ResponseEntity.accepted().body(view(signing.submit(id, body.getSigner(), body.getSignature())));
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.SigningProposal> cancelSigningProposal(UUID id,
+            String idempotencyKey) {
+        return ResponseEntity.ok(view(signing.cancel(id)));
+    }
+
+    vn.werwa.platform.openapi.model.SigningProposal view(vn.werwa.governance.signing.SigningService.Proposal p) {
+        var v = new vn.werwa.platform.openapi.model.SigningProposal();
+        v.setId(p.id());
+        v.setPurpose(p.purpose());
+        v.setSubjectRef(p.subjectRef());
+        v.setApprovalRequestId(p.approvalRequestId());
+        v.setSafe(p.safe());
+        v.setNonce(p.nonce());
+        v.setSafeTxHash(p.safeTxHash());
+        v.setTargetContract(p.targetContract());
+        v.setFunctionName(p.functionName());
+        v.setCalldataHash(p.calldataHash());
+        v.setThreshold(p.threshold() == null ? p.parties().size() : p.threshold());
+        v.setParties(p.parties().stream().map(x -> {
+            var pv = new vn.werwa.platform.openapi.model.SigningProposalPartiesInner();
+            pv.setSafe(x.safe());
+            pv.setOrganizationId(x.organizationId());
+            pv.setThreshold(x.threshold());
+            pv.setSigned((int) p.signed(x));
+            return pv;
+        }).toList());
+        v.setSignatures(p.signatures().stream().map(s -> {
+            var sv = new vn.werwa.platform.openapi.model.SigningProposalSignaturesInner();
+            sv.setSigner(s.signer());
+            sv.setSafe(s.partySafe());
+            sv.setSignature(s.signature());
+            sv.setSubmittedAt(s.submittedAt().atOffset(ZoneOffset.UTC));
+            return sv;
+        }).toList());
+        v.setStatus(vn.werwa.platform.openapi.model.SigningProposal.StatusEnum.fromValue(p.status()));
+        v.setTxHash(p.txHash());
+        v.setFailureReason(p.failureReason());
+        v.setCreatedAt(p.createdAt().atOffset(ZoneOffset.UTC));
+        if (p.nonce() != null) {
+            signing.myParty(p).ifPresent(party -> v.setTypedData(signing.typedDataFor(p, party)));
+        }
+        return v;
     }
 
     // ---------- Công cụ giám sát (B12b; Q90–Q96) ----------

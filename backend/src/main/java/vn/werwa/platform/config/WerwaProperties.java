@@ -95,7 +95,8 @@ public record WerwaProperties(
         PKCS11
     }
 
-    public record Signer(URI url, String token) {
+    /** @param relayerAddress địa chỉ khóa {@code relayer} trong WeHSM (D8); trống thì gửi giao dịch Safe bằng khóa vận hành */
+    public record Signer(URI url, String token, String relayerAddress) {
 
         boolean isComplete() {
             return url != null && token != null && !token.isBlank();
@@ -103,7 +104,8 @@ public record WerwaProperties(
 
         @Override
         public String toString() {
-            return "Signer[url=" + url + ", token=" + (token == null ? null : "***") + "]";
+            return "Signer[url=" + url + ", token=" + (token == null ? null : "***") + ", relayerAddress=" + relayerAddress
+                    + "]";
         }
     }
 

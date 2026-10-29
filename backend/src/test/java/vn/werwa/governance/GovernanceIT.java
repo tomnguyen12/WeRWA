@@ -207,7 +207,9 @@ class GovernanceIT extends IntegrationTest {
 
     @Test
     void apiNotYetBuiltAnswers501ProblemJson() throws Exception {
-        MvcResult r = mvc.perform(get("/v1/signing-proposals/" + UUID.randomUUID()).with(as(CHECKER, HOLCO, "OPERATOR")))
+        // Triển khai series (B6c) chưa làm; mọi API của Quản trị đã làm
+        MvcResult r = mvc.perform(post("/v1/series/" + UUID.randomUUID() + "/deploy").with(as(CHECKER, HOLCO, "OPERATOR"))
+                        .header("Idempotency-Key", "k-" + UUID.randomUUID()))
                 .andExpect(status().is(501))
                 .andExpect(jsonPath("$.code").value("NOT_IMPLEMENTED"))
                 .andReturn();

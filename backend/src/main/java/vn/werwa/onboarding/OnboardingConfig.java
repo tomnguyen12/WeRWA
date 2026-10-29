@@ -63,6 +63,12 @@ class OnboardingConfig {
         };
     }
 
+    /** B4b (Q109): người ký được ủy quyền cho kiểm chữ ký multisig. */
+    @Bean
+    vn.werwa.platform.registry.SignerRegistry signerRegistry(vn.werwa.onboarding.api.Signers signers) {
+        return (address, on) -> signers.active(address, on).map(vn.werwa.onboarding.api.Signers.Active::organizationId);
+    }
+
     /** Q79: lưu ký của ví omnibus phải đã qua KYB. */
     @Bean
     vn.werwa.onboarding.api.Custodians custodians(JdbcTemplate jdbc) {

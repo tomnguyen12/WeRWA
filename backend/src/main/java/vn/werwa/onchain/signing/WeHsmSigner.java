@@ -39,7 +39,12 @@ public class WeHsmSigner implements TransactionSigner {
     private final Supplier<String> operatorAddress;
     private final AtomicReference<String> operator = new AtomicReference<>();
 
-    public WeHsmSigner(URI url, String token, JsonMapper json, Duration timeout, Supplier<String> operatorAddress) {
+    private final String relayerAddress;
+
+    public WeHsmSigner(URI url, String token, JsonMapper json, Duration timeout, Supplier<String> operatorAddress,
+            String relayerAddress) {
+        this.relayerAddress = relayerAddress == null || relayerAddress.isBlank() ? null
+                : relayerAddress.toLowerCase(Locale.ROOT);
         this.url = url;
         this.authorization = "Basic " + Base64.getEncoder().encodeToString(("wehsm:" + token).getBytes(StandardCharsets.UTF_8));
         this.http = HttpClient.newBuilder().connectTimeout(timeout).build();
@@ -50,6 +55,9 @@ public class WeHsmSigner implements TransactionSigner {
 
     @Override
     public String address(SignerKey key) {
+        if (key == SignerKey.RELAYER && relayerAddress != null) {
+            return relayerAddress;
+        }
         return operator.updateAndGet(current -> current != null ? current : operatorAddress.get().toLowerCase(Locale.ROOT));
     }
 

@@ -34,6 +34,8 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: v1.8.5
+      - name: Công cụ cho infra/safe/safe.sh (kiểm thử ký multisig dựng Safe 1.4.1 thật, Q113)
+        run: cast --version && jq --version && curl --version | head -1 && openssl version
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

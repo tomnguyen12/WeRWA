@@ -329,4 +329,14 @@ class SupervisionIT extends ChainIntegrationTest {
         ok(r, 200, "SupervisionSeries");
         assertThat(read("/v1/supervision/series/" + seriesId, REGISTRAR).getResponse().getStatus()).isEqualTo(403);
     }
+
+    /** Giao dịch neo nhật ký ở AC1 ký bằng khóa thử (Q15). */
+    @org.springframework.boot.test.context.TestConfiguration
+    static class Signer {
+        @org.springframework.context.annotation.Bean
+        @org.springframework.context.annotation.Primary
+        vn.werwa.onchain.signing.TransactionSigner testSigner() {
+            return vn.werwa.onchain.TestSigners.operator();
+        }
+    }
 }

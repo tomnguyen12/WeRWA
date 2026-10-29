@@ -20,6 +20,8 @@ import vn.werwa.platform.events.InboundEvent;
 
 /** Bean của mô-đun Quản trị (B4a). */
 @Configuration(proxyBeanMethods = false)
+@org.springframework.boot.context.properties.EnableConfigurationProperties(
+        vn.werwa.governance.signing.SigningProperties.class)
 class GovernanceConfig {
 
     static final String TX_MINED = "werwa.onchain.tx.mined.v1";
@@ -275,22 +277,40 @@ class GovernanceConfig {
 
     /** Kết quả giao dịch neo nhật ký, nhận qua NATS như mọi sự kiện giữa mô-đun (D4). */
     @Bean
-    EventHandler governanceOnTxMined(AuditAnchorService anchors) {
+    EventHandler governanceOnTxMined(AuditAnchorService anchors,
+            vn.werwa.governance.signing.SigningService signing) {
         return handler(TX_MINED, e -> {
+            UUID txId = UUID.fromString(String.valueOf(e.data().get("txId")));
             if (purposeIsAnchor(e)) {
-                anchors.anchored(UUID.fromString(String.valueOf(e.data().get("txId"))),
-                        String.valueOf(e.data().get("txHash")), ((Number) e.data().get("block")).longValue());
+                anchors.anchored(txId, String.valueOf(e.data().get("txHash")), ((Number) e.data().get("block")).longValue());
+            } else {
+                // Q111: giao dịch Safe của đề nghị ký (mục đích là của đề nghị)
+                signing.mined(txId, String.valueOf(e.data().get("txHash")));
             }
         });
     }
 
     @Bean
-    EventHandler governanceOnTxFailed(AuditAnchorService anchors) {
+    EventHandler governanceOnTxFailed(AuditAnchorService anchors,
+            vn.werwa.governance.signing.SigningService signing) {
         return handler(TX_FAILED, e -> {
+            UUID txId = UUID.fromString(String.valueOf(e.data().get("txId")));
             if (purposeIsAnchor(e)) {
-                anchors.failed(UUID.fromString(String.valueOf(e.data().get("txId"))), String.valueOf(e.data().get("reason")));
+                anchors.failed(txId, String.valueOf(e.data().get("reason")));
+            } else {
+                signing.failed(txId, String.valueOf(e.data().get("reason")));
             }
         });
+    }
+
+    /** B4b: thu chữ ký multisig, gửi giao dịch Safe (Q106–Q111). */
+    @Bean
+    vn.werwa.governance.signing.SigningService signing(JdbcTemplate jdbc, vn.werwa.onchain.api.Safes safes,
+            vn.werwa.onchain.api.ChainTransactions chain, vn.werwa.platform.registry.SignerRegistry signers,
+            vn.werwa.platform.config.WerwaProperties werwa, vn.werwa.governance.signing.SigningProperties props,
+            Events events, AuditLogService audit, tools.jackson.databind.json.JsonMapper json, Clock clock) {
+        return new vn.werwa.governance.signing.SigningService(jdbc, safes, chain, signers, werwa, props, events, audit,
+                json, clock);
     }
 
     /** Neo hằng ngày (Q21): 00:15 giờ Việt Nam neo ngày hôm trước; mỗi 10 phút bù ngày còn thiếu hoặc lỗi. */

@@ -6,5 +6,10 @@ package vn.werwa.onchain.api;
  */
 public enum SignerKey {
     /** Khóa vận hành Holco: mint, neo nhật ký, hủy khi đáo hạn. Nằm trong HSM, ký qua WeHSM (Q14). */
-    HOLCO_OPERATOR
+    HOLCO_OPERATOR,
+    /**
+     * Tài khoản chuyển tiếp gửi giao dịch Safe đã đủ chữ ký (D8, Q111): không có quyền gì trên hợp đồng. Chưa cấu hình
+     * {@code werwa.signer.relayer-address} thì dùng khóa vận hành.
+     */
+    RELAYER
 }
