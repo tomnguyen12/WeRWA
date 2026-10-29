@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.9.0
+  version: 0.10.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -3866,6 +3866,15 @@ components:
           format: int64
           minimum: 0
           description: Số trái phiếu (decimals 0)
+        ratePpm:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Lãi suất của kỳ (ppm)
+        amountDue:
+          $ref: '#/components/schemas/Money'
+        roundingResidual:
+          $ref: '#/components/schemas/Money'
         lines:
           type: array
           items:
