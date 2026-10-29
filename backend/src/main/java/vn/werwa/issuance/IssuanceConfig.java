@@ -24,6 +24,13 @@ import vn.werwa.platform.events.Events;
 @EnableConfigurationProperties({StorageProperties.class, IssuanceProperties.class})
 class IssuanceConfig {
 
+    /** B11c: trạng thái trả nợ theo kỳ (Q99, Q101, Q105). */
+    @Bean
+    vn.werwa.issuance.series.DebtServiceLedger debtServices(JdbcTemplate jdbc, AuditLog audit,
+            vn.werwa.platform.events.Events events, Clock clock) {
+        return new vn.werwa.issuance.series.DebtServiceLedger(jdbc, audit, events, clock);
+    }
+
     @Bean
     DocumentStore documentStore(StorageProperties props) {
         DocumentStore store = new DocumentStore(props);

@@ -38,6 +38,95 @@ class DistributionConfig {
         return new OrderService(jdbc, offerings, series, investors, wallets, audit, props, parameters, clock);
     }
 
+    /** B11c: vòng đời ngoài chuỗi của kỳ trả nợ (Q98–Q105). */
+    @Bean
+    vn.werwa.distribution.payout.DebtServiceRunner debtServiceRunner(JdbcTemplate jdbc,
+            org.springframework.transaction.support.TransactionTemplate tx, vn.werwa.issuance.api.DebtServices debts,
+            SeriesCatalog series, vn.werwa.distribution.payout.PayoutService payouts,
+            vn.werwa.integration.api.PayingAgent agent, vn.werwa.governance.api.Notifications notifications,
+            vn.werwa.governance.api.BusinessCalendar calendar, vn.werwa.platform.registry.HoldingsSummaries holdings,
+            Clock clock) {
+        return new vn.werwa.distribution.payout.DebtServiceRunner(jdbc, tx, debts, series, payouts, agent, notifications,
+                calendar, holdings, clock);
+    }
+
+    /** Q104: xác nhận chi của BIDV, nhận qua NATS từ mô-đun Tích hợp. */
+    @Bean
+    vn.werwa.platform.events.EventHandler distributionOnPayoutConfirmed(
+            vn.werwa.distribution.payout.DebtServiceRunner runner) {
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "distribution";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.integration.bank.payout_confirmed.v1";
+            }
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                runner.confirmed(String.valueOf(event.data().get("instructionRef")),
+                        (java.util.List<Map<String, Object>>) event.data().get("lines"));
+            }
+        };
+    }
+
+    /** Q101: 08:00 giờ VN mỗi ngày. */
+    @Bean
+    @ConditionalOnProperty(name = "werwa.distribution.debt-service-enabled", havingValue = "true", matchIfMissing = true)
+    DebtServiceJob debtServiceJob(vn.werwa.distribution.payout.DebtServiceRunner runner, Clock clock) {
+        return new DebtServiceJob(runner, clock);
+    }
+
+    static class DebtServiceJob {
+        private final vn.werwa.distribution.payout.DebtServiceRunner runner;
+        private final Clock clock;
+
+        DebtServiceJob(vn.werwa.distribution.payout.DebtServiceRunner runner, Clock clock) {
+            this.runner = runner;
+            this.clock = clock;
+        }
+
+        @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Ho_Chi_Minh")
+        void daily() {
+            runner.run(clock.instant().atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate());
+        }
+    }
+
+    /** R6 (Q105): kỳ đã chi hết nhưng tổng đã chi lệch tổng các dòng đã gửi. */
+    @Bean
+    vn.werwa.platform.reconciliation.ReconciliationCheck payoutCheck(JdbcTemplate jdbc,
+            vn.werwa.issuance.api.DebtServices debts) {
+        return new vn.werwa.platform.reconciliation.ReconciliationCheck() {
+            @Override
+            public String rule() {
+                return "R6";
+            }
+
+            @Override
+            public String scope() {
+                return "CHAIN_VS_BANK";
+            }
+
+            @Override
+            public java.util.List<Finding> run(java.time.LocalDate runDate) {
+                java.util.List<Finding> out = new java.util.ArrayList<>();
+                for (vn.werwa.issuance.api.DebtServices.Due d : debts.withStatus("PAID")) {
+                    Map<String, Object> sums = jdbc.queryForMap("""
+                            SELECT COALESCE(sum(net_minor), 0) AS expected, COALESCE(sum(paid_minor), 0) AS paid
+                            FROM distribution.distribution_line WHERE payment_instruction_ref = ?
+                            """, d.instructionRef());
+                    out.add(new Finding("PAYOUT_MISMATCH", "debt-service/" + d.eventId(),
+                            String.valueOf(sums.get("expected")), String.valueOf(sums.get("paid"))));
+                }
+                return out;
+            }
+        };
+    }
+
     /** B9c: sổ người sở hữu, sao kê (Q83–Q89). */
     @Bean
     vn.werwa.distribution.holding.HoldingsService holdings(JdbcTemplate jdbc, SeriesCatalog series, Wallets wallets,

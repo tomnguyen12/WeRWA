@@ -9,7 +9,7 @@ import vn.werwa.platform.openapi.api.IntegrationApi;
 import vn.werwa.platform.openapi.model.Ack;
 import vn.werwa.platform.openapi.model.BidvCreditNotification;
 
-/** Webhook BIDV (B8a). Xác nhận chi coupon, gốc làm ở B10; tới lúc đó trả 501 (Q20). */
+/** Webhook BIDV: báo có (B8a), xác nhận chi coupon, gốc (B11c; Q104). */
 @RestController
 class IntegrationController implements IntegrationApi {
 
@@ -19,6 +19,24 @@ class IntegrationController implements IntegrationApi {
     IntegrationController(InboundBankService inbound, HttpServletRequest request) {
         this.inbound = inbound;
         this.request = request;
+    }
+
+    @Override
+    public ResponseEntity<Ack> bidvPayoutConfirmation(String xBankSignature, String idempotencyKey,
+            vn.werwa.platform.openapi.model.BidvPayoutConfirmation body) {
+        byte[] raw = (byte[]) request.getAttribute(BankChannel.RAW_BODY_ATTRIBUTE);
+        java.util.List<InboundBankService.PayoutLine> lines = body.getLines().stream().map(l -> {
+            vn.werwa.platform.money.Money amount =
+                    vn.werwa.platform.money.Money.parse(l.getAmount().getAmountMinor(), l.getAmount().getCurrency());
+            return new InboundBankService.PayoutLine(l.getLineRef(), amount.amountMinor(), amount.currency(),
+                    l.getStatus().getValue(), l.getBankRef());
+        }).toList();
+        InboundBankService.Received r = inbound.payoutConfirmation(body.getInstructionRef(), lines, idempotencyKey, raw,
+                xBankSignature);
+        Ack ack = new Ack();
+        ack.setReceived(true);
+        ack.setMessageId(r.messageId());
+        return ResponseEntity.ok(ack);
     }
 
     @Override

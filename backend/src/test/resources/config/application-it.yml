@@ -4,6 +4,7 @@ werwa:
     probe-contract: classpath:probe/openapi-probe.yaml
   distribution:
     book-scheduler-enabled: false
+    debt-service-enabled: false
   onboarding:
     # Tổ chức thử của devnet (I6), đã qua KYB, để token thử khớp org_id.
     seed-organizations: classpath:seed/orgs.json

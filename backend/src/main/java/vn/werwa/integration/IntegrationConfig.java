@@ -43,6 +43,14 @@ class IntegrationConfig {
         return new vn.werwa.integration.bank.SimulatedVirtualAccounts(jdbc, props.virtualAccountPrefix(), clock);
     }
 
+    /** Q100: chiều đi sang BIDV qua giả lập. */
+    @Bean
+    vn.werwa.integration.bank.SimulatedPayingAgent payingAgent(JdbcTemplate jdbc, JsonMapper json,
+            vn.werwa.governance.api.AuditLog audit, vn.werwa.integration.bank.BidvProperties props, Clock clock) {
+        return new vn.werwa.integration.bank.SimulatedPayingAgent(jdbc, json, audit, clock, props.simulatorUrl(),
+                props.simulatedIpaBalanceMinor());
+    }
+
     @Bean
     ScreeningProvider screeningProvider(Clock clock) {
         return new SimulatedScreeningProvider(clock);

@@ -5,6 +5,7 @@ server:
 bidv-sim:
   platform-url: ${WERWA_PLATFORM_URL:http://localhost:8080}
   private-key: ${BIDV_SIM_PRIVATE_KEY:}
+  auto-confirm-payouts: ${BIDV_SIM_AUTO_CONFIRM_PAYOUTS:false}
 management:
   endpoints:
     web:

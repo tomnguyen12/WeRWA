@@ -55,7 +55,7 @@ public class PayoutService {
         }
         Integer instructed = jdbc.queryForObject("""
                 SELECT count(*) FROM distribution.distribution_line
-                WHERE record_snapshot_id = ? AND payment_instruction_ref IS NOT NULL
+                WHERE record_snapshot_id = ? AND line_kind = 'COUPON' AND payment_instruction_ref IS NOT NULL
                 """, Integer.class, snapshot);
         if (instructed > 0) {
             throw new ApiException(DistributionError.PAYOUT_ALREADY_INSTRUCTED);
@@ -70,7 +70,8 @@ public class PayoutService {
         CouponCalculator.Result result = CouponCalculator.calculate(holdings,
                 new CouponCalculator.Terms(p.faceValueMinor(), p.ratePpm(), p.withholdingTaxPpm(), fraction));
 
-        jdbc.update("DELETE FROM distribution.distribution_line WHERE record_snapshot_id = ?", snapshot);
+        jdbc.update("DELETE FROM distribution.distribution_line WHERE record_snapshot_id = ? AND line_kind = 'COUPON'",
+                snapshot);
         for (CouponCalculator.Line l : result.lines()) {
             jdbc.update("""
                     INSERT INTO distribution.distribution_line
@@ -87,6 +88,56 @@ public class PayoutService {
                 "amountDueMinor", Long.toString(result.amountDueMinor()),
                 "roundingResidualMinor", Long.toString(result.roundingResidualMinor())));
         return result;
+    }
+
+    /**
+     * Kỳ gốc (Q103): mỗi ví một dòng mệnh giá × số lượng không phong tỏa, không khấu trừ thuế; phần phong tỏa thành dòng
+     * {@code FROZEN} giữ lại tại IPA (ADR-0018). Dùng danh sách chốt của kỳ cuối. Trả tổng số phải trả.
+     */
+    @Transactional
+    public long calculatePrincipal(UUID seriesId, int periodNo, long faceValueMinor, String currency) {
+        List<Map<String, Object>> snaps = jdbc.queryForList(
+                "SELECT id FROM distribution.record_snapshot WHERE series_id = ? AND period_no = ? FOR UPDATE", seriesId,
+                periodNo);
+        if (snaps.isEmpty()) {
+            throw new ApiException(DistributionError.SNAPSHOT_NOT_FOUND, "kỳ " + periodNo);
+        }
+        UUID snapshot = (UUID) snaps.getFirst().get("id");
+        Integer instructed = jdbc.queryForObject("""
+                SELECT count(*) FROM distribution.distribution_line
+                WHERE record_snapshot_id = ? AND line_kind = 'PRINCIPAL' AND payment_instruction_ref IS NOT NULL
+                """, Integer.class, snapshot);
+        if (instructed > 0) {
+            throw new ApiException(DistributionError.PAYOUT_ALREADY_INSTRUCTED);
+        }
+        jdbc.update("DELETE FROM distribution.distribution_line WHERE record_snapshot_id = ? AND line_kind = 'PRINCIPAL'",
+                snapshot);
+        long total = 0;
+        for (Map<String, Object> h : jdbc.queryForList("""
+                SELECT wallet_id, investor_org_id, quantity, frozen_quantity FROM distribution.snapshot_holding
+                WHERE record_snapshot_id = ? ORDER BY wallet_id
+                """, snapshot)) {
+            long quantity = ((Number) h.get("quantity")).longValue();
+            long frozen = ((Number) h.get("frozen_quantity")).longValue();
+            for (Object[] part : new Object[][] {{quantity - frozen, null}, {frozen, "FROZEN"}}) {
+                long q = (Long) part[0];
+                if (q == 0) {
+                    continue;
+                }
+                long gross = Math.multiplyExact(q, faceValueMinor);
+                total += gross;
+                jdbc.update("""
+                        INSERT INTO distribution.distribution_line
+                            (id, record_snapshot_id, wallet_id, investor_org_id, quantity, gross_minor, tax_minor, net_minor,
+                             currency, withheld_reason, line_kind)
+                        VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'PRINCIPAL')
+                        """, Ids.newId(), snapshot, h.get("wallet_id"), h.get("investor_org_id"), q, gross, gross, currency,
+                        part[1]);
+            }
+        }
+        audit.record("PRINCIPAL_CALCULATED", "series/" + seriesId, Map.of("periodNo", periodNo, "amountDueMinor",
+                Long.toString(total)));
+        return total;
     }
 
     static int periodsPerYear(String couponFrequency) {
@@ -116,7 +167,7 @@ public class PayoutService {
         List<CouponCalculator.Line> lines = jdbc.query("""
                 SELECT wallet_id, investor_org_id, quantity, gross_minor, tax_minor, net_minor, withheld_reason
                 FROM distribution.distribution_line
-                WHERE record_snapshot_id = ? AND (? OR investor_org_id = ?)
+                WHERE record_snapshot_id = ? AND line_kind = 'COUPON' AND (? OR investor_org_id = ?)
                 ORDER BY wallet_id, withheld_reason NULLS FIRST
                 """, (rs, i) -> new CouponCalculator.Line(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
                         rs.getLong(3), rs.getLong(4), rs.getLong(5), rs.getLong(6), rs.getString(7)),
