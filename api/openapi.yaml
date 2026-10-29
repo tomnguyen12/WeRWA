@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.17.0
+  version: 0.18.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1165,6 +1165,39 @@ paths:
       responses:
         '202':
           description: Đã nhận; tạo yêu cầu duyệt hoặc đề nghị ký
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SigningProposalRef'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/allocation-lists/{id}/signing-proposal:
+    post:
+      tags:
+      - distribution
+      operationId: proposeAllocationSigning
+      summary: Tạo lại đề nghị ký setAllocation khi đề nghị trước FAILED hoặc CANCELLED (Q127)
+      description: Đề nghị tự tạo khi UBND duyệt danh sách; thao tác này chỉ dùng khi đề nghị trước không thành. Đề nghị cũ còn mở thì 409 ALLOCATION_SIGNING_PENDING.
+      x-werwa-function: '3.03'
+      x-werwa-callers: Holco
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã tạo đề nghị ký
           content:
             application/json:
               schema:
@@ -4133,6 +4166,10 @@ components:
           type: string
           format: uuid
           description: UUIDv7
+        signingProposalId:
+          type: string
+          format: uuid
+          description: UUIDv7; đề nghị ký setAllocation của UBND (Q122)
         items:
           type: array
           items:
@@ -4710,6 +4747,10 @@ components:
         calldataHash:
           type: string
           pattern: ^0x[0-9a-fA-F]{64}$
+        basisHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+          description: Mã băm căn cứ của thao tác (quyết định UBND, termsHash, orderHash); US-2.06-AC3, Q126
         typedData:
           type: object
           description: Dữ liệu EIP-712 (eth_signTypedData_v4) người ký của tổ chức người hỏi cần ký (Q108)
@@ -5406,6 +5447,7 @@ components:
           - FUNDING_SHORT
           - PAYOUT_FAILED
           - PAYMENT_GRACE_EXPIRED
+          - SIGNATURE_REQUESTED
         severity:
           type: string
           enum:
