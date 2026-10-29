@@ -42,9 +42,20 @@ class OnboardingConfig {
     @Bean
     vn.werwa.onboarding.api.Wallets wallets(JdbcTemplate jdbc) {
         return id -> jdbc.query("""
-                SELECT id, organization_id, chain_id, address FROM onboarding.wallet WHERE id = ? AND status = 'REGISTERED'
+                SELECT id, organization_id, chain_id, address, wallet_type FROM onboarding.wallet
+                WHERE id = ? AND status = 'REGISTERED'
                 """, (rs, i) -> new vn.werwa.onboarding.api.Wallets.Wallet(rs.getObject(1, java.util.UUID.class),
-                        rs.getObject(2, java.util.UUID.class), rs.getLong(3), rs.getString(4)), id).stream().findFirst();
+                        rs.getObject(2, java.util.UUID.class), rs.getLong(3), rs.getString(4), rs.getString(5)), id)
+                .stream().findFirst();
+    }
+
+    /** Q79: lưu ký của ví omnibus phải đã qua KYB. */
+    @Bean
+    vn.werwa.onboarding.api.Custodians custodians(JdbcTemplate jdbc) {
+        return org -> Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM onboarding.organization
+                               WHERE id = ? AND kyb_status = 'KYB_APPROVED' AND 'CUSTODIAN' = ANY (roles))
+                """, Boolean.class, org));
     }
 
     /** US-3.02-AC1: KYC đạt và còn hạn; lấy loại nhà đầu tư của hồ sơ đạt mới nhất. */

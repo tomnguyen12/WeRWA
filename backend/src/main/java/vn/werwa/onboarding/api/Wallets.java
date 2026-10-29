@@ -9,5 +9,6 @@ public interface Wallets {
     /** Ví đã đăng ký ({@code REGISTERED}); rỗng nếu không có hoặc chưa đăng ký. */
     Optional<Wallet> registered(UUID walletId);
 
-    record Wallet(UUID id, UUID organizationId, long chainId, String address) {}
+    /** @param walletType {@code SELF} hoặc {@code OMNIBUS} (ví omnibus thuộc lưu ký) */
+    record Wallet(UUID id, UUID organizationId, long chainId, String address, String walletType) {}
 }

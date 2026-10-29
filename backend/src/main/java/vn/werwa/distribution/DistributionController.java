@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.werwa.distribution.allocation.AllocationListService;
 import vn.werwa.distribution.offering.OfferingService;
 import vn.werwa.distribution.order.OrderService;
+import vn.werwa.distribution.transfer.TransferService;
 import vn.werwa.platform.openapi.api.DistributionApi;
 import vn.werwa.platform.openapi.model.AllocationItem;
 import vn.werwa.platform.openapi.model.AllocationList;
@@ -22,11 +23,14 @@ import vn.werwa.platform.openapi.model.OfferingCreate;
 import vn.werwa.platform.openapi.model.Order;
 import vn.werwa.platform.openapi.model.OrderAmend;
 import vn.werwa.platform.openapi.model.OrderPlace;
+import vn.werwa.platform.openapi.model.ListTransfers200Response;
 import vn.werwa.platform.openapi.model.SigningProposalRef;
+import vn.werwa.platform.openapi.model.Transfer;
+import vn.werwa.platform.openapi.model.TransferCreate;
 import vn.werwa.platform.web.ETags;
 import vn.werwa.platform.web.Paging;
 
-/** API Phân phối của B7a. Chuyển nhượng, số dư, danh sách chốt, tiến độ phát hành làm ở các nhóm sau; trả 501 (Q20). */
+/** API Phân phối (B7a, B8a, B11a, B9a). Thao tác chưa làm (số dư, chụp danh sách) trả 501 (Q20). */
 @RestController
 class DistributionController implements DistributionApi {
 
@@ -35,9 +39,12 @@ class DistributionController implements DistributionApi {
     private final AllocationListService lists;
     private final vn.werwa.distribution.payment.PaymentService payments;
     private final vn.werwa.distribution.payout.PayoutService payouts;
+    private final TransferService transfers;
 
     DistributionController(OfferingService offerings, OrderService orders, AllocationListService lists,
-            vn.werwa.distribution.payment.PaymentService payments, vn.werwa.distribution.payout.PayoutService payouts) {
+            vn.werwa.distribution.payment.PaymentService payments, vn.werwa.distribution.payout.PayoutService payouts,
+            TransferService transfers) {
+        this.transfers = transfers;
         this.payouts = payouts;
         this.payments = payments;
         this.offerings = offerings;
@@ -202,6 +209,60 @@ class DistributionController implements DistributionApi {
         v.setAnnouncementDocumentId(o.announcementDocumentId());
         v.setStatus(Offering.StatusEnum.fromValue(o.status()));
         return v;
+    }
+
+    @Override
+    public ResponseEntity<Transfer> createTransfer(String idempotencyKey, TransferCreate body) {
+        TransferService.Transfer t = transfers.create(body.getSeriesId(), body.getFromWalletId(), body.getToWalletId(),
+                body.getQuantity());
+        return ResponseEntity.created(URI.create("/v1/transfers/" + t.id())).body(view(t));
+    }
+
+    @Override
+    public ResponseEntity<Transfer> confirmTransfer(UUID id, String idempotencyKey) {
+        return ResponseEntity.accepted().body(view(transfers.confirm(id)));
+    }
+
+    @Override
+    public ResponseEntity<Transfer> cancelTransfer(UUID id, String idempotencyKey) {
+        return ResponseEntity.ok(view(transfers.cancel(id)));
+    }
+
+    @Override
+    public ResponseEntity<Transfer> getTransfer(UUID id) {
+        return ResponseEntity.ok(view(transfers.view(id)));
+    }
+
+    @Override
+    public ResponseEntity<ListTransfers200Response> listTransfers(UUID seriesId, String status, String cursor,
+            Integer limit) {
+        Paging.Page<TransferService.Transfer> page = transfers.list(seriesId, status, cursor, limit);
+        ListTransfers200Response out = new ListTransfers200Response();
+        out.setItems(page.items().stream().map(DistributionController::view).toList());
+        out.setNextCursor(page.nextCursor());
+        return ResponseEntity.ok(out);
+    }
+
+    static Transfer view(TransferService.Transfer t) {
+        Transfer v = new Transfer();
+        v.setId(t.id());
+        v.setSeriesId(t.seriesId());
+        v.setFromWalletId(t.fromWalletId());
+        v.setToWalletId(t.toWalletId());
+        v.setQuantity(t.quantity());
+        v.setStatus(Transfer.StatusEnum.fromValue(t.status()));
+        v.setCreatedAt(utc(t.createdAt()));
+        v.setFromConfirmedAt(utc(t.fromConfirmedAt()));
+        v.setToConfirmedAt(utc(t.toConfirmedAt()));
+        v.setCustodianConfirmedAt(utc(t.custodianConfirmedAt()));
+        v.setCancelledAt(utc(t.cancelledAt()));
+        v.setRejectReason(t.rejectReason());
+        v.setTxHash(t.txHash());
+        return v;
+    }
+
+    private static java.time.OffsetDateTime utc(java.time.Instant at) {
+        return at == null ? null : at.atOffset(ZoneOffset.UTC);
     }
 
     static Order view(OrderService.Order o) {

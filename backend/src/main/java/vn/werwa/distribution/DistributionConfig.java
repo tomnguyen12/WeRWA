@@ -38,6 +38,15 @@ class DistributionConfig {
         return new OrderService(jdbc, offerings, series, investors, wallets, audit, props, parameters, clock);
     }
 
+    /** B9a: chuyển OTC, phần ngoài chuỗi (Q77–Q82). */
+    @Bean
+    vn.werwa.distribution.transfer.TransferService transfers(JdbcTemplate jdbc, SeriesCatalog series, Wallets wallets,
+            Investors investors, vn.werwa.onboarding.api.Custodians custodians, AuditLog audit, Events events,
+            Clock clock) {
+        return new vn.werwa.distribution.transfer.TransferService(jdbc, series, wallets, investors, custodians, audit,
+                events, clock);
+    }
+
     @Bean
     AllocationListService allocationLists(JdbcTemplate jdbc, OfferingService offerings, OrderService orders,
             SeriesCatalog series, IssuerDecisions decisions, Wallets wallets,

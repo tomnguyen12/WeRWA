@@ -36,7 +36,14 @@ public enum DistributionError implements ErrorCode {
     SNAPSHOT_NOT_CALCULATED(HttpStatus.CONFLICT, "Danh sách chốt chưa tính dòng chi trả"),
     PERIOD_RATE_MISSING(HttpStatus.CONFLICT, "Kỳ chưa có lãi suất"),
     PAYOUT_ALREADY_INSTRUCTED(HttpStatus.CONFLICT, "Kỳ đã có lệnh chi, không tính lại"),
-    ALLOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có phân bổ này");
+    ALLOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có phân bổ này"),
+    TRANSFER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có yêu cầu chuyển này"),
+    TRANSFER_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Yêu cầu chuyển không hợp lệ"),
+    TRANSFER_SAME_WALLET(HttpStatus.UNPROCESSABLE_CONTENT, "Ví chuyển và ví nhận trùng nhau"),
+    TRANSFER_RECIPIENT_NOT_ELIGIBLE(HttpStatus.UNPROCESSABLE_CONTENT, "Bên nhận không đủ điều kiện nắm giữ series"),
+    TRANSFER_SERIES_NOT_ACTIVE(HttpStatus.CONFLICT, "Series không ở Đang lưu hành"),
+    TRANSFER_NOT_PENDING(HttpStatus.CONFLICT, "Yêu cầu chuyển không còn chờ xác nhận"),
+    TRANSFER_ALREADY_CONFIRMED(HttpStatus.CONFLICT, "Bên nhận đã xác nhận");
 
     private final HttpStatus status;
     private final String title;
