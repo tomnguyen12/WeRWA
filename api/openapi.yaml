@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.14.0
+  version: 0.15.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -5208,6 +5208,10 @@ components:
           - ALLOCATION_OVERDUE
           - INFRA_ALERT
           - RECONCILIATION_BREAK
+          - DEBT_SERVICE_REMINDER
+          - FUNDING_SHORT
+          - PAYOUT_FAILED
+          - PAYMENT_GRACE_EXPIRED
         severity:
           type: string
           enum:
