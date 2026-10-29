@@ -4674,6 +4674,7 @@ components:
           - PAYMENT_MISMATCH
           - ALLOCATION_OVERDUE
           - INFRA_ALERT
+          - RECONCILIATION_BREAK
         severity:
           type: string
           enum:
