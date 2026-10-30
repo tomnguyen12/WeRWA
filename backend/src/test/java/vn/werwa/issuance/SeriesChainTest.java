@@ -54,6 +54,10 @@ public abstract class SeriesChainTest extends ChainIntegrationTest {
     protected static final Duration WAIT = Duration.ofSeconds(90);
     protected static final Random RANDOM = new Random();
 
+    /** Ngày phát hành, đáo hạn của series dựng thử; kiểm thử đáo hạn đặt ngày đã qua (Q170). */
+    protected String issueDate = "2027-03-02";
+    protected String maturityDate = "2030-03-02";
+
     protected static RequestPostProcessor as(String org) {
         return jwt().jwt(j -> j.subject(UUID.randomUUID().toString()).claim("org_id", SAFE_ORGS.get(org))
                 .claim("roles", List.of(ROLES.get(org))));
@@ -145,8 +149,8 @@ public abstract class SeriesChainTest extends ChainIntegrationTest {
         s.put("maxQuantity", 10_000);
         s.put("couponFrequency", "SEMI_ANNUAL");
         s.put("dayCount", "30_360");
-        s.put("issueDate", "2027-03-02");
-        s.put("maturityDate", "2030-03-02");
+        s.put("issueDate", issueDate);
+        s.put("maturityDate", maturityDate);
         s.put("calendars", List.of("VN", "NY"));
         s.put("investorClasses", List.of("FOREIGN_INSTITUTION"));
         s.put("termsDocumentId", TestDocuments.uploadId(mvc, as("holco"), "TERM_SHEET").toString());

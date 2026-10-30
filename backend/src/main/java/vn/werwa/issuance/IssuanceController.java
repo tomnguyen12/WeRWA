@@ -38,10 +38,13 @@ class IssuanceController implements IssuanceApi {
     private final vn.werwa.platform.registry.HoldingsSummaries holdings;
     private final vn.werwa.issuance.series.SeriesDeployment deployment;
 
+    private final vn.werwa.issuance.series.SeriesMaturity maturity;
+
     IssuanceController(DocumentService documents, ProgramService programs, SeriesService series,
             IssuerDecisionService decisions, vn.werwa.platform.registry.HoldingsSummaries holdings,
-            vn.werwa.issuance.series.SeriesDeployment deployment) {
+            vn.werwa.issuance.series.SeriesDeployment deployment, vn.werwa.issuance.series.SeriesMaturity maturity) {
         this.deployment = deployment;
+        this.maturity = maturity;
         this.holdings = holdings;
         this.documents = documents;
         this.programs = programs;
@@ -104,6 +107,15 @@ class IssuanceController implements IssuanceApi {
     @Override
     public ResponseEntity<SigningProposalRef> deploySeries(UUID id, String idempotencyKey) {
         return ResponseEntity.accepted().body(ref(deployment.proposeDeploy(id), series.get(id).approvalRequestId()));
+    }
+
+    /** Q165: gửi lại mature. */
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ChainTxRef> matureSeries(UUID id, String idempotencyKey) {
+        var ref = new vn.werwa.platform.openapi.model.ChainTxRef();
+        ref.setChainTxId(maturity.submit(id, true).orElseThrow());
+        ref.setStatus(vn.werwa.platform.openapi.model.ChainTxRef.StatusEnum.BUILT);
+        return ResponseEntity.accepted().body(ref);
     }
 
     /** US-2.07-AC2 (Q118): VSDC gắn ISIN qua đề nghị ký Safe VSDC. */

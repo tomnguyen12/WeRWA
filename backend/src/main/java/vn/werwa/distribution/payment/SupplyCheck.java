@@ -13,7 +13,7 @@ import vn.werwa.platform.reconciliation.ReconciliationCheck;
 
 /**
  * R4 (Q138; mô hình dữ liệu R4, bất biến I3): tổng cung token tại khối cuối indexer đã đọc bằng tổng số lượng phân bổ đã
- * mint lên tới khối đó. Phần hủy khi đáo hạn trừ ra khi có B11b. Không đọc được chuỗi thì một chênh lệch
+ * mint lên tới khối đó. Phần hủy khi đáo hạn (B13b) được trừ ra. Không đọc được chuỗi thì một chênh lệch
  * {@code CHAIN_UNAVAILABLE} và dừng.
  */
 public class SupplyCheck implements ReconciliationCheck {
@@ -23,9 +23,11 @@ public class SupplyCheck implements ReconciliationCheck {
     private final ContractCalls calls;
     private final TokenBalances balances;
     private final IndexedEvents indexed;
+    private final vn.werwa.distribution.payout.RedemptionService redemptions;
 
     public SupplyCheck(MintOrchestrator mints, SeriesCatalog series, ContractCalls calls, TokenBalances balances,
-            IndexedEvents indexed) {
+            IndexedEvents indexed, vn.werwa.distribution.payout.RedemptionService redemptions) {
+        this.redemptions = redemptions;
         this.mints = mints;
         this.series = series;
         this.calls = calls;
@@ -65,7 +67,8 @@ public class SupplyCheck implements ReconciliationCheck {
             try {
                 String token = calls.load(SeriesController.class, controller).token().send();
                 long chain = balances.totalSupply(token, block);
-                long minted = mints.mintedUpTo(id, block);
+                // Q168: đã mint trừ phần hủy khi đáo hạn
+                long minted = mints.mintedUpTo(id, block) - redemptions.redeemedUpTo(id, block);
                 if (chain != minted) {
                     out.add(new Finding("SUPPLY_MISMATCH", "series/" + id + "/block/" + block, Long.toString(minted),
                             Long.toString(chain)));

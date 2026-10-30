@@ -42,6 +42,9 @@ public enum DistributionError implements ErrorCode {
     SNAPSHOT_VIEW_MISMATCH(HttpStatus.CONFLICT, "Danh sách chốt từ sao kê lệch số dư trên chuỗi"),
     SNAPSHOT_ATTESTATION_PENDING(HttpStatus.CONFLICT, "Danh sách chốt đã có đề nghị ký đang mở"),
     SNAPSHOT_NOT_ATTESTABLE(HttpStatus.CONFLICT, "Danh sách chốt chưa lên chuỗi hoặc đã được xác nhận"),
+    // B13b (Q166)
+    SERIES_NOT_MATURED(HttpStatus.CONFLICT, "Series chưa ở Đã đáo hạn"),
+    NOTHING_TO_REDEEM(HttpStatus.CONFLICT, "Không còn ví nào để hủy trái phiếu"),
     PERIOD_RATE_MISSING(HttpStatus.CONFLICT, "Kỳ chưa có lãi suất"),
     PAYOUT_ALREADY_INSTRUCTED(HttpStatus.CONFLICT, "Kỳ đã có lệnh chi, không tính lại"),
     ALLOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có phân bổ này"),

@@ -156,13 +156,13 @@ public class DebtServiceLedger implements DebtServices {
 
     @Override
     @Transactional
-    public void reconciled(UUID eventId, long paidMinor, long withheldMinor) {
+    public void reconciled(UUID eventId, long paidMinor, long withheldMinor, String payoutHash) {
         Due d = require(eventId);
         int n = jdbc.update("""
                 UPDATE issuance.debt_service SET status = 'RECONCILED', paid_minor = ?, withheld_minor = ?, reconciled_at = ?,
-                    updated_at = ?
+                    updated_at = ?, payout_hash = ?
                 WHERE series_event_id = ? AND status = 'PAID'
-                """, paidMinor, withheldMinor, now(), now(), eventId);
+                """, paidMinor, withheldMinor, now(), now(), payoutHash, eventId);
         if (n == 0) {
             return;
         }
@@ -173,6 +173,9 @@ public class DebtServiceLedger implements DebtServices {
         data.put("paidMinor", Long.toString(paidMinor));
         data.put("withheldMinor", Long.toString(withheldMinor));
         data.put("currency", d.currency());
+        if (payoutHash != null) {
+            data.put("payoutHash", payoutHash);
+        }
         events.publish(RECONCILED, ref(d), data);
         audit.record("DEBT_SERVICE_RECONCILED", ref(d), data);
     }

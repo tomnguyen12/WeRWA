@@ -34,7 +34,7 @@ import vn.werwa.platform.openapi.model.TransferCreate;
 import vn.werwa.platform.web.ETags;
 import vn.werwa.platform.web.Paging;
 
-/** API Phân phối (B7a, B8a, B11a, B9a, B9c, B7b, B8b, B9d, B11b). Thao tác chưa làm trả 501 (Q20). */
+/** API Phân phối (B7a, B8a, B11a, B9a, B9c, B7b, B8b, B9d, B11b, B13b). Thao tác chưa làm trả 501 (Q20). */
 @RestController
 class DistributionController implements DistributionApi {
 
@@ -50,6 +50,7 @@ class DistributionController implements DistributionApi {
     private final vn.werwa.distribution.payment.MintOrchestrator mints;
     private final vn.werwa.distribution.register.RegisterAttestationService register;
     private final vn.werwa.distribution.payout.SnapshotService snapshots;
+    private final vn.werwa.distribution.payout.RedemptionService redemptions;
 
     DistributionController(OfferingService offerings, OrderService orders, AllocationListService lists,
             vn.werwa.distribution.payment.PaymentService payments, vn.werwa.distribution.payout.PayoutService payouts,
@@ -58,7 +59,9 @@ class DistributionController implements DistributionApi {
             vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
             vn.werwa.distribution.payment.MintOrchestrator mints,
             vn.werwa.distribution.register.RegisterAttestationService register,
-            vn.werwa.distribution.payout.SnapshotService snapshots) {
+            vn.werwa.distribution.payout.SnapshotService snapshots,
+            vn.werwa.distribution.payout.RedemptionService redemptions) {
+        this.redemptions = redemptions;
         this.register = register;
         this.snapshots = snapshots;
         this.allocationSigning = allocationSigning;
@@ -452,6 +455,15 @@ class DistributionController implements DistributionApi {
         ref.setSigningProposalId(r.id());
         ref.setStatus(SigningProposalRef.StatusEnum.fromValue(r.status()));
         return ResponseEntity.accepted().body(ref);
+    }
+
+    /** Q166: gửi lại burnRedeemed. */
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.RedeemSeries202Response> redeemSeries(UUID id,
+            String idempotencyKey) {
+        var out = new vn.werwa.platform.openapi.model.RedeemSeries202Response();
+        out.setChainTxIds(redemptions.redeem(id, true));
+        return ResponseEntity.accepted().body(out);
     }
 
     @Override

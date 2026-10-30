@@ -183,8 +183,29 @@ public class DebtServiceRunner {
                     JOIN distribution.record_snapshot s ON s.id = l.record_snapshot_id
                     WHERE s.series_id = ? AND s.period_no = ? AND l.line_kind = ? AND l.withheld_reason IS NOT NULL
                     """, Long.class, d.seriesId(), d.periodNo(), lineKind(d));
-            debts.reconciled(eventId, paid, withheld == null ? 0 : withheld);
+            debts.reconciled(eventId, paid, withheld == null ? 0 : withheld,
+                    "MATURITY".equals(d.eventType()) ? payoutHash(instructionRef) : null);
         }
+    }
+
+    /**
+     * Q164: SHA-256 JSON chuẩn hóa các dòng chi BIDV đã xác nhận của lệnh chi ({@code lineRef}, ví, net, đã chi, trạng
+     * thái; xếp theo {@code lineRef}); là {@code payoutHash} ghi khi gọi {@code mature}.
+     */
+    String payoutHash(String instructionRef) {
+        List<Map<String, Object>> lines = jdbc.query("""
+                SELECT id, wallet_id, net_minor, paid_minor, payout_status FROM distribution.distribution_line
+                WHERE payment_instruction_ref = ? ORDER BY id::text
+                """, (rs, i) -> {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("lineRef", rs.getString(1));
+            m.put("walletId", rs.getString(2));
+            m.put("netMinor", Long.toString(rs.getLong(3)));
+            m.put("paidMinor", rs.getObject(4) == null ? null : Long.toString(rs.getLong(4)));
+            m.put("status", rs.getString(5));
+            return m;
+        }, instructionRef);
+        return vn.werwa.platform.hash.Hashes.payloadHash(Map.of("instructionRef", instructionRef, "lines", lines));
     }
 
     private Due ensureCalculated(Due d) {

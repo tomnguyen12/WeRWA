@@ -60,6 +60,13 @@ public interface DebtServices {
     /** Cạnh 6: IPA xác nhận đã chi mọi dòng. */
     void paid(UUID eventId);
 
-    /** Cạnh 7: đã chi khớp số phải trả trừ phần giữ lại; phát {@code werwa.issuance.debt_service.reconciled.v1}. */
-    void reconciled(UUID eventId, long paidMinor, long withheldMinor);
+    /**
+     * Cạnh 7: đã chi khớp số phải trả trừ phần giữ lại; phát {@code werwa.issuance.debt_service.reconciled.v1}. Kỳ gốc kèm
+     * {@code payoutHash} (Q164) để gọi {@code mature}.
+     */
+    void reconciled(UUID eventId, long paidMinor, long withheldMinor, String payoutHash);
+
+    default void reconciled(UUID eventId, long paidMinor, long withheldMinor) {
+        reconciled(eventId, paidMinor, withheldMinor, null);
+    }
 }

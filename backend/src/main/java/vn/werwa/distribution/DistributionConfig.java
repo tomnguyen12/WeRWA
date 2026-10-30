@@ -126,6 +126,112 @@ class DistributionConfig {
         }
     }
 
+    /** B13b: hủy trái phiếu sau đáo hạn, đóng series (Q166–Q168). */
+    @Bean
+    vn.werwa.distribution.payout.RedemptionService redemptions(JdbcTemplate jdbc, SeriesCatalog series,
+            vn.werwa.onchain.api.ContractCalls calls, vn.werwa.onchain.api.TokenBalances balances,
+            vn.werwa.onchain.api.IndexedEvents indexed, vn.werwa.onchain.api.ChainTransactions chain,
+            vn.werwa.governance.api.OperationalAlerts alerts, AuditLog audit, Clock clock) {
+        return new vn.werwa.distribution.payout.RedemptionService(jdbc, series, calls, balances, indexed, chain, alerts,
+                audit, clock);
+    }
+
+    /** Gửi burnRedeemed trong giao dịch riêng; lỗi thì ghi log (Holco gửi lại qua API). */
+    static void redeemQuietly(UUID seriesId, vn.werwa.distribution.payout.RedemptionService redemptions,
+            org.springframework.transaction.support.TransactionTemplate separate) {
+        try {
+            separate.executeWithoutResult(s -> redemptions.redeem(seriesId, false));
+        } catch (RuntimeException e) {
+            org.slf4j.LoggerFactory.getLogger(DistributionConfig.class)
+                    .warn("Chưa gửi được burnRedeemed series {}: {}", seriesId, e.toString());
+        }
+    }
+
+    /** Q166: series sang MATURED thì hủy trái phiếu. */
+    @Bean
+    vn.werwa.platform.events.EventHandler distributionOnSeriesStateChanged(
+            vn.werwa.distribution.payout.RedemptionService redemptions,
+            org.springframework.transaction.PlatformTransactionManager txManager) {
+        org.springframework.transaction.support.TransactionTemplate separate = separate(txManager);
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "distribution";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.issuance.series.state_changed.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                if ("MATURED".equals(event.data().get("to"))) {
+                    redeemQuietly(UUID.fromString(String.valueOf(event.data().get("seriesId"))), redemptions, separate);
+                }
+            }
+        };
+    }
+
+    /** Q167: giải tỏa hoặc chuyển cưỡng chế sau đáo hạn thì hủy nốt phần vừa tự do. */
+    @Bean
+    vn.werwa.platform.events.EventHandler distributionOnEnforcementApplied(
+            vn.werwa.distribution.payout.RedemptionService redemptions,
+            org.springframework.transaction.PlatformTransactionManager txManager) {
+        org.springframework.transaction.support.TransactionTemplate separate = separate(txManager);
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "distribution";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.governance.enforcement.applied.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                Object action = event.data().get("action");
+                Object seriesId = event.data().get("seriesId");
+                if (seriesId != null && ("UNFREEZE".equals(action) || "FORCED_TRANSFER".equals(action))) {
+                    redeemQuietly(UUID.fromString(String.valueOf(seriesId)), redemptions, separate);
+                }
+            }
+        };
+    }
+
+    /** Q167: lô burnRedeemed đã lên khối thì xét đóng series. */
+    @Bean
+    vn.werwa.platform.events.EventHandler distributionOnTxMined(vn.werwa.distribution.payout.RedemptionService redemptions,
+            org.springframework.transaction.PlatformTransactionManager txManager) {
+        org.springframework.transaction.support.TransactionTemplate separate = separate(txManager);
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "distribution";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.onchain.tx.mined.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                redemptions.onBatchMined(UUID.fromString(String.valueOf(event.data().get("txId"))))
+                        .ifPresent(series -> {
+                            try {
+                                separate.executeWithoutResult(s -> redemptions.considerClose(series));
+                            } catch (RuntimeException e) {
+                                org.slf4j.LoggerFactory.getLogger(DistributionConfig.class)
+                                        .warn("Chưa xét đóng được series {}: {}", series, e.toString());
+                            }
+                        });
+            }
+        };
+    }
+
     /** B11b: chụp danh sách chốt, VSDC xác nhận (Q155–Q161). */
     @Bean
     vn.werwa.distribution.payout.SnapshotService snapshotService(JdbcTemplate jdbc, SeriesCatalog series,
@@ -201,6 +307,7 @@ class DistributionConfig {
             vn.werwa.distribution.payment.MintOrchestrator mints,
             vn.werwa.distribution.register.RegisterAttestationService register,
             vn.werwa.distribution.payout.SnapshotService snapshots, vn.werwa.distribution.payout.PayoutService payouts,
+            vn.werwa.distribution.payout.RedemptionService redemptions,
             org.springframework.transaction.PlatformTransactionManager txManager) {
         org.springframework.transaction.support.TransactionTemplate separate = separate(txManager);
         return new vn.werwa.platform.events.EventHandler() {
@@ -237,6 +344,18 @@ class DistributionConfig {
                     // B9d (Q141): mục cuối đã mint thì lập sổ cho VSDC
                     register.seriesOf(String.valueOf(d.get("contract")))
                             .ifPresent(id -> proposeRegister(id, register, separate));
+                    return;
+                }
+                if ("series.controller".equals(d.get("contractKind")) && "Redeemed".equals(d.get("eventName"))) {
+                    // B13b (Q167)
+                    redemptions.onRedeemed(String.valueOf(d.get("contract")), (Map<String, Object>) d.get("args"),
+                            String.valueOf(d.get("txHash")), ((Number) d.get("block")).longValue());
+                    return;
+                }
+                if ("series.controller".equals(d.get("contractKind"))
+                        && "FrozenPositionRedeemed".equals(d.get("eventName"))) {
+                    redemptions.onFrozenPositionRedeemed(String.valueOf(d.get("contract")),
+                            (Map<String, Object>) d.get("args"), String.valueOf(d.get("txHash")));
                     return;
                 }
                 if ("series.controller".equals(d.get("contractKind")) && "SnapshotTaken".equals(d.get("eventName"))) {
@@ -505,8 +624,8 @@ class DistributionConfig {
     @Bean
     vn.werwa.distribution.payment.SupplyCheck supplyCheck(vn.werwa.distribution.payment.MintOrchestrator mints,
             SeriesCatalog series, vn.werwa.onchain.api.ContractCalls calls, vn.werwa.onchain.api.TokenBalances balances,
-            vn.werwa.onchain.api.IndexedEvents indexed) {
-        return new vn.werwa.distribution.payment.SupplyCheck(mints, series, calls, balances, indexed);
+            vn.werwa.onchain.api.IndexedEvents indexed, vn.werwa.distribution.payout.RedemptionService redemptions) {
+        return new vn.werwa.distribution.payment.SupplyCheck(mints, series, calls, balances, indexed, redemptions);
     }
 
     /** Q133: lô vừa được BIDV ký thì gửi mint các phân bổ trong lô. */
@@ -537,7 +656,8 @@ class DistributionConfig {
     @Bean
     vn.werwa.platform.events.EventHandler distributionOnTxFailed(vn.werwa.distribution.payment.MintOrchestrator mints,
             vn.werwa.distribution.register.RegisterAttestationService register,
-            vn.werwa.distribution.payout.SnapshotService snapshots) {
+            vn.werwa.distribution.payout.SnapshotService snapshots,
+            vn.werwa.distribution.payout.RedemptionService redemptions) {
         return new vn.werwa.platform.events.EventHandler() {
             @Override
             public String consumer() {
@@ -556,6 +676,7 @@ class DistributionConfig {
                 mints.onTxFailed(txId, reason);
                 register.onTxFailed(txId, reason);
                 snapshots.onTxFailed(txId, reason);
+                redemptions.onTxFailed(txId, reason);
             }
         };
     }

@@ -147,6 +147,71 @@ class IssuanceConfig {
         };
     }
 
+    /** B13b: đáo hạn (Q164, Q165). */
+    @Bean
+    vn.werwa.issuance.series.SeriesMaturity seriesMaturity(JdbcTemplate jdbc, vn.werwa.onchain.api.ContractCalls calls,
+            vn.werwa.onchain.api.ChainTransactions chain, vn.werwa.governance.api.OperationalAlerts alerts, AuditLog audit,
+            java.time.Clock clock) {
+        return new vn.werwa.issuance.series.SeriesMaturity(jdbc, calls, chain, alerts, audit, clock);
+    }
+
+    /** Q165: kỳ gốc đã đối soát thì gửi mature trong giao dịch riêng. */
+    @Bean
+    vn.werwa.platform.events.EventHandler issuanceOnDebtServiceReconciled(
+            vn.werwa.issuance.series.SeriesMaturity maturity,
+            org.springframework.transaction.PlatformTransactionManager txManager, AuditLog audit) {
+        org.springframework.transaction.support.TransactionTemplate separate =
+                new org.springframework.transaction.support.TransactionTemplate(txManager);
+        separate.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "issuance";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.issuance.debt_service.reconciled.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                if (!"MATURITY".equals(event.data().get("eventType"))) {
+                    return;
+                }
+                java.util.UUID seriesId = java.util.UUID.fromString(String.valueOf(event.data().get("seriesId")));
+                try {
+                    separate.executeWithoutResult(s -> maturity.submit(seriesId, false));
+                } catch (RuntimeException e) {
+                    audit.record("SERIES_MATURE_SUBMIT_FAILED", "series/" + seriesId,
+                            java.util.Map.of("reason", String.valueOf(e.getMessage())));
+                }
+            }
+        };
+    }
+
+    /** Q165: giao dịch mature revert. */
+    @Bean
+    vn.werwa.platform.events.EventHandler issuanceOnTxFailed(vn.werwa.issuance.series.SeriesMaturity maturity) {
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "issuance";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.onchain.tx.failed.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                maturity.onTxFailed(java.util.UUID.fromString(String.valueOf(event.data().get("txId"))),
+                        String.valueOf(event.data().get("reason")));
+            }
+        };
+    }
+
     /** Q117: địa chỉ hợp đồng, ISIN, trạng thái series từ sự kiện indexer. */
     @Bean
     vn.werwa.platform.events.EventHandler issuanceOnEventIndexed(vn.werwa.issuance.series.SeriesDeployment deployment) {

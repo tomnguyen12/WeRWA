@@ -28,7 +28,9 @@ public enum IssuanceError implements ErrorCode {
     ISIN_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "ISIN không đúng ISO 6166"),
     ISIN_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "Series đã có ISIN hoặc đề nghị gắn ISIN đang mở"),
     ISSUER_DECISION_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Quyết định thiếu đối tượng áp dụng"),
-    ISSUER_DECISION_EXISTS(HttpStatus.CONFLICT, "Số quyết định đã được ghi");
+    ISSUER_DECISION_EXISTS(HttpStatus.CONFLICT, "Số quyết định đã được ghi"),
+    // B13b (Q165)
+    SERIES_NOT_MATURABLE(HttpStatus.CONFLICT, "Series chưa đủ điều kiện đáo hạn");
 
     private final HttpStatus status;
     private final String title;
