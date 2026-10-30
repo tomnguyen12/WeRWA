@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.21.0
+  version: 0.22.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1988,6 +1988,97 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Snapshot'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags:
+      - distribution
+      operationId: takeSnapshot
+      summary: Chụp danh sách chốt của kỳ ngay, theo khối cuối của ngày asOf (Q160)
+      description: Bình thường tác vụ 00:10 giờ VN ngày T tự chụp (Q156). Thao tác này cho vận hành bù và cảnh demo. Kỳ đã chụp thì 409 SNAPSHOT_EXISTS; series không Đang lưu hành hoặc Vi phạm thì 409 SERIES_NOT_ACTIVE; lệch chuỗi thì 409 SNAPSHOT_VIEW_MISMATCH.
+      x-werwa-function: '3.09'
+      x-werwa-callers: Holco
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - name: period
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - asOf
+              properties:
+                asOf:
+                  type: string
+                  format: date
+                  description: Ngày chốt (giờ VN); khối chốt là khối cuối trước 00:00 ngày hôm sau
+              additionalProperties: false
+      responses:
+        '202':
+          description: Đã ghi danh sách chốt và xếp giao dịch takeSnapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChainTxRef'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/series/{id}/snapshots/{period}/attestation-proposal:
+    post:
+      tags:
+      - distribution
+      operationId: proposeSnapshotAttestation
+      summary: Tạo lại đề nghị VSDC ký attestSnapshot khi đề nghị trước FAILED hoặc CANCELLED (Q160)
+      description: Đề nghị tự tạo khi indexer đọc SnapshotTaken (Q158). Đề nghị cũ còn mở thì 409 SNAPSHOT_ATTESTATION_PENDING; danh sách chưa lên chuỗi hoặc đã xác nhận thì 409 SNAPSHOT_NOT_ATTESTABLE.
+      x-werwa-function: '3.09'
+      x-werwa-callers: Holco
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - name: period
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã tạo đề nghị ký
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SigningProposalRef'
         4XX:
           description: Lỗi
           content:
@@ -5184,6 +5275,25 @@ components:
         registrarAttestedAt:
           type: string
           format: date-time
+        status:
+          type: string
+          enum:
+          - BUILT
+          - SUBMITTED
+          - TAKEN
+          - ATTESTING
+          - ATTESTED
+          - FAILED
+        signingProposalId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        takenTxHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        attestedTxHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
         holderCount:
           type: integer
         totalQuantity:
