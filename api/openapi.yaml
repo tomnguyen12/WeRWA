@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.22.0
+  version: 0.23.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1508,6 +1508,81 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApprovalRef'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/series/{id}/mature:
+    post:
+      tags:
+      - issuance
+      operationId: matureSeries
+      summary: Gửi lại mature(payoutHash) khi lần tự động bị hợp đồng từ chối (Q165)
+      description: Bình thường gửi tự động khi kỳ gốc RECONCILED. Series không Đang lưu hành hoặc Vi phạm, hoặc kỳ gốc chưa đối soát thì 409 SERIES_NOT_MATURABLE.
+      x-werwa-function: '2.10'
+      x-werwa-callers: Holco
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã xếp giao dịch mature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChainTxRef'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/series/{id}/redemption:
+    post:
+      tags:
+      - distribution
+      operationId: redeemSeries
+      summary: Gửi lại burnRedeemed cho các ví còn số dư không bị phong tỏa sau đáo hạn (Q166)
+      description: Bình thường gửi tự động khi series sang MATURED và khi lệnh giải tỏa hoặc chuyển cưỡng chế được áp dụng sau đáo hạn. Series không ở MATURED thì 409 SERIES_NOT_MATURED; không còn ví nào để hủy thì 409 NOTHING_TO_REDEEM.
+      x-werwa-function: '2.10'
+      x-werwa-callers: Holco
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã xếp các giao dịch burnRedeemed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - chainTxIds
+                properties:
+                  chainTxIds:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                additionalProperties: false
         4XX:
           description: Lỗi
           content:
