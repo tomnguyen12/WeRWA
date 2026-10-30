@@ -36,6 +36,7 @@ class GovernanceController implements GovernanceApi {
     private final vn.werwa.governance.reconciliation.ReconciliationService reconciliation;
     private final vn.werwa.governance.supervision.SupervisionService supervision;
     private final vn.werwa.governance.signing.SigningService signing;
+    private final vn.werwa.governance.enforcement.EnforcementSigning enforcementSigning;
 
     GovernanceController(ApprovalService approvals, JdbcTemplate jdbc, vn.werwa.governance.alert.AlertService alerts,
             vn.werwa.governance.parameter.ParameterService parameters,
@@ -44,8 +45,10 @@ class GovernanceController implements GovernanceApi {
             vn.werwa.governance.enforcement.EnforcementService enforcement,
             vn.werwa.governance.reconciliation.ReconciliationService reconciliation,
             vn.werwa.governance.supervision.SupervisionService supervision,
-            vn.werwa.governance.signing.SigningService signing) {
+            vn.werwa.governance.signing.SigningService signing,
+            vn.werwa.governance.enforcement.EnforcementSigning enforcementSigning) {
         this.signing = signing;
+        this.enforcementSigning = enforcementSigning;
         this.supervision = supervision;
         this.enforcement = enforcement;
         this.reconciliation = reconciliation;
@@ -260,6 +263,19 @@ class GovernanceController implements GovernanceApi {
         return ResponseEntity.ok(out);
     }
 
+    /** Q151: tạo lại đề nghị ký 2/2. */
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.SigningProposalRef> proposeEnforcementSigning(UUID id,
+            String idempotencyKey) {
+        var r = enforcementSigning.propose(id, true).orElseThrow(() -> new vn.werwa.platform.web.ApiException(
+                vn.werwa.governance.approval.GovernanceError.ENFORCEMENT_NOT_SIGNABLE,
+                String.valueOf(enforcement.get(id).failureReason())));
+        var ref = new vn.werwa.platform.openapi.model.SigningProposalRef();
+        ref.setSigningProposalId(r.id());
+        ref.setStatus(vn.werwa.platform.openapi.model.SigningProposalRef.StatusEnum.fromValue(r.status()));
+        return ResponseEntity.accepted().body(ref);
+    }
+
     static vn.werwa.platform.openapi.model.EnforcementOrder view(vn.werwa.governance.enforcement.EnforcementService.Order o) {
         var v = new vn.werwa.platform.openapi.model.EnforcementOrder();
         v.setId(o.id());
@@ -275,6 +291,11 @@ class GovernanceController implements GovernanceApi {
         v.setBasisHash(o.basisHash());
         v.setApprovalRequestId(o.approvalRequestId());
         v.setStatus(vn.werwa.platform.openapi.model.EnforcementOrder.StatusEnum.fromValue(o.status()));
+        v.setFailureReason(o.failureReason() == null ? null
+                : vn.werwa.platform.openapi.model.EnforcementOrder.FailureReasonEnum.fromValue(o.failureReason()));
+        v.setSigningProposalId(o.signingProposalId());
+        v.setAppliedTxHash(o.appliedTxHash());
+        v.setAppliedAt(o.appliedAt() == null ? null : o.appliedAt().atOffset(java.time.ZoneOffset.UTC));
         return v;
     }
 

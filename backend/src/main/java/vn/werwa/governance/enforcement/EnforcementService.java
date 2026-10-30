@@ -25,7 +25,7 @@ import vn.werwa.platform.web.Paging;
 
 /**
  * Lệnh phong tỏa, giải tỏa, chuyển cưỡng chế (US-4.02-AC1, AC4; máy Phong tỏa cạnh 1–3; Q64–Q67). Lệnh áp cho số lượng
- * của một vị thế. Duyệt đạt thì chờ VSDC và Holco ký 2/2 (B10b); trả lại thì REJECTED kèm lý do. Giải tỏa, chuyển cưỡng
+ * của một vị thế. Duyệt đạt thì chờ VSDC và Holco ký 2/2 ({@link EnforcementSigning}, B10b); trả lại thì REJECTED kèm lý do. Giải tỏa, chuyển cưỡng
  * chế là lệnh mới, đi lại đủ các bước.
  */
 public class EnforcementService {
@@ -59,7 +59,8 @@ public class EnforcementService {
 
     public record Order(UUID id, String authorityName, String orderNo, LocalDate issuedOn, UUID basisDocumentId,
             String action, UUID seriesId, UUID walletId, UUID toWalletId, long quantity, String basisHash, String status,
-            UUID approvalRequestId, String rejectReason) {}
+            UUID approvalRequestId, String rejectReason, String failureReason, UUID signingProposalId,
+            String appliedTxHash, java.time.Instant appliedAt) {}
 
     /** Máy Phong tỏa cạnh 1: tiếp nhận, tính mã băm căn cứ, gửi duyệt 4 mắt. */
     @Transactional
@@ -185,13 +186,15 @@ public class EnforcementService {
 
     private static final String SELECT = """
             SELECT id, authority_name, order_no, issued_on, basis_document_id, action, series_id, wallet_id, to_wallet_id,
-                   quantity, basis_hash, status, approval_request_id, reject_reason
+                   quantity, basis_hash, status, approval_request_id, reject_reason, failure_reason, signing_proposal_id,
+                   applied_tx_hash, applied_at
             FROM governance.enforcement_order""";
 
     private static Order row(java.sql.ResultSet rs) throws java.sql.SQLException {
         return new Order(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getObject(4, LocalDate.class),
                 rs.getObject(5, UUID.class), rs.getString(6), rs.getObject(7, UUID.class), rs.getObject(8, UUID.class),
                 rs.getObject(9, UUID.class), rs.getLong(10), rs.getString(11), rs.getString(12), rs.getObject(13, UUID.class),
-                rs.getString(14));
+                rs.getString(14), rs.getString(15), rs.getObject(16, UUID.class), rs.getString(17),
+                rs.getTimestamp(18) == null ? null : rs.getTimestamp(18).toInstant());
     }
 }

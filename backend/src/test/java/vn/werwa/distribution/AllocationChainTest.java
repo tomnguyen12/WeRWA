@@ -195,4 +195,18 @@ abstract class AllocationChainTest extends SeriesChainTest {
                 """, Integer.class, p.list()) == 2);
         return new Minted(p, a, b, allocA, allocB);
     }
+
+    /** Series Đang lưu hành: {@link #mintedSeries()} rồi VSDC ký xác nhận sổ (B9d). */
+    Minted activeSeries() throws Exception {
+        Minted m = mintedSeries();
+        UUID series = m.prepared().series();
+        await().atMost(WAIT).until(() -> jdbc.queryForList("""
+                SELECT signing_proposal_id FROM distribution.register_attestation WHERE series_id = ? AND status = 'SIGNING'
+                """, UUID.class, series).size() == 1);
+        signBy(jdbc.queryForObject("""
+                SELECT signing_proposal_id FROM distribution.register_attestation WHERE series_id = ? AND status = 'SIGNING'
+                """, UUID.class, series), "vsdc");
+        await().atMost(WAIT).until(() -> "ACTIVE".equals(series(series).get("status")));
+        return m;
+    }
 }

@@ -76,6 +76,54 @@ class GovernanceConfig {
                 d -> enforcement.applyDecision(d.approvalId(), d.approve(), d.comment()));
     }
 
+    /** B10b: VSDC và Holco ký 2/2 lệnh phong tỏa (Q148–Q152). */
+    @Bean
+    vn.werwa.governance.enforcement.EnforcementSigning enforcementSigning(JdbcTemplate jdbc,
+            vn.werwa.platform.registry.SeriesRegistry series, vn.werwa.onchain.api.ContractCalls calls,
+            vn.werwa.governance.signing.SigningService signing, vn.werwa.governance.alert.AlertService alerts,
+            Events events, AuditLogService audit, Clock clock) {
+        return new vn.werwa.governance.enforcement.EnforcementSigning(jdbc, series, calls, signing, alerts, events, audit,
+                clock);
+    }
+
+    /** Q149: lệnh duyệt đạt thì kiểm trên chuỗi và tạo đề nghị ký trong giao dịch riêng; lỗi thì ghi nhật ký. */
+    @Bean
+    EventHandler governanceOnApprovalDecided(vn.werwa.governance.enforcement.EnforcementSigning signing,
+            org.springframework.transaction.PlatformTransactionManager txManager, AuditLogService audit) {
+        org.springframework.transaction.support.TransactionTemplate separate =
+                new org.springframework.transaction.support.TransactionTemplate(txManager);
+        separate.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return handler("werwa.governance.approval.decided.v1", e -> {
+            if (!vn.werwa.governance.enforcement.EnforcementService.APPROVE_ACTION.equals(e.data().get("actionType"))
+                    || !"APPROVE".equals(e.data().get("decision"))) {
+                return;
+            }
+            signing.orderOfApproval(java.util.UUID.fromString(String.valueOf(e.data().get("approvalId"))))
+                    .ifPresent(order -> {
+                        try {
+                            separate.executeWithoutResult(st -> signing.propose(order, false));
+                        } catch (RuntimeException ex) {
+                            audit.record("ENFORCEMENT_SIGNING_PROPOSAL_FAILED", "enforcement-order/" + order,
+                                    java.util.Map.of("reason", String.valueOf(ex.getMessage())));
+                        }
+                    });
+        });
+    }
+
+    /** Q152: sự kiện phong tỏa, giải tỏa, chuyển cưỡng chế của controller series. */
+    @Bean
+    EventHandler governanceOnEventIndexed(vn.werwa.governance.enforcement.EnforcementSigning signing) {
+        return handler("werwa.onchain.event.indexed.v1", e -> {
+            java.util.Map<String, Object> d = e.data();
+            if ("series.controller".equals(d.get("contractKind")) && d.get("args") instanceof java.util.Map<?, ?> args) {
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> a = (java.util.Map<String, Object>) args;
+                signing.onIndexed(String.valueOf(d.get("eventName")), String.valueOf(d.get("contract")), a,
+                        String.valueOf(d.get("txHash")));
+            }
+        });
+    }
+
     /** B4c: đối soát hằng ngày (Q73–Q76). */
     @Bean
     vn.werwa.governance.reconciliation.ReconciliationService reconciliation(JdbcTemplate jdbc,

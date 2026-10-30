@@ -8,4 +8,7 @@ public interface SeriesRegistry {
 
     /** Trạng thái series; rỗng nếu không có. */
     Optional<String> seriesStatus(UUID seriesId);
+
+    /** Địa chỉ controller của series (chữ thường); rỗng nếu chưa triển khai (B10b; Q150). */
+    Optional<String> controllerAddress(UUID seriesId);
 }

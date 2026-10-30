@@ -292,6 +292,12 @@ public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog, vn.we
     }
 
     @Override
+    public java.util.Optional<String> controllerAddress(UUID seriesId) {
+        return jdbc.queryForList("SELECT controller_address FROM issuance.series WHERE id = ?", String.class, seriesId)
+                .stream().filter(java.util.Objects::nonNull).map(a -> a.toLowerCase(java.util.Locale.ROOT)).findFirst();
+    }
+
+    @Override
     public java.util.Optional<String> seriesStatus(UUID seriesId) {
         return jdbc.queryForList("SELECT status FROM issuance.series WHERE id = ?", String.class, seriesId).stream()
                 .findFirst();
