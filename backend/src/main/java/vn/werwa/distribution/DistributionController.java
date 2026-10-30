@@ -34,7 +34,7 @@ import vn.werwa.platform.openapi.model.TransferCreate;
 import vn.werwa.platform.web.ETags;
 import vn.werwa.platform.web.Paging;
 
-/** API Phân phối (B7a, B8a, B11a, B9a, B9c, B7b, B8b). Thao tác chưa làm trả 501 (Q20). */
+/** API Phân phối (B7a, B8a, B11a, B9a, B9c, B7b, B8b, B9d). Thao tác chưa làm trả 501 (Q20). */
 @RestController
 class DistributionController implements DistributionApi {
 
@@ -48,13 +48,16 @@ class DistributionController implements DistributionApi {
     private final vn.werwa.distribution.allocation.AllocationSigning allocationSigning;
     private final vn.werwa.distribution.payment.PaymentBatchSigning batchSigning;
     private final vn.werwa.distribution.payment.MintOrchestrator mints;
+    private final vn.werwa.distribution.register.RegisterAttestationService register;
 
     DistributionController(OfferingService offerings, OrderService orders, AllocationListService lists,
             vn.werwa.distribution.payment.PaymentService payments, vn.werwa.distribution.payout.PayoutService payouts,
             TransferService transfers, vn.werwa.distribution.holding.HoldingsService holdings,
             vn.werwa.distribution.allocation.AllocationSigning allocationSigning,
             vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
-            vn.werwa.distribution.payment.MintOrchestrator mints) {
+            vn.werwa.distribution.payment.MintOrchestrator mints,
+            vn.werwa.distribution.register.RegisterAttestationService register) {
+        this.register = register;
         this.allocationSigning = allocationSigning;
         this.batchSigning = batchSigning;
         this.mints = mints;
@@ -349,6 +352,77 @@ class DistributionController implements DistributionApi {
             it.setMintFailureReason(i.mintFailureReason());
             return it;
         }).toList());
+        return v;
+    }
+
+    // ---------- B9d: VSDC xác nhận sổ, sửa mục (Q142, Q144, Q145) ----------
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.RegisterAttestation> getRegisterAttestation(UUID id) {
+        return ResponseEntity.ok(view(register.latest(id)));
+    }
+
+    @Override
+    public ResponseEntity<SigningProposalRef> proposeRegisterAttestation(UUID id, String idempotencyKey) {
+        vn.werwa.governance.api.SigningProposals.Ref r = register.propose(id, true).orElseThrow();
+        SigningProposalRef ref = new SigningProposalRef();
+        ref.setSigningProposalId(r.id());
+        ref.setStatus(SigningProposalRef.StatusEnum.fromValue(r.status()));
+        return ResponseEntity.accepted().body(ref);
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.RegisterAttestation> rejectRegisterAttestation(UUID id,
+            String idempotencyKey, vn.werwa.platform.openapi.model.RegisterRejection body) {
+        List<java.util.Map<String, String>> items = body.getItems().stream()
+                .map(i -> java.util.Map.of("allocationId", i.getAllocationId().toString(), "reason", i.getReason()))
+                .toList();
+        return ResponseEntity.ok(view(register.reject(id, body.getReason(), items)));
+    }
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ApprovalRef> requestAllocationCorrection(UUID id,
+            String idempotencyKey, vn.werwa.platform.openapi.model.AllocationCorrection body) {
+        vn.werwa.platform.openapi.model.ApprovalRef ref = new vn.werwa.platform.openapi.model.ApprovalRef();
+        ref.setApprovalRequestId(register.requestCorrection(id, body.getAction().getValue(), body.getReason()));
+        return ResponseEntity.accepted().body(ref);
+    }
+
+    static vn.werwa.platform.openapi.model.RegisterAttestation view(
+            vn.werwa.distribution.register.RegisterAttestationService.Attestation a) {
+        vn.werwa.platform.openapi.model.RegisterAttestation v = new vn.werwa.platform.openapi.model.RegisterAttestation();
+        v.setId(a.id());
+        v.setSeriesId(a.seriesId());
+        v.setAtBlock(a.atBlock());
+        v.setRegisterHash(a.registerHash());
+        v.setStatus(vn.werwa.platform.openapi.model.RegisterAttestation.StatusEnum.fromValue(a.status()));
+        v.setSigningProposalId(a.signingProposalId());
+        v.setHolderCount(a.holderCount());
+        v.setTotalQuantity(a.totalQuantity());
+        v.setHolders(a.holders().stream().map(h -> {
+            vn.werwa.platform.openapi.model.RegisterAttestationHoldersInner x =
+                    new vn.werwa.platform.openapi.model.RegisterAttestationHoldersInner();
+            x.setWallet(h.wallet());
+            x.setInvestorOrgId(h.investorOrgId());
+            x.setQuantity(h.quantity());
+            x.setAllocationIds(h.allocationIds());
+            return x;
+        }).toList());
+        if (a.rejection() != null) {
+            vn.werwa.platform.openapi.model.RegisterRejection r = new vn.werwa.platform.openapi.model.RegisterRejection();
+            r.setReason(a.rejection().reason());
+            r.setItems(a.rejection().items().stream().map(i -> {
+                vn.werwa.platform.openapi.model.RegisterRejectionItemsInner it =
+                        new vn.werwa.platform.openapi.model.RegisterRejectionItemsInner();
+                it.setAllocationId(UUID.fromString(i.get("allocationId")));
+                it.setReason(i.get("reason"));
+                return it;
+            }).toList());
+            v.setRejection(r);
+        }
+        v.setAttestedTxHash(a.attestedTxHash());
+        v.setAttestedAt(utc(a.attestedAt()));
+        v.setCreatedAt(utc(a.createdAt()));
         return v;
     }
 

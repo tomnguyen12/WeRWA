@@ -139,7 +139,10 @@ class DistributionConfig {
     vn.werwa.platform.events.EventHandler distributionOnEventIndexed(vn.werwa.distribution.holding.HoldingsService holdings,
             vn.werwa.distribution.allocation.AllocationSigning allocationSigning,
             vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
-            vn.werwa.distribution.payment.MintOrchestrator mints) {
+            vn.werwa.distribution.payment.MintOrchestrator mints,
+            vn.werwa.distribution.register.RegisterAttestationService register,
+            org.springframework.transaction.PlatformTransactionManager txManager) {
+        org.springframework.transaction.support.TransactionTemplate separate = separate(txManager);
         return new vn.werwa.platform.events.EventHandler() {
             @Override
             public String consumer() {
@@ -171,6 +174,22 @@ class DistributionConfig {
                     // B8b (Q134): phân bổ đã mint
                     mints.onMinted(String.valueOf(d.get("contract")), (Map<String, Object>) d.get("args"),
                             String.valueOf(d.get("txHash")), ((Number) d.get("block")).longValue());
+                    // B9d (Q141): mục cuối đã mint thì lập sổ cho VSDC
+                    register.seriesOf(String.valueOf(d.get("contract")))
+                            .ifPresent(id -> proposeRegister(id, register, separate));
+                    return;
+                }
+                if ("series.controller".equals(d.get("contractKind")) && "RegisterAttested".equals(d.get("eventName"))) {
+                    // B9d (Q143): VSDC đã ký xác nhận sổ
+                    register.onRegisterAttested(String.valueOf(d.get("contract")), (Map<String, Object>) d.get("args"),
+                            String.valueOf(d.get("txHash")));
+                    return;
+                }
+                if ("series.controller".equals(d.get("contractKind")) && "CorrectionBurned".equals(d.get("eventName"))) {
+                    // B9d (Q145): Holco đã hủy mục VSDC chỉ ra; lập sổ lại
+                    register.onCorrectionBurned(String.valueOf(d.get("contract")), (Map<String, Object>) d.get("args"),
+                            String.valueOf(d.get("txHash")), ((Number) d.get("block")).longValue())
+                            .ifPresent(id -> proposeRegister(id, register, separate));
                     return;
                 }
                 if (!vn.werwa.distribution.holding.HoldingsService.TOKEN_KIND.equals(d.get("contractKind"))) {
@@ -262,8 +281,9 @@ class DistributionConfig {
     PaymentJobs paymentJobs(vn.werwa.distribution.payment.PaymentService payments,
             vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
             vn.werwa.distribution.payment.MintOrchestrator mints,
+            vn.werwa.distribution.register.RegisterAttestationService register,
             org.springframework.transaction.PlatformTransactionManager txManager, AuditLog audit, Clock clock) {
-        return new PaymentJobs(payments, batchSigning, mints, separate(txManager), audit, clock);
+        return new PaymentJobs(payments, batchSigning, mints, register, separate(txManager), audit, clock);
     }
 
     static org.springframework.transaction.support.TransactionTemplate separate(
@@ -301,11 +321,51 @@ class DistributionConfig {
         }
     }
 
+    /** Q141: lập sổ trong giao dịch riêng; chưa đủ điều kiện thì thôi, lỗi thì ghi log (lịch quét bù). */
+    static void proposeRegister(UUID seriesId, vn.werwa.distribution.register.RegisterAttestationService register,
+            org.springframework.transaction.support.TransactionTemplate separate) {
+        try {
+            separate.executeWithoutResult(s -> register.propose(seriesId, false));
+        } catch (RuntimeException e) {
+            org.slf4j.LoggerFactory.getLogger(DistributionConfig.class)
+                    .warn("Chưa lập được sổ cho VSDC của series {}: {}", seriesId, e.toString());
+        }
+    }
+
+    /** B9d: VSDC xác nhận sổ, sửa sổ (Q139–Q146). */
+    @Bean
+    vn.werwa.distribution.register.RegisterAttestationService registerAttestations(JdbcTemplate jdbc,
+            SeriesCatalog series, vn.werwa.governance.api.SigningProposals proposals, Approvals approvals,
+            vn.werwa.onchain.api.ChainTransactions chain, vn.werwa.onchain.api.ContractCalls calls,
+            vn.werwa.onchain.api.TokenBalances balances, vn.werwa.governance.api.OperationalAlerts alerts,
+            vn.werwa.governance.api.Notifications notifications, vn.werwa.governance.api.BusinessCalendar calendar,
+            vn.werwa.governance.api.Parameters parameters, Events events, AuditLog audit, Clock clock) {
+        return new vn.werwa.distribution.register.RegisterAttestationService(jdbc, series, proposals, approvals, chain,
+                calls, balances, alerts, notifications, calendar, parameters, events, audit, clock);
+    }
+
+    /** Q145: duyệt 4 mắt yêu cầu sửa mục. */
+    @Bean
+    ApprovalHook allocationCorrectionApprovalHook(vn.werwa.distribution.register.RegisterAttestationService register) {
+        return new ApprovalHook() {
+            @Override
+            public String actionType() {
+                return vn.werwa.distribution.register.RegisterAttestationService.CORRECTION_ACTION;
+            }
+
+            @Override
+            public void onDecision(Decision decision) {
+                register.applyCorrectionDecision(decision.approvalId(), decision.approve());
+            }
+        };
+    }
+
     static class PaymentJobs {
 
         private final vn.werwa.distribution.payment.PaymentService payments;
         private final vn.werwa.distribution.payment.PaymentBatchSigning batchSigning;
         private final vn.werwa.distribution.payment.MintOrchestrator mints;
+        private final vn.werwa.distribution.register.RegisterAttestationService register;
         private final org.springframework.transaction.support.TransactionTemplate separate;
         private final AuditLog audit;
         private final Clock clock;
@@ -313,10 +373,12 @@ class DistributionConfig {
         PaymentJobs(vn.werwa.distribution.payment.PaymentService payments,
                 vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
                 vn.werwa.distribution.payment.MintOrchestrator mints,
+                vn.werwa.distribution.register.RegisterAttestationService register,
                 org.springframework.transaction.support.TransactionTemplate separate, AuditLog audit, Clock clock) {
             this.payments = payments;
             this.batchSigning = batchSigning;
             this.mints = mints;
+            this.register = register;
             this.separate = separate;
             this.audit = audit;
             this.clock = clock;
@@ -337,6 +399,11 @@ class DistributionConfig {
         void mintSweep() {
             try {
                 mintEach(mints.pendingAll(), mints, separate);
+                // Q141, Q146: lập sổ bù và nhắc VSDC
+                for (UUID series : register.candidates()) {
+                    proposeRegister(series, register, separate);
+                }
+                register.alertOverdue(clock.instant());
             } catch (RuntimeException e) {
                 org.slf4j.LoggerFactory.getLogger(PaymentJobs.class).warn("Lượt quét mint lỗi: {}", e.toString());
             }
@@ -395,7 +462,8 @@ class DistributionConfig {
 
     /** Q135: giao dịch mint revert trên chuỗi. */
     @Bean
-    vn.werwa.platform.events.EventHandler distributionOnTxFailed(vn.werwa.distribution.payment.MintOrchestrator mints) {
+    vn.werwa.platform.events.EventHandler distributionOnTxFailed(vn.werwa.distribution.payment.MintOrchestrator mints,
+            vn.werwa.distribution.register.RegisterAttestationService register) {
         return new vn.werwa.platform.events.EventHandler() {
             @Override
             public String consumer() {
@@ -409,8 +477,10 @@ class DistributionConfig {
 
             @Override
             public void handle(vn.werwa.platform.events.InboundEvent event) {
-                mints.onTxFailed(UUID.fromString(String.valueOf(event.data().get("txId"))),
-                        String.valueOf(event.data().get("reason")));
+                UUID txId = UUID.fromString(String.valueOf(event.data().get("txId")));
+                String reason = String.valueOf(event.data().get("reason"));
+                mints.onTxFailed(txId, reason);
+                register.onTxFailed(txId, reason);
             }
         };
     }
@@ -507,6 +577,7 @@ class DistributionConfig {
     @Bean
     vn.werwa.platform.events.EventHandler distributionOnApprovalDecided(
             vn.werwa.distribution.allocation.AllocationSigning allocationSigning,
+            vn.werwa.distribution.register.RegisterAttestationService register,
             org.springframework.transaction.PlatformTransactionManager txManager, AuditLog audit) {
         org.springframework.transaction.support.TransactionTemplate separate =
                 new org.springframework.transaction.support.TransactionTemplate(txManager);
@@ -525,7 +596,23 @@ class DistributionConfig {
             @Override
             public void handle(vn.werwa.platform.events.InboundEvent event) {
                 Map<String, Object> d = event.data();
-                if (!AllocationListService.SUBMIT_ACTION.equals(d.get("actionType")) || !"APPROVE".equals(d.get("decision"))) {
+                if (!"APPROVE".equals(d.get("decision"))) {
+                    return;
+                }
+                if (vn.werwa.distribution.register.RegisterAttestationService.CORRECTION_ACTION.equals(d.get("actionType"))) {
+                    // Q145: BURN gửi giao dịch hủy; DISMISS đã áp trong hook, lập sổ lại
+                    UUID approval = UUID.fromString(String.valueOf(d.get("approvalId")));
+                    register.burnOfApproval(approval).ifPresentOrElse(allocation -> {
+                        try {
+                            separate.executeWithoutResult(s -> register.submitBurn(allocation));
+                        } catch (RuntimeException e) {
+                            audit.record("ALLOCATION_CORRECTION_BURN_SUBMIT_FAILED", "allocation/" + allocation,
+                                    Map.of("reason", String.valueOf(e.getMessage())));
+                        }
+                    }, () -> register.candidates().forEach(series -> proposeRegister(series, register, separate)));
+                    return;
+                }
+                if (!AllocationListService.SUBMIT_ACTION.equals(d.get("actionType"))) {
                     return;
                 }
                 allocationSigning.listOfApproval(UUID.fromString(String.valueOf(d.get("approvalId")))).ifPresent(list -> {

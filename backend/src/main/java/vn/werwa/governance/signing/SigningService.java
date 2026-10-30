@@ -340,9 +340,17 @@ public class SigningService implements SigningProposals {
         }).orElse(false);
     }
 
+    /** Q144: mô-đun nghiệp vụ hủy đề nghị của mình (VSDC từ chối xác nhận sổ). */
+    @Override
+    @Transactional
+    public Ref cancel(UUID id) {
+        Proposal p = cancelProposal(id);
+        return new Ref(p.id(), p.status());
+    }
+
     /** Q110: Holco hủy đề nghị chưa gửi; đề nghị kế tiếp của Safe nhận nonce. */
     @Transactional
-    public Proposal cancel(UUID id) {
+    public Proposal cancelProposal(UUID id) {
         Proposal p = lock(id);
         if (!"QUEUED".equals(p.status()) && !"COLLECTING".equals(p.status())) {
             throw new ApiException(GovernanceError.SIGNING_PROPOSAL_NOT_CANCELLABLE, p.status());

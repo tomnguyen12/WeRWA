@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.werwa.issuance.SeriesChainTest;
@@ -28,6 +29,21 @@ abstract class AllocationChainTest extends SeriesChainTest {
 
     @Autowired
     ContractCalls calls;
+
+    @Autowired
+    vn.werwa.distribution.payment.PaymentService paymentService;
+
+    @Autowired
+    vn.werwa.distribution.payment.PaymentBatchSigning paymentBatchSigning;
+
+    @Autowired
+    vn.werwa.onchain.api.ChainTransactions chainTransactions;
+
+    @Autowired
+    PlatformTransactionManager transactionManager;
+
+    @Autowired
+    vn.werwa.governance.api.AuditLog auditLog;
 
     static RequestPostProcessor user(String org, String role) {
         return jwt().jwt(j -> j.subject(UUID.randomUUID().toString()).claim("org_id", org).claim("roles", List.of(role)));
@@ -138,5 +154,45 @@ abstract class AllocationChainTest extends SeriesChainTest {
                        mint_failure_reason, minted_tx_hash
                 FROM distribution.allocation WHERE allocation_list_id = ? AND order_id = ?
                 """, list, order);
+    }
+
+    /** Báo có khớp đủ tiền cho phân bổ (đường đối chiếu của B8a, bỏ qua webhook). */
+    void payFor(Map<String, Object> allocation) {
+        String result = tx.execute(st -> paymentService.match(new vn.werwa.distribution.payment.PaymentService.Credit(
+                "FT" + UUID.randomUUID(), (String) allocation.get("virtual_account"),
+                ((Number) allocation.get("amount_due_minor")).longValue(), String.valueOf(allocation.get("currency")).trim(),
+                java.time.LocalDate.of(2027, 2, 25), "Payer", UUID.randomUUID())));
+        if (!"MATCHED".equals(result)) {
+            throw new IllegalStateException("báo có không khớp: " + result);
+        }
+    }
+
+    record Minted(Prepared prepared, Investor a, Investor b, Map<String, Object> allocA, Map<String, Object> allocB) {}
+
+    /**
+     * Series Đang ghi sổ: A được 600, B được 300, đều có định danh và đã trả đủ; BIDV ký lô; cả hai mục đã mint (B8b). Không
+     * còn mục chờ tiền.
+     */
+    Minted mintedSeries() throws Exception {
+        Investor a = investor();
+        Investor b = investor();
+        Prepared p = approvedList(List.of(new Want(a, 600, 600), new Want(b, 500, 300)));
+        signList(p.list());
+        vn.werwa.onchain.TestIdentities.onboard(chainTransactions, calls, tx, a.address(), 1);
+        vn.werwa.onchain.TestIdentities.onboard(chainTransactions, calls, tx, b.address(), 1);
+        Map<String, Object> allocA = allocationOf(p.list(), p.orders().get(a));
+        Map<String, Object> allocB = allocationOf(p.list(), p.orders().get(b));
+        payFor(allocA);
+        payFor(allocB);
+        List<UUID> batches = paymentService.buildBatches();
+        DistributionConfig.proposeBatches(batches, paymentBatchSigning, DistributionConfig.separate(transactionManager),
+                auditLog);
+        UUID proposal = jdbc.queryForObject("SELECT signing_proposal_id FROM distribution.payment_batch WHERE id = ?",
+                UUID.class, batches.getFirst());
+        signBy(proposal, "bidv");
+        await().atMost(WAIT).until(() -> jdbc.queryForObject("""
+                SELECT count(*) FROM distribution.allocation WHERE allocation_list_id = ? AND status = 'MINTED'
+                """, Integer.class, p.list()) == 2);
+        return new Minted(p, a, b, allocA, allocB);
     }
 }

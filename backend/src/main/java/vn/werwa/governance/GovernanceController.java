@@ -83,7 +83,7 @@ class GovernanceController implements GovernanceApi {
     @Override
     public ResponseEntity<vn.werwa.platform.openapi.model.SigningProposal> cancelSigningProposal(UUID id,
             String idempotencyKey) {
-        return ResponseEntity.ok(view(signing.cancel(id)));
+        return ResponseEntity.ok(view(signing.cancelProposal(id)));
     }
 
     vn.werwa.platform.openapi.model.SigningProposal view(vn.werwa.governance.signing.SigningService.Proposal p) {

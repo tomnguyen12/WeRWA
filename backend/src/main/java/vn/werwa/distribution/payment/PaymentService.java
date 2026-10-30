@@ -281,7 +281,10 @@ public class PaymentService {
                        (SELECT id FROM distribution.payment_batch WHERE status <> 'SIGNED'))
                 """, Integer.class, list);
         Step step;
-        if (confirmed == total && total > 0) {
+        long mintedOnly = qty.getOrDefault("MINTED", 0L);
+        long correcting = qty.getOrDefault("NEEDS_CORRECTION", 0L);
+        if (confirmed > 0 && mintedOnly == 0 && correcting == 0 && awaiting == 0) {
+            // Q143: VSDC đã xác nhận sổ; mục OVERDUE còn lại không chặn
             step = Step.DONE;
         } else if (awaiting > 0) {
             step = Step.TRACK_PAYMENTS;

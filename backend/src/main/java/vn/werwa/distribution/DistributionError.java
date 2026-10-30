@@ -51,7 +51,15 @@ public enum DistributionError implements ErrorCode {
     PAYMENT_BATCH_SIGNING_PENDING(HttpStatus.CONFLICT, "Lô đã có đề nghị ký đang mở"),
     PAYMENT_BATCH_NOT_SIGNABLE(HttpStatus.CONFLICT, "Lô đã được BIDV ký"),
     ALLOCATION_NOT_MINTABLE(HttpStatus.CONFLICT, "Phân bổ chưa đủ điều kiện mint"),
-    MINT_PENDING(HttpStatus.CONFLICT, "Phân bổ đang có giao dịch mint chờ");
+    MINT_PENDING(HttpStatus.CONFLICT, "Phân bổ đang có giao dịch mint chờ"),
+    // B9d (Q141–Q145)
+    REGISTER_NOT_READY(HttpStatus.CONFLICT, "Chưa đủ điều kiện lập sổ cho VSDC xác nhận"),
+    REGISTER_ATTESTATION_PENDING(HttpStatus.CONFLICT, "Series đang có lần lập sổ chờ VSDC"),
+    REGISTER_ATTESTATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Series chưa có lần lập sổ nào"),
+    REGISTER_ATTESTATION_NOT_PENDING(HttpStatus.CONFLICT, "Lần lập sổ không còn chờ VSDC ký"),
+    REGISTER_REJECTION_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Mục bị từ chối không có trong sổ đã lập"),
+    REGISTER_VIEW_MISMATCH(HttpStatus.CONFLICT, "Sổ lập từ phân bổ lệch số dư trên chuỗi"),
+    ALLOCATION_NOT_IN_CORRECTION(HttpStatus.CONFLICT, "Phân bổ không ở trạng thái cần sửa");
 
     private final HttpStatus status;
     private final String title;

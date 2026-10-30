@@ -32,4 +32,10 @@ public interface SigningProposals {
 
     /** Trạng thái hiện tại của đề nghị; rỗng nếu không có. */
     java.util.Optional<String> status(UUID id);
+
+    /**
+     * Q144: hủy đề nghị còn ở {@code QUEUED} hoặc {@code COLLECTING}; còn lại thì lỗi
+     * {@code SIGNING_PROPOSAL_NOT_CANCELLABLE}. Gọi trong giao dịch DB của mô-đun gọi.
+     */
+    Ref cancel(UUID id);
 }
