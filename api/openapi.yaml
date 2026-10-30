@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.20.0
+  version: 0.21.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -2305,6 +2305,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EnforcementOrder'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/enforcement-orders/{id}/signing-proposal:
+    post:
+      tags:
+      - governance
+      operationId: proposeEnforcementSigning
+      summary: Tạo lại đề nghị ký 2/2 VSDC và Holco khi đề nghị trước FAILED hoặc CANCELLED (Q151)
+      description: Đề nghị tự tạo khi lệnh được duyệt và kiểm trên chuỗi đạt (Q149, Q150). Đề nghị cũ còn mở thì 409 ENFORCEMENT_SIGNING_PENDING; lệnh không ở PENDING_SIGNATURES thì 409 ENFORCEMENT_NOT_SIGNABLE.
+      x-werwa-function: '4.02'
+      x-werwa-callers: Holco
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Đã tạo đề nghị ký
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SigningProposalRef'
         4XX:
           description: Lỗi
           content:
@@ -5504,6 +5537,25 @@ components:
           - PENDING_SIGNATURES
           - APPLIED
           - REJECTED
+          - FAILED
+        failureReason:
+          type: string
+          description: Lý do không áp dụng được khi kiểm trên chuỗi sau duyệt (Q149)
+          enum:
+          - SERIES_NOT_ENFORCEABLE
+          - EXCEEDS_BALANCE
+          - EXCEEDS_FROZEN
+          - RECIPIENT_NOT_VERIFIED
+        signingProposalId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        appliedTxHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        appliedAt:
+          type: string
+          format: date-time
       additionalProperties: false
     AuditEntry:
       type: object
