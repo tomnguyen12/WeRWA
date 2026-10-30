@@ -12,6 +12,7 @@ class Web3jTokenBalances implements TokenBalances {
 
     private static final String BALANCE_OF = "0x70a08231";
     private static final String TOTAL_SUPPLY = "0x18160ddd";
+    private static final String GET_FROZEN = org.web3j.abi.FunctionEncoder.buildMethodId("getFrozenTokens(address)");
     private static final String ZERO = "0x0000000000000000000000000000000000000000";
 
     private final ChainNodes nodes;
@@ -24,6 +25,12 @@ class Web3jTokenBalances implements TokenBalances {
     public long balanceOf(String token, String wallet, long block) {
         return call(token, BALANCE_OF + Numeric.toHexStringNoPrefixZeroPadded(Numeric.toBigInt(wallet), 64), block,
                 "balanceOf");
+    }
+
+    @Override
+    public long frozenOf(String token, String wallet, long block) {
+        return call(token, GET_FROZEN + Numeric.toHexStringNoPrefixZeroPadded(Numeric.toBigInt(wallet), 64), block,
+                "getFrozenTokens");
     }
 
     @Override

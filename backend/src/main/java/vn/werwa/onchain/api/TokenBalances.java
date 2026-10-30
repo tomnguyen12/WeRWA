@@ -8,4 +8,7 @@ public interface TokenBalances {
 
     /** {@code totalSupply()} của token tại khối {@code block} (R4; Q138). */
     long totalSupply(String token, long block);
+
+    /** {@code getFrozenTokens(wallet)} của token tại khối {@code block} (danh sách chốt; Q156). */
+    long frozenOf(String token, String wallet, long block);
 }

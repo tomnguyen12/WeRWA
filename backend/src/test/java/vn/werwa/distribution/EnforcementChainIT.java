@@ -5,7 +5,6 @@ import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import java.math.BigInteger;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -16,7 +15,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import vn.werwa.distribution.payout.CouponCalculator;
 import vn.werwa.distribution.payout.PayoutService;
 import vn.werwa.governance.enforcement.EnforcementSigning;
-import vn.werwa.issuance.TestDocuments;
 import vn.werwa.onchain.api.contracts.SeriesController;
 import vn.werwa.onchain.api.contracts.Token;
 import vn.werwa.platform.OpenApiSchemas;
@@ -29,26 +27,6 @@ class EnforcementChainIT extends AllocationChainTest {
 
     @Autowired
     PayoutService payouts;
-
-    /** Holco tiếp nhận lệnh và một người duyệt khác của Holco duyệt đạt. Trả id lệnh. */
-    UUID approvedOrder(String action, UUID series, Investor from, Investor to, long qty) throws Exception {
-        Map<String, Object> b = new HashMap<>();
-        b.put("authorityName", "Tòa án nhân dân TP.HCM (thử)");
-        b.put("orderNo", "QĐ-PT-" + UUID.randomUUID());
-        b.put("issuedOn", "2026-10-20");
-        b.put("basisDocumentId", TestDocuments.uploadId(mvc, as("holco"), "ENFORCEMENT_BASIS").toString());
-        b.put("action", action);
-        b.put("seriesId", series.toString());
-        b.put("walletId", from.wallet().toString());
-        if (to != null) {
-            b.put("toWalletId", to.wallet().toString());
-        }
-        b.put("quantity", qty);
-        MvcResult r = post("/v1/enforcement-orders", as("holco"), b);
-        status(r, 201);
-        approve(UUID.fromString((String) body(r).get("approvalRequestId")), as("holco"));
-        return id(r);
-    }
 
     Map<String, Object> order(UUID id) throws Exception {
         MvcResult r = mvc.perform(get("/v1/enforcement-orders/" + id).with(as("vsdc"))).andReturn();

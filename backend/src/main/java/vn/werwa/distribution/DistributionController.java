@@ -34,7 +34,7 @@ import vn.werwa.platform.openapi.model.TransferCreate;
 import vn.werwa.platform.web.ETags;
 import vn.werwa.platform.web.Paging;
 
-/** API Phân phối (B7a, B8a, B11a, B9a, B9c, B7b, B8b, B9d). Thao tác chưa làm trả 501 (Q20). */
+/** API Phân phối (B7a, B8a, B11a, B9a, B9c, B7b, B8b, B9d, B11b). Thao tác chưa làm trả 501 (Q20). */
 @RestController
 class DistributionController implements DistributionApi {
 
@@ -49,6 +49,7 @@ class DistributionController implements DistributionApi {
     private final vn.werwa.distribution.payment.PaymentBatchSigning batchSigning;
     private final vn.werwa.distribution.payment.MintOrchestrator mints;
     private final vn.werwa.distribution.register.RegisterAttestationService register;
+    private final vn.werwa.distribution.payout.SnapshotService snapshots;
 
     DistributionController(OfferingService offerings, OrderService orders, AllocationListService lists,
             vn.werwa.distribution.payment.PaymentService payments, vn.werwa.distribution.payout.PayoutService payouts,
@@ -56,8 +57,10 @@ class DistributionController implements DistributionApi {
             vn.werwa.distribution.allocation.AllocationSigning allocationSigning,
             vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
             vn.werwa.distribution.payment.MintOrchestrator mints,
-            vn.werwa.distribution.register.RegisterAttestationService register) {
+            vn.werwa.distribution.register.RegisterAttestationService register,
+            vn.werwa.distribution.payout.SnapshotService snapshots) {
         this.register = register;
+        this.snapshots = snapshots;
         this.allocationSigning = allocationSigning;
         this.batchSigning = batchSigning;
         this.mints = mints;
@@ -189,6 +192,10 @@ class DistributionController implements DistributionApi {
         v.setRecordBlock((int) s.recordBlock());
         v.setRegisterHash(s.registerHash());
         v.setRegistrarAttestedAt(s.registrarAttestedAt() == null ? null : s.registrarAttestedAt().atOffset(ZoneOffset.UTC));
+        v.setStatus(s.status() == null ? null : vn.werwa.platform.openapi.model.Snapshot.StatusEnum.fromValue(s.status()));
+        v.setSigningProposalId(s.signingProposalId());
+        v.setTakenTxHash(s.takenTxHash());
+        v.setAttestedTxHash(s.attestedTxHash());
         v.setHolderCount(s.holderCount());
         v.setTotalQuantity(s.totalQuantity());
         v.setRatePpm(s.ratePpm());
@@ -424,6 +431,27 @@ class DistributionController implements DistributionApi {
         v.setAttestedAt(utc(a.attestedAt()));
         v.setCreatedAt(utc(a.createdAt()));
         return v;
+    }
+
+    // ---------- B11b: chụp danh sách chốt, VSDC xác nhận (Q160) ----------
+
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ChainTxRef> takeSnapshot(UUID id, Integer period,
+            String idempotencyKey, vn.werwa.platform.openapi.model.TakeSnapshotRequest body) {
+        UUID tx = snapshots.take(id, period, body.getAsOf(), true).orElseThrow();
+        var ref = new vn.werwa.platform.openapi.model.ChainTxRef();
+        ref.setChainTxId(tx);
+        ref.setStatus(vn.werwa.platform.openapi.model.ChainTxRef.StatusEnum.BUILT);
+        return ResponseEntity.accepted().body(ref);
+    }
+
+    @Override
+    public ResponseEntity<SigningProposalRef> proposeSnapshotAttestation(UUID id, Integer period, String idempotencyKey) {
+        var r = snapshots.proposeAttestation(id, period, true).orElseThrow();
+        SigningProposalRef ref = new SigningProposalRef();
+        ref.setSigningProposalId(r.id());
+        ref.setStatus(SigningProposalRef.StatusEnum.fromValue(r.status()));
+        return ResponseEntity.accepted().body(ref);
     }
 
     @Override

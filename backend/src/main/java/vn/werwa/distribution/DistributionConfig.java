@@ -77,22 +77,81 @@ class DistributionConfig {
     /** Q101: 08:00 giờ VN mỗi ngày. */
     @Bean
     @ConditionalOnProperty(name = "werwa.distribution.debt-service-enabled", havingValue = "true", matchIfMissing = true)
-    DebtServiceJob debtServiceJob(vn.werwa.distribution.payout.DebtServiceRunner runner, Clock clock) {
-        return new DebtServiceJob(runner, clock);
+    DebtServiceJob debtServiceJob(vn.werwa.distribution.payout.DebtServiceRunner runner,
+            vn.werwa.distribution.payout.SnapshotService snapshots, Clock clock) {
+        return new DebtServiceJob(runner, snapshots, clock);
     }
 
     static class DebtServiceJob {
+        private static final java.time.ZoneId VN = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
         private final vn.werwa.distribution.payout.DebtServiceRunner runner;
+        private final vn.werwa.distribution.payout.SnapshotService snapshots;
         private final Clock clock;
 
-        DebtServiceJob(vn.werwa.distribution.payout.DebtServiceRunner runner, Clock clock) {
+        DebtServiceJob(vn.werwa.distribution.payout.DebtServiceRunner runner,
+                vn.werwa.distribution.payout.SnapshotService snapshots, Clock clock) {
             this.runner = runner;
+            this.snapshots = snapshots;
             this.clock = clock;
         }
 
-        @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Ho_Chi_Minh")
+        /** Q101 08:00; Q161 lặp mỗi giờ tới 16:00 để gửi lệnh chi khi VSDC ký muộn. */
+        @Scheduled(cron = "0 0 8-16 * * *", zone = "Asia/Ho_Chi_Minh")
         void daily() {
-            runner.run(clock.instant().atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate());
+            runner.run(clock.instant().atZone(VN).toLocalDate());
+        }
+
+        /** Q156: 00:10 giờ VN ngày T chụp danh sách chốt tại khối cuối ngày T−1. */
+        @Scheduled(cron = "0 10 0 * * *", zone = "Asia/Ho_Chi_Minh")
+        void snapshot() {
+            java.time.LocalDate today = clock.instant().atZone(VN).toLocalDate();
+            for (Map.Entry<UUID, Integer> due : snapshots.dueToday(today)) {
+                try {
+                    snapshots.take(due.getKey(), due.getValue(), today.minusDays(1), false);
+                } catch (RuntimeException e) {
+                    org.slf4j.LoggerFactory.getLogger(DebtServiceJob.class).warn("Chưa chụp được kỳ {} series {}: {}",
+                            due.getValue(), due.getKey(), e.toString());
+                }
+            }
+        }
+
+        /** Q159: nhắc VSDC xác nhận danh sách chốt. */
+        @Scheduled(fixedDelayString = "${werwa.distribution.snapshot-overdue-interval:PT15M}")
+        void snapshotOverdue() {
+            try {
+                snapshots.alertOverdue(clock.instant());
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(DebtServiceJob.class).warn("Lượt nhắc VSDC lỗi: {}", e.toString());
+            }
+        }
+    }
+
+    /** B11b: chụp danh sách chốt, VSDC xác nhận (Q155–Q161). */
+    @Bean
+    vn.werwa.distribution.payout.SnapshotService snapshotService(JdbcTemplate jdbc, SeriesCatalog series,
+            vn.werwa.issuance.api.DebtServices debts, vn.werwa.onchain.api.IndexedEvents indexed,
+            vn.werwa.onchain.api.TokenBalances balances, vn.werwa.onchain.api.ContractCalls calls,
+            vn.werwa.onchain.api.ChainTransactions chain, vn.werwa.governance.api.SigningProposals proposals,
+            vn.werwa.governance.api.OperationalAlerts alerts, vn.werwa.governance.api.Parameters parameters, Events events,
+            AuditLog audit, Clock clock) {
+        return new vn.werwa.distribution.payout.SnapshotService(jdbc, series, debts, indexed, balances, calls, chain,
+                proposals, alerts, parameters, events, audit, clock);
+    }
+
+    /** Q158: danh sách đã lên chuỗi thì tính dòng chi (để VSDC đối chiếu) và đề nghị VSDC ký, mỗi việc giao dịch riêng. */
+    static void afterSnapshotTaken(UUID seriesId, int period, vn.werwa.distribution.payout.SnapshotService snapshots,
+            vn.werwa.distribution.payout.PayoutService payouts,
+            org.springframework.transaction.support.TransactionTemplate separate) {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DistributionConfig.class);
+        try {
+            separate.executeWithoutResult(s -> payouts.calculate(seriesId, period));
+        } catch (RuntimeException e) {
+            log.warn("Chưa tính được dòng chi kỳ {} series {}: {}", period, seriesId, e.toString());
+        }
+        try {
+            separate.executeWithoutResult(s -> snapshots.proposeAttestation(seriesId, period, false));
+        } catch (RuntimeException e) {
+            log.warn("Chưa tạo được đề nghị VSDC ký danh sách chốt kỳ {} series {}: {}", period, seriesId, e.toString());
         }
     }
 
@@ -141,6 +200,7 @@ class DistributionConfig {
             vn.werwa.distribution.payment.PaymentBatchSigning batchSigning,
             vn.werwa.distribution.payment.MintOrchestrator mints,
             vn.werwa.distribution.register.RegisterAttestationService register,
+            vn.werwa.distribution.payout.SnapshotService snapshots, vn.werwa.distribution.payout.PayoutService payouts,
             org.springframework.transaction.PlatformTransactionManager txManager) {
         org.springframework.transaction.support.TransactionTemplate separate = separate(txManager);
         return new vn.werwa.platform.events.EventHandler() {
@@ -177,6 +237,19 @@ class DistributionConfig {
                     // B9d (Q141): mục cuối đã mint thì lập sổ cho VSDC
                     register.seriesOf(String.valueOf(d.get("contract")))
                             .ifPresent(id -> proposeRegister(id, register, separate));
+                    return;
+                }
+                if ("series.controller".equals(d.get("contractKind")) && "SnapshotTaken".equals(d.get("eventName"))) {
+                    // B11b (Q158): danh sách chốt đã lên chuỗi
+                    snapshots.onSnapshotTaken(String.valueOf(d.get("contract")), (Map<String, Object>) d.get("args"),
+                            String.valueOf(d.get("txHash")))
+                            .ifPresent(e -> afterSnapshotTaken(e.getKey(), e.getValue(), snapshots, payouts, separate));
+                    return;
+                }
+                if ("series.controller".equals(d.get("contractKind")) && "SnapshotAttested".equals(d.get("eventName"))) {
+                    // B11b (Q158): VSDC đã xác nhận danh sách chốt
+                    snapshots.onSnapshotAttested(String.valueOf(d.get("contract")), (Map<String, Object>) d.get("args"),
+                            String.valueOf(d.get("txHash")));
                     return;
                 }
                 if ("series.controller".equals(d.get("contractKind")) && "RegisterAttested".equals(d.get("eventName"))) {
@@ -463,7 +536,8 @@ class DistributionConfig {
     /** Q135: giao dịch mint revert trên chuỗi. */
     @Bean
     vn.werwa.platform.events.EventHandler distributionOnTxFailed(vn.werwa.distribution.payment.MintOrchestrator mints,
-            vn.werwa.distribution.register.RegisterAttestationService register) {
+            vn.werwa.distribution.register.RegisterAttestationService register,
+            vn.werwa.distribution.payout.SnapshotService snapshots) {
         return new vn.werwa.platform.events.EventHandler() {
             @Override
             public String consumer() {
@@ -481,6 +555,7 @@ class DistributionConfig {
                 String reason = String.valueOf(event.data().get("reason"));
                 mints.onTxFailed(txId, reason);
                 register.onTxFailed(txId, reason);
+                snapshots.onTxFailed(txId, reason);
             }
         };
     }

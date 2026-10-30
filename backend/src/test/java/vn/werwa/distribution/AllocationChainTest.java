@@ -209,4 +209,36 @@ abstract class AllocationChainTest extends SeriesChainTest {
         await().atMost(WAIT).until(() -> "ACTIVE".equals(series(series).get("status")));
         return m;
     }
+
+    /** Holco tiếp nhận lệnh và một người duyệt khác của Holco duyệt đạt. Trả id lệnh. */
+    UUID approvedOrder(String action, UUID series, Investor from, Investor to, long qty) throws Exception {
+        Map<String, Object> b = new HashMap<>();
+        b.put("authorityName", "Tòa án nhân dân TP.HCM (thử)");
+        b.put("orderNo", "QĐ-PT-" + UUID.randomUUID());
+        b.put("issuedOn", "2026-10-20");
+        b.put("basisDocumentId", TestDocuments.uploadId(mvc, as("holco"), "ENFORCEMENT_BASIS").toString());
+        b.put("action", action);
+        b.put("seriesId", series.toString());
+        b.put("walletId", from.wallet().toString());
+        if (to != null) {
+            b.put("toWalletId", to.wallet().toString());
+        }
+        b.put("quantity", qty);
+        MvcResult r = post("/v1/enforcement-orders", as("holco"), b);
+        status(r, 201);
+        approve(UUID.fromString((String) body(r).get("approvalRequestId")), as("holco"));
+        return id(r);
+    }
+
+    /** Phong tỏa {@code qty} của ví {@code who} qua lệnh đã duyệt và Safe 2/2 (B10b); chờ lệnh APPLIED. */
+    UUID frozen(UUID series, Investor who, long qty) throws Exception {
+        UUID order = approvedOrder("FREEZE", series, who, null, qty);
+        await().atMost(WAIT).until(() -> jdbc.queryForObject(
+                "SELECT signing_proposal_id FROM governance.enforcement_order WHERE id = ?", UUID.class, order) != null);
+        signBy(jdbc.queryForObject("SELECT signing_proposal_id FROM governance.enforcement_order WHERE id = ?", UUID.class,
+                order), "vsdc", "holco");
+        await().atMost(WAIT).until(() -> "APPLIED".equals(jdbc.queryForObject(
+                "SELECT status FROM governance.enforcement_order WHERE id = ?", String.class, order)));
+        return order;
+    }
 }

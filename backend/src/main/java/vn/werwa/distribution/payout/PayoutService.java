@@ -36,7 +36,8 @@ public class PayoutService {
     public record Snapshot(
             UUID seriesId, int periodNo, long recordBlock, String registerHash, Instant registrarAttestedAt, int holderCount,
             long totalQuantity, Integer ratePpm, String currency, Long amountDueMinor, Long roundingResidualMinor,
-            List<CouponCalculator.Line> lines) {}
+            List<CouponCalculator.Line> lines, String status, UUID signingProposalId, String takenTxHash,
+            String attestedTxHash) {}
 
     /** Tính (hoặc tính lại khi chưa có lệnh chi) các dòng chi trả của kỳ. */
     @Transactional
@@ -152,7 +153,8 @@ public class PayoutService {
     /** Danh sách chốt đã tính; lưu ký chỉ thấy dòng của khách mình (tổ chức của mình). */
     public Snapshot snapshot(UUID seriesId, int periodNo) {
         List<Map<String, Object>> rows = jdbc.queryForList("""
-                SELECT id, record_block, register_hash, registrar_attested_at, holder_count, total_quantity, calculated_at
+                SELECT id, record_block, register_hash, registrar_attested_at, holder_count, total_quantity, calculated_at,
+                       status, signing_proposal_id, taken_tx_hash, attest_tx_hash
                 FROM distribution.record_snapshot WHERE series_id = ? AND period_no = ?
                 """, seriesId, periodNo);
         if (rows.isEmpty()) {
@@ -178,6 +180,8 @@ public class PayoutService {
         return new Snapshot(seriesId, periodNo, ((Number) s.get("record_block")).longValue(), (String) s.get("register_hash"),
                 attested == null ? null : attested.toInstant(), ((Number) s.get("holder_count")).intValue(),
                 ((Number) s.get("total_quantity")).longValue(), p.ratePpm(), p.currency(),
-                due == null ? null : due.amountDueMinor(), due == null ? null : due.roundingResidualMinor(), lines);
+                due == null ? null : due.amountDueMinor(), due == null ? null : due.roundingResidualMinor(), lines,
+                (String) s.get("status"), (UUID) s.get("signing_proposal_id"), (String) s.get("taken_tx_hash"),
+                (String) s.get("attest_tx_hash"));
     }
 }
