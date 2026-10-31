@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.13.0
+  version: 0.14.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1886,9 +1886,10 @@ paths:
   /v1/supervision/series/{id}:
     get:
       tags:
-      - governance
+      - issuance
       operationId: superviseSeries
-      summary: Series, sổ, giao dịch (chỉ đọc; chi tiết chốt ở bước code)
+      summary: Series kèm tóm tắt sổ (chỉ đọc; Q91)
+      description: Chi tiết sổ qua /v1/holdings và /v1/holdings/movements; giao dịch qua /v1/supervision/transactions.
       x-werwa-function: '4.04'
       x-werwa-callers: Cơ quan giám sát
       x-werwa-roles:
@@ -1901,7 +1902,129 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Series'
+                $ref: '#/components/schemas/SupervisionSeries'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/supervision/transactions:
+    get:
+      tags:
+      - governance
+      operationId: listSupervisionTransactions
+      summary: Sự kiện trên chuỗi indexer đã đọc, mới nhất trước (US-4.04-AC1; Q92)
+      description: Công cụ giám sát hỏi liên tục với afterBlock là khối lớn nhất đã thấy.
+      x-werwa-function: '4.04'
+      x-werwa-callers: Cơ quan giám sát
+      x-werwa-roles:
+      - SUPERVISOR
+      parameters:
+      - name: afterBlock
+        in: query
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: seriesId
+        in: query
+        schema:
+          type: string
+          format: uuid
+          description: UUIDv7
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChainEvent'
+                  nextCursor:
+                    type: string
+                additionalProperties: false
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/supervision/status:
+    get:
+      tags:
+      - governance
+      operationId: getSupervisionStatus
+      summary: Độ trễ của indexer so với đầu chuỗi trên O1 (US-4.04-AC1; Q93)
+      x-werwa-function: '4.04'
+      x-werwa-callers: Cơ quan giám sát
+      x-werwa-roles:
+      - SUPERVISOR
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupervisionStatus'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/supervision/block-hash-attestations:
+    post:
+      tags:
+      - governance
+      operationId: attestBlockHash
+      summary: VSDC gửi mã băm khối đọc từ V4 để đối chiếu với O1 (US-4.04-AC3; Q95)
+      description: Mỗi khối gửi một lần. Kết quả so khớp trả ngay nếu O1 đã có khối đó; đối soát R7 hằng ngày tạo chênh lệch khi lệch hoặc quá 1 ngày làm việc chưa gửi.
+      x-werwa-function: '4.04'
+      x-werwa-callers: VSDC
+      x-werwa-roles:
+      - REGISTRAR
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockHashAttestationCreate'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockHashAttestation'
         4XX:
           description: Lỗi
           content:
@@ -1920,6 +2043,7 @@ paths:
       - governance
       operationId: listBlockHashChecks
       summary: Kết quả đối chiếu mã băm khối O1 và V4
+      description: Các lần đối soát phạm vi BLOCK_HASH_VSDC (R7), mới nhất trước, kèm chênh lệch (Q96).
       x-werwa-function: '4.04'
       x-werwa-callers: Cơ quan giám sát
       x-werwa-roles:
@@ -4104,6 +4228,147 @@ components:
           type: string
           pattern: ^0x[0-9a-fA-F]{64}$
         blockTime:
+          type: string
+          format: date-time
+      additionalProperties: false
+    SupervisionSeries:
+      type: object
+      required:
+      - series
+      - holderCount
+      - totalBalance
+      - frozen
+      - asOfBlock
+      properties:
+        series:
+          $ref: '#/components/schemas/Series'
+        holderCount:
+          type: integer
+          minimum: 0
+          description: Số ví đang có số dư lớn hơn 0
+        totalBalance:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        frozen:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số trái phiếu (decimals 0)
+        asOfBlock:
+          type: integer
+          format: int64
+      additionalProperties: false
+    ChainEvent:
+      type: object
+      required:
+      - block
+      - logIndex
+      - txHash
+      - contract
+      - contractKind
+      - eventName
+      properties:
+        block:
+          type: integer
+          format: int64
+        logIndex:
+          type: integer
+        txHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        blockTime:
+          type: string
+          format: date-time
+        contract:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
+        contractKind:
+          type: string
+        eventName:
+          type: string
+        seriesId:
+          type: string
+          format: uuid
+          description: Series của hợp đồng (Q43), nếu là hợp đồng series
+        args:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+    SupervisionStatus:
+      type: object
+      required:
+      - headBlock
+      - indexedBlock
+      - lagSeconds
+      - maxLagSeconds
+      - withinLimit
+      - checkedAt
+      properties:
+        headBlock:
+          type: integer
+          format: int64
+        indexedBlock:
+          type: integer
+          format: int64
+        lagSeconds:
+          type: integer
+          format: int64
+          minimum: 0
+        maxLagSeconds:
+          type: integer
+          description: Tham số governance.supervision-max-lag-seconds
+        withinLimit:
+          type: boolean
+        checkedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    BlockHashAttestationCreate:
+      type: object
+      required:
+      - blockNumber
+      - blockHash
+      properties:
+        blockNumber:
+          type: integer
+          format: int64
+          minimum: 0
+        blockHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+      additionalProperties: false
+    BlockHashAttestation:
+      type: object
+      required:
+      - id
+      - blockNumber
+      - blockHash
+      - status
+      - attestedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        blockNumber:
+          type: integer
+          format: int64
+        blockHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        o1BlockHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
+        status:
+          type: string
+          enum:
+          - MATCHED
+          - MISMATCHED
+          - PENDING
+          description: PENDING khi O1 chưa có khối này; R7 so lại khi chạy
+        attestedAt:
           type: string
           format: date-time
       additionalProperties: false
