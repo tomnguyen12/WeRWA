@@ -292,6 +292,12 @@ public class SeriesService implements vn.werwa.issuance.api.SeriesCatalog, vn.we
     }
 
     @Override
+    public boolean isPaused(UUID seriesId) {
+        return Boolean.TRUE.equals(jdbc.queryForList("SELECT paused FROM issuance.series WHERE id = ?", Boolean.class,
+                seriesId).stream().findFirst().orElse(false));
+    }
+
+    @Override
     public java.util.Optional<String> controllerAddress(UUID seriesId) {
         return jdbc.queryForList("SELECT controller_address FROM issuance.series WHERE id = ?", String.class, seriesId)
                 .stream().filter(java.util.Objects::nonNull).map(a -> a.toLowerCase(java.util.Locale.ROOT)).findFirst();

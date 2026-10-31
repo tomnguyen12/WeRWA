@@ -50,9 +50,12 @@ public class MintOrchestrator {
     private final Events events;
     private final AuditLog audit;
     private final Clock clock;
+    private final vn.werwa.issuance.api.SeriesCatalog series;
 
     public MintOrchestrator(JdbcTemplate jdbc, AllocationListService lists, ChainTransactions chain, ContractCalls calls,
-            OperationalAlerts alerts, Events events, AuditLog audit, Clock clock) {
+            OperationalAlerts alerts, Events events, AuditLog audit, Clock clock,
+            vn.werwa.issuance.api.SeriesCatalog series) {
+        this.series = series;
         this.jdbc = jdbc;
         this.lists = lists;
         this.chain = chain;
@@ -117,6 +120,17 @@ public class MintOrchestrator {
         }
         if (!"PAID".equals(a.get("status")) || !"SIGNED".equals(a.get("batch_status"))) {
             return notMintable(retry, "phân bổ " + a.get("status") + ", lô " + a.get("batch_status"));
+        }
+        // Q175: series đang tạm dừng thì giữ lại, chạy tiếp khi mở lại
+        UUID seriesId = jdbc.queryForObject("""
+                SELECT o.series_id FROM distribution.allocation_list l JOIN distribution.offering o ON o.id = l.offering_id
+                WHERE l.id = ?
+                """, UUID.class, a.get("allocation_list_id"));
+        if (series.isPaused(seriesId)) {
+            if (retry) {
+                throw new ApiException(DistributionError.SERIES_PAUSED);
+            }
+            return new Attempt(null, "SERIES_PAUSED");
         }
         if (!retry && a.get("mint_failure_reason") != null) {
             return new Attempt(null, "PREVIOUSLY_FAILED");

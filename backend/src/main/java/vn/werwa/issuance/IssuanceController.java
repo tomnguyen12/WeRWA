@@ -39,10 +39,13 @@ class IssuanceController implements IssuanceApi {
     private final vn.werwa.issuance.series.SeriesDeployment deployment;
 
     private final vn.werwa.issuance.series.SeriesMaturity maturity;
+    private final vn.werwa.issuance.series.SeriesPause pauses;
 
     IssuanceController(DocumentService documents, ProgramService programs, SeriesService series,
             IssuerDecisionService decisions, vn.werwa.platform.registry.HoldingsSummaries holdings,
-            vn.werwa.issuance.series.SeriesDeployment deployment, vn.werwa.issuance.series.SeriesMaturity maturity) {
+            vn.werwa.issuance.series.SeriesDeployment deployment, vn.werwa.issuance.series.SeriesMaturity maturity,
+            vn.werwa.issuance.series.SeriesPause pauses) {
+        this.pauses = pauses;
         this.deployment = deployment;
         this.maturity = maturity;
         this.holdings = holdings;
@@ -109,6 +112,22 @@ class IssuanceController implements IssuanceApi {
         return ResponseEntity.accepted().body(ref(deployment.proposeDeploy(id), series.get(id).approvalRequestId()));
     }
 
+    /** Q172: tạm dừng khẩn cấp. */
+    @Override
+    public ResponseEntity<SigningProposalRef> pauseSeries(UUID id, String idempotencyKey,
+            vn.werwa.platform.openapi.model.PauseReason body) {
+        return ResponseEntity.accepted().body(ref(pauses.requestPause(id, body.getReason()), null));
+    }
+
+    /** Q173: mở lại qua duyệt 4 mắt. */
+    @Override
+    public ResponseEntity<vn.werwa.platform.openapi.model.ApprovalRef> unpauseSeries(UUID id, String idempotencyKey,
+            vn.werwa.platform.openapi.model.PauseReason body) {
+        var ref = new vn.werwa.platform.openapi.model.ApprovalRef();
+        ref.setApprovalRequestId(pauses.requestUnpause(id, body.getReason()));
+        return ResponseEntity.accepted().body(ref);
+    }
+
     /** Q165: gửi lại mature. */
     @Override
     public ResponseEntity<vn.werwa.platform.openapi.model.ChainTxRef> matureSeries(UUID id, String idempotencyKey) {
@@ -150,7 +169,11 @@ class IssuanceController implements IssuanceApi {
     @Override
     public ResponseEntity<Series> getSeries(UUID id) {
         SeriesService.Series s = series.get(id);
-        return ResponseEntity.ok().eTag(ETags.of(s.version())).body(view(s));
+        Series v = view(s);
+        // B14 (Q176)
+        v.setPaused(series.isPaused(id));
+        v.setPauseRequestId(pauses.openRequest(id).orElse(null));
+        return ResponseEntity.ok().eTag(ETags.of(s.version())).body(v);
     }
 
     @Override

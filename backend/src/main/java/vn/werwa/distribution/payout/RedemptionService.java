@@ -76,6 +76,13 @@ public class RedemptionService {
             }
             return List.of();
         }
+        if (series.isPaused(seriesId)) {
+            // Q175: chờ mở lại
+            if (manual) {
+                throw new ApiException(DistributionError.SERIES_PAUSED);
+            }
+            return List.of();
+        }
         String controller = s.controllerAddress().toLowerCase(Locale.ROOT);
         jdbc.queryForList("SELECT series_id FROM distribution.series_closure WHERE series_id = ? FOR UPDATE", UUID.class,
                 seriesId);

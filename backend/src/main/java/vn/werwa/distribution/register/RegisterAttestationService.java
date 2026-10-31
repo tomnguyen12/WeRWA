@@ -451,6 +451,16 @@ public class RegisterAttestationService {
                 """, UUID.class, approvalId).stream().findFirst();
     }
 
+    /** Q175: yêu cầu hủy đã duyệt đạt mà chưa gửi (series dừng lúc duyệt). */
+    public List<UUID> pendingBurns() {
+        return jdbc.queryForList("""
+                SELECT id, correction_approval_id FROM distribution.allocation
+                WHERE status = 'NEEDS_CORRECTION' AND correction_action = 'BURN' AND correction_approval_id IS NOT NULL
+                  AND correction_chain_tx_id IS NULL
+                """).stream().filter(r -> "APPROVED".equals(approvals.status((UUID) r.get("correction_approval_id"))))
+                .map(r -> (UUID) r.get("id")).toList();
+    }
+
     /** Gửi {@code correctionBurn} bằng khóa vận hành (sau duyệt đạt). */
     @Transactional
     public UUID submitBurn(UUID allocationId) {
@@ -460,6 +470,10 @@ public class RegisterAttestationService {
                 JOIN distribution.offering o ON o.id = l.offering_id
                 WHERE a.id = ? FOR UPDATE OF a
                 """, allocationId);
+        if (series.isPaused((UUID) a.get("series_id"))) {
+            // Q175: giữ yêu cầu đã duyệt, gửi khi series mở lại
+            return null;
+        }
         String controller = series.find((UUID) a.get("series_id")).orElseThrow().controllerAddress().toLowerCase(Locale.ROOT);
         String data = calls.load(SeriesController.class, controller).correctionBurn(AllocationMerkle.uuidToBytes32(allocationId),
                 (String) a.get("wallet_address"), BigInteger.valueOf(((Number) a.get("quantity")).longValue()))

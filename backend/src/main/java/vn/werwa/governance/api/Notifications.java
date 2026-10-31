@@ -18,7 +18,9 @@ public interface Notifications {
         // B11c (Q101, Q104)
         DEBT_SERVICE_REMINDER, FUNDING_SHORT, PAYOUT_FAILED, PAYMENT_GRACE_EXPIRED,
         // B7b (Q127)
-        SIGNATURE_REQUESTED
+        SIGNATURE_REQUESTED,
+        // B14 (Q174)
+        SERIES_PAUSED, SERIES_UNPAUSED
     }
 
     enum Severity { INFO, WARNING, CRITICAL }

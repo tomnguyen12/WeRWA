@@ -45,6 +45,8 @@ public enum DistributionError implements ErrorCode {
     // B13b (Q166)
     SERIES_NOT_MATURED(HttpStatus.CONFLICT, "Series chưa ở Đã đáo hạn"),
     NOTHING_TO_REDEEM(HttpStatus.CONFLICT, "Không còn ví nào để hủy trái phiếu"),
+    // B14 (Q175)
+    SERIES_PAUSED(HttpStatus.CONFLICT, "Series đang tạm dừng"),
     PERIOD_RATE_MISSING(HttpStatus.CONFLICT, "Kỳ chưa có lãi suất"),
     PAYOUT_ALREADY_INSTRUCTED(HttpStatus.CONFLICT, "Kỳ đã có lệnh chi, không tính lại"),
     ALLOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có phân bổ này"),

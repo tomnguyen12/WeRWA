@@ -201,6 +201,42 @@ class DistributionConfig {
         };
     }
 
+    /** Q175: series mở lại thì chạy tiếp mint, hủy mục sửa và hủy khi đáo hạn đã giữ lại. */
+    @Bean
+    vn.werwa.platform.events.EventHandler distributionOnSeriesUnpaused(
+            vn.werwa.distribution.payment.MintOrchestrator mints,
+            vn.werwa.distribution.register.RegisterAttestationService register,
+            vn.werwa.distribution.payout.RedemptionService redemptions,
+            org.springframework.transaction.PlatformTransactionManager txManager) {
+        org.springframework.transaction.support.TransactionTemplate separate = separate(txManager);
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "distribution";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.issuance.series.unpaused.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                UUID seriesId = UUID.fromString(String.valueOf(event.data().get("seriesId")));
+                mintEach(mints.pendingAll(), mints, separate);
+                for (UUID allocation : register.pendingBurns()) {
+                    try {
+                        separate.executeWithoutResult(s -> register.submitBurn(allocation));
+                    } catch (RuntimeException e) {
+                        org.slf4j.LoggerFactory.getLogger(DistributionConfig.class)
+                                .warn("Chưa gửi được hủy phân bổ {}: {}", allocation, e.toString());
+                    }
+                }
+                redeemQuietly(seriesId, redemptions, separate);
+            }
+        };
+    }
+
     /** Q167: lô burnRedeemed đã lên khối thì xét đóng series. */
     @Bean
     vn.werwa.platform.events.EventHandler distributionOnTxMined(vn.werwa.distribution.payout.RedemptionService redemptions,
@@ -613,11 +649,12 @@ class DistributionConfig {
 
     /** B8b: bộ điều phối mint (Q133–Q135). */
     @Bean
-    vn.werwa.distribution.payment.MintOrchestrator mintOrchestrator(JdbcTemplate jdbc, AllocationListService lists,
+    vn.werwa.distribution.payment.MintOrchestrator mintOrchestrator(SeriesCatalog series, JdbcTemplate jdbc,
+            AllocationListService lists,
             vn.werwa.onchain.api.ChainTransactions chain, vn.werwa.onchain.api.ContractCalls calls,
             vn.werwa.governance.api.OperationalAlerts alerts, Events events, AuditLog audit, Clock clock) {
         return new vn.werwa.distribution.payment.MintOrchestrator(jdbc, lists, chain, calls, alerts, events, audit,
-                clock);
+                clock, series);
     }
 
     /** R4 (Q138): tổng cung token bằng tổng đã mint. */

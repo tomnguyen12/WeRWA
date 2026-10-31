@@ -147,6 +147,68 @@ class IssuanceConfig {
         };
     }
 
+    /** B14: tạm dừng và mở lại series (Q171–Q175). */
+    @Bean
+    vn.werwa.issuance.series.SeriesPause seriesPause(JdbcTemplate jdbc, vn.werwa.onchain.api.ContractCalls calls,
+            vn.werwa.governance.api.SigningProposals proposals, Approvals approvals,
+            vn.werwa.governance.api.Notifications notifications, vn.werwa.platform.events.Events events, AuditLog audit,
+            java.time.Clock clock) {
+        return new vn.werwa.issuance.series.SeriesPause(jdbc, calls, proposals, approvals, notifications, events, audit,
+                clock);
+    }
+
+    @Bean
+    ApprovalHook seriesUnpauseApprovalHook(vn.werwa.issuance.series.SeriesPause pauses) {
+        return new ApprovalHook() {
+            @Override
+            public String actionType() {
+                return vn.werwa.issuance.series.SeriesPause.UNPAUSE_ACTION;
+            }
+
+            @Override
+            public void onDecision(Decision decision) {
+                pauses.applyDecision(decision.approvalId(), decision.approve());
+            }
+        };
+    }
+
+    /** Q173: duyệt mở lại đạt thì tạo đề nghị Safe 3/3 trong giao dịch riêng. */
+    @Bean
+    vn.werwa.platform.events.EventHandler issuanceOnApprovalDecided(vn.werwa.issuance.series.SeriesPause pauses,
+            org.springframework.transaction.PlatformTransactionManager txManager, AuditLog audit) {
+        org.springframework.transaction.support.TransactionTemplate separate =
+                new org.springframework.transaction.support.TransactionTemplate(txManager);
+        separate.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return new vn.werwa.platform.events.EventHandler() {
+            @Override
+            public String consumer() {
+                return "issuance";
+            }
+
+            @Override
+            public String eventType() {
+                return "werwa.governance.approval.decided.v1";
+            }
+
+            @Override
+            public void handle(vn.werwa.platform.events.InboundEvent event) {
+                if (!vn.werwa.issuance.series.SeriesPause.UNPAUSE_ACTION.equals(event.data().get("actionType"))
+                        || !"APPROVE".equals(event.data().get("decision"))) {
+                    return;
+                }
+                pauses.unpauseOfApproval(java.util.UUID.fromString(String.valueOf(event.data().get("approvalId"))))
+                        .ifPresent(request -> {
+                            try {
+                                separate.executeWithoutResult(s -> pauses.proposeUnpause(request));
+                            } catch (RuntimeException e) {
+                                audit.record("SERIES_UNPAUSE_PROPOSAL_FAILED", "series-pause-request/" + request,
+                                        java.util.Map.of("reason", String.valueOf(e.getMessage())));
+                            }
+                        });
+            }
+        };
+    }
+
     /** B13b: đáo hạn (Q164, Q165). */
     @Bean
     vn.werwa.issuance.series.SeriesMaturity seriesMaturity(JdbcTemplate jdbc, vn.werwa.onchain.api.ContractCalls calls,
@@ -214,7 +276,8 @@ class IssuanceConfig {
 
     /** Q117: địa chỉ hợp đồng, ISIN, trạng thái series từ sự kiện indexer. */
     @Bean
-    vn.werwa.platform.events.EventHandler issuanceOnEventIndexed(vn.werwa.issuance.series.SeriesDeployment deployment) {
+    vn.werwa.platform.events.EventHandler issuanceOnEventIndexed(vn.werwa.issuance.series.SeriesDeployment deployment,
+            vn.werwa.issuance.series.SeriesPause pauses, SeriesService seriesService) {
         return new vn.werwa.platform.events.EventHandler() {
             @Override
             public String consumer() {
@@ -231,6 +294,12 @@ class IssuanceConfig {
                 Object kind = event.data().get("contractKind");
                 if ("seriesfactory".equals(kind) || "series.controller".equals(kind)) {
                     deployment.onIndexed(event.data());
+                }
+                Object name = event.data().get("eventName");
+                if ("series.controller".equals(kind) && ("Paused".equals(name) || "Unpaused".equals(name))) {
+                    // B14 (Q174)
+                    seriesService.findByController(String.valueOf(event.data().get("contract"))).ifPresent(id ->
+                            pauses.onIndexed(id, String.valueOf(name), String.valueOf(event.data().get("txHash"))));
                 }
             }
         };

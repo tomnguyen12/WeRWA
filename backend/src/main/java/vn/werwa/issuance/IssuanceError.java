@@ -30,7 +30,12 @@ public enum IssuanceError implements ErrorCode {
     ISSUER_DECISION_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "Quyết định thiếu đối tượng áp dụng"),
     ISSUER_DECISION_EXISTS(HttpStatus.CONFLICT, "Số quyết định đã được ghi"),
     // B13b (Q165)
-    SERIES_NOT_MATURABLE(HttpStatus.CONFLICT, "Series chưa đủ điều kiện đáo hạn");
+    SERIES_NOT_MATURABLE(HttpStatus.CONFLICT, "Series chưa đủ điều kiện đáo hạn"),
+    // B14 (Q172, Q173)
+    SERIES_ALREADY_PAUSED(HttpStatus.CONFLICT, "Series đang tạm dừng"),
+    SERIES_NOT_PAUSED(HttpStatus.CONFLICT, "Series không tạm dừng"),
+    SERIES_NOT_PAUSABLE(HttpStatus.CONFLICT, "Series chưa triển khai hoặc đã đóng, hủy"),
+    PAUSE_REQUEST_PENDING(HttpStatus.CONFLICT, "Series đã có yêu cầu tạm dừng hoặc mở lại đang mở");
 
     private final HttpStatus status;
     private final String title;

@@ -47,4 +47,7 @@ public interface SeriesCatalog {
             UUID id, String status, String isin, String currency, long faceValueMinor, int issuePricePpm,
             long maxQuantity, List<String> investorClasses, int rateFloorPpm, int rateCapPpm, String controllerAddress,
             int couponPeriods, java.time.LocalDate issueDate) {}
+
+    /** Series đang tạm dừng trên chuỗi (B14; Q175). */
+    boolean isPaused(UUID seriesId);
 }
