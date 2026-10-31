@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.15.0
+  version: 0.16.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1701,12 +1701,68 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /v1/signing-proposals:
+    get:
+      tags:
+      - governance
+      operationId: listSigningProposals
+      summary: Đề nghị ký có tổ chức mình là một bên, mới nhất trước (Q112)
+      description: Mặc định chỉ đề nghị đang thu chữ ký (COLLECTING). Holco, Cơ quan giám sát thấy mọi đề nghị.
+      x-werwa-function: '6.04'
+      x-werwa-callers: Người ký, Holco
+      x-werwa-roles:
+      - ANY
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - QUEUED
+          - COLLECTING
+          - THRESHOLD_REACHED
+          - SENT
+          - MINED
+          - FAILED
+          - CANCELLED
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SigningProposal'
+                  nextCursor:
+                    type: string
+                additionalProperties: false
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/signing-proposals/{id}:
     get:
       tags:
       - governance
       operationId: getSigningProposal
       summary: Dữ liệu EIP-712 cần ký, chữ ký đã có
+      description: typedData là dữ liệu người ký của tổ chức người hỏi cần ký (SafeTx của Safe tổ chức, hoặc SafeMessage bọc SafeTx của Safe liên bên; Q108). Người không thuộc bên nào thì không có typedData.
       x-werwa-function: '6.04'
       x-werwa-callers: Người ký
       x-werwa-roles:
@@ -1754,6 +1810,38 @@ paths:
       responses:
         '202':
           description: Đã nhận chữ ký
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SigningProposal'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/signing-proposals/{id}/cancel:
+    post:
+      tags:
+      - governance
+      operationId: cancelSigningProposal
+      summary: Hủy đề nghị chưa gửi lên chuỗi; đề nghị kế tiếp của cùng Safe nhận nonce (Q110)
+      x-werwa-function: '6.04'
+      x-werwa-callers: Holco
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -2758,11 +2846,13 @@ components:
           type: string
           enum:
           - PENDING_APPROVAL
+          - QUEUED
           - COLLECTING
           - THRESHOLD_REACHED
           - SENT
           - MINED
           - FAILED
+          - CANCELLED
       additionalProperties: false
       description: 'Trả kèm 202 cho mọi thao tác dẫn tới ký trên chuỗi; kết quả cuối báo qua sự kiện và GET trạng thái. Thao tác còn
         phải qua duyệt 4 mắt trước khi có đề nghị ký thì trả approvalRequestId với status PENDING_APPROVAL, chưa có signingProposalId
@@ -4527,11 +4617,14 @@ components:
       type: object
       required:
       - id
+      - purpose
+      - subjectRef
+      - safe
       - targetContract
       - functionName
       - calldataHash
-      - typedData
       - threshold
+      - parties
       - signatures
       - status
       properties:
@@ -4539,6 +4632,27 @@ components:
           type: string
           format: uuid
           description: UUIDv7
+        purpose:
+          type: string
+          description: Mục đích, ví dụ SERIES_DEPLOY; trả lại trong sự kiện tx.mined, tx.failed (Q111)
+        subjectRef:
+          type: string
+          description: Đối tượng nghiệp vụ, ví dụ series/<id>
+        approvalRequestId:
+          type: string
+          format: uuid
+          description: UUIDv7
+        safe:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{40}$
+          description: Safe thực hiện giao dịch (Safe tổ chức hoặc Safe liên bên)
+        nonce:
+          type: integer
+          format: int64
+          description: Nonce của Safe; chưa có khi QUEUED (Q110)
+        safeTxHash:
+          type: string
+          pattern: ^0x[0-9a-fA-F]{64}$
         targetContract:
           type: string
           pattern: ^0x[0-9a-fA-F]{40}$
@@ -4549,7 +4663,7 @@ components:
           pattern: ^0x[0-9a-fA-F]{64}$
         typedData:
           type: object
-          description: Dữ liệu EIP-712 người ký cần ký
+          description: Dữ liệu EIP-712 (eth_signTypedData_v4) người ký của tổ chức người hỏi cần ký (Q108)
         requiredSigners:
           type: array
           items:
@@ -4557,6 +4671,30 @@ components:
             pattern: ^0x[0-9a-fA-F]{40}$
         threshold:
           type: integer
+          description: Số bên cần đủ chữ ký (ngưỡng của Safe thực hiện)
+        parties:
+          type: array
+          description: Mỗi Safe tổ chức cần ký và tiến độ (Q108)
+          items:
+            type: object
+            required:
+            - safe
+            - organizationId
+            - threshold
+            - signed
+            properties:
+              safe:
+                type: string
+                pattern: ^0x[0-9a-fA-F]{40}$
+              organizationId:
+                type: string
+                format: uuid
+                description: UUIDv7
+              threshold:
+                type: integer
+              signed:
+                type: integer
+            additionalProperties: false
         signatures:
           type: array
           items:
@@ -4580,14 +4718,21 @@ components:
         status:
           type: string
           enum:
+          - QUEUED
           - COLLECTING
           - THRESHOLD_REACHED
           - SENT
           - MINED
           - FAILED
+          - CANCELLED
+        failureReason:
+          type: string
         txHash:
           type: string
           pattern: ^0x[0-9a-fA-F]{64}$
+        createdAt:
+          type: string
+          format: date-time
       additionalProperties: false
     SignatureSubmit:
       type: object
