@@ -14,13 +14,16 @@ import vn.werwa.platform.web.ApiContract.Operation;
 import vn.werwa.platform.web.ApiException;
 import vn.werwa.platform.web.PlatformError;
 import vn.werwa.platform.web.Problems;
+import vn.werwa.platform.inbound.BankChannel;
+import vn.werwa.platform.web.idempotency.CachedBodyRequest;
 
 /**
  * Kiểm quyền mọi API {@code /v1/**} theo hợp đồng (US-4.07), chạy sau khi token đã xác thực:
  *
  * <ol>
  *   <li>API phải có trong {@code api/openapi.yaml}; không có thì 404, sai phương thức thì 405.
- *   <li>Webhook ngân hàng (mTLS) chưa bật tới B8: 403.
+ *   <li>Webhook ngân hàng: không dùng token; kiểm chữ ký thông điệp qua {@link BankChannel} (Q49). Không có kênh thì 403;
+ *       sai chữ ký thì 401 {@code BANK_SIGNATURE_INVALID}.
  *   <li>Tổ chức trong {@code org_id} phải có trên nền tảng; vai người dùng phải nằm trong vai tổ chức (I7).
  *   <li>Người dùng phải có ít nhất một vai trong {@code x-werwa-roles} của API, trừ API {@code ANY}.
  * </ol>
@@ -34,10 +37,16 @@ public class ContractAuthorizationFilter extends OncePerRequestFilter {
 
     private final ApiContract contract;
     private final OrganizationDirectory organizations;
+    private final org.springframework.beans.factory.ObjectProvider<BankChannel> bankChannel;
+    private final org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.inbound.InboundToken> inboundToken;
 
-    public ContractAuthorizationFilter(ApiContract contract, OrganizationDirectory organizations) {
+    public ContractAuthorizationFilter(ApiContract contract, OrganizationDirectory organizations,
+            org.springframework.beans.factory.ObjectProvider<BankChannel> bankChannel,
+            org.springframework.beans.factory.ObjectProvider<vn.werwa.platform.inbound.InboundToken> inboundToken) {
         this.contract = contract;
         this.organizations = organizations;
+        this.bankChannel = bankChannel;
+        this.inboundToken = inboundToken;
     }
 
     @Override
@@ -56,8 +65,38 @@ public class ContractAuthorizationFilter extends OncePerRequestFilter {
             return;
         }
         Operation op = found.get();
+        if (op.inboundToken()) {
+            vn.werwa.platform.inbound.InboundToken tokens = inboundToken.getIfAvailable();
+            if (tokens == null) {
+                Problems.write(request, response, PlatformError.INBOUND_CHANNEL_NOT_ENABLED, null);
+                return;
+            }
+            String auth = request.getHeader("Authorization");
+            String bearer = auth != null && auth.regionMatches(true, 0, "Bearer ", 0, 7) ? auth.substring(7).strip() : null;
+            if (bearer == null || !tokens.accepts(op.operationId(), bearer)) {
+                Problems.write(request, response, PlatformError.INBOUND_TOKEN_INVALID, null);
+                return;
+            }
+            request.setAttribute(OPERATION_ATTRIBUTE, op);
+            chain.doFilter(request, response);
+            return;
+        }
         if (op.bankMtls()) {
-            Problems.write(request, response, PlatformError.INBOUND_CHANNEL_NOT_ENABLED, null);
+            BankChannel channel = bankChannel.getIfAvailable();
+            if (channel == null) {
+                Problems.write(request, response, PlatformError.INBOUND_CHANNEL_NOT_ENABLED, null);
+                return;
+            }
+            CachedBodyRequest cached = new CachedBodyRequest(request);
+            String signature = request.getHeader("X-Bank-Signature");
+            if (signature == null || !channel.verify(cached.body(), signature)) {
+                channel.rejected(op.operationId(), cached.body(), signature);
+                Problems.write(request, response, PlatformError.BANK_SIGNATURE_INVALID, null);
+                return;
+            }
+            cached.setAttribute(BankChannel.RAW_BODY_ATTRIBUTE, cached.body());
+            cached.setAttribute(OPERATION_ATTRIBUTE, op);
+            chain.doFilter(cached, response);
             return;
         }
         try {

@@ -1,20 +1,24 @@
 name: infra
 
 # Cổng của luồng infra/ (CONTRIBUTING.md, mục CI): dựng devnet Besu QBFT và chạy kiểm thử trên mạng thật.
+# CI chỉ chạy khi Tommy ra lệnh (31/10/2026): GitHub → Actions → chọn workflow → Run workflow, chọn nhánh.
+# Bật lại tự động: thay khối on dưới đây bằng khối đã tắt.
+#   on:
+#     pull_request:
+#       paths:
+#         - 'infra/**'
+#         - 'api/openapi.yaml'
+#         - 'contracts/script/DeployPlatform.s.sol'
+#         - '.github/workflows/infra.yml'
+#     push:
+#       branches: [main]
+#       paths:
+#         - 'infra/**'
+#         - 'api/openapi.yaml'
+#         - 'contracts/script/DeployPlatform.s.sol'
+#         - '.github/workflows/infra.yml'
 on:
-  pull_request:
-    paths:
-      - 'infra/**'
-      - 'api/openapi.yaml'
-      - 'contracts/script/DeployPlatform.s.sol'
-      - '.github/workflows/infra.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'infra/**'
-      - 'api/openapi.yaml'
-      - 'contracts/script/DeployPlatform.s.sol'
-      - '.github/workflows/infra.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -95,7 +99,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Dựng PostgreSQL và NATS JetStream
         run: services/services.sh up
-      - name: Kiểm dịch vụ (P1–P4, N1–N5)
+      - name: Kiểm dịch vụ (P1–P4, N1–N5, M1–M3)
         run: test/services.sh
       - name: Nhật ký khi lỗi
         if: failure()

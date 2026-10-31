@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
-import vn.werwa.governance.Hashes;
+import vn.werwa.platform.hash.Hashes;
 import vn.werwa.onchain.api.ChainCallRejected;
 import vn.werwa.onchain.api.ChainTransactions;
 import vn.werwa.onchain.api.ContractCalls;

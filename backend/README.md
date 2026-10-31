@@ -42,7 +42,7 @@ cd backend && mvn spring-boot:run
 | Lệnh | Việc |
 |---|---|
 | `mvn test` | Kiểm thử đơn vị và `ApplicationModules.verify()` |
-| `mvn verify` | Thêm kiểm thử tích hợp `*IT` (Testcontainers: PostgreSQL 18.6; Besu, NATS từ nhóm B2, B3) |
+| `mvn verify` | Thêm kiểm thử tích hợp `*IT` (Testcontainers: PostgreSQL 18.6, NATS 2.15.1, S3Mock; Besu cho kiểm thử chuỗi) |
 
 ## Cấu hình
 
@@ -143,6 +143,120 @@ Người duyệt cùng tổ chức, khác người lập (Q18). Nhật ký chỉ
 | Danh mục loại nhà đầu tư | `onboarding.investor_class` (Q25) |
 
 KYB duyệt 4 mắt qua `Approvals` (B4a); quyết định qua `/kyb-decision` hay `/v1/approvals/{id}/decision` đều áp vào tổ chức. Ở devnet, đặt `WERWA_ONBOARDING_SEEDORGANIZATIONS=classpath:seed/orgs.json` để nạp 12 tổ chức thử (I6); môi trường thật để trống.
+
+## Tài liệu (B6a)
+
+```mermaid
+flowchart LR
+  U[Người dùng] -- multipart POST /v1/documents --> C[IssuanceController]
+  C --> S[DocumentService<br/>SHA-256, phiên bản]
+  S -- nội dung --> O[(Kho S3)]
+  S -- metadata --> D[(issuance.document)]
+  S --> A[AuditLog]
+  U -- GET /v1/documents/id/content --> C2[URL ký sẵn 5 phút] --> O
+  OB[Onboarding] -- DocumentRegistry.missing --> S
+```
+
+| Cần | Dùng |
+|---|---|
+| Lưu tài liệu | `POST /v1/documents` (multipart, tối đa 50 MB). Mỗi lần tải là bản ghi mới; `supersedesId` trỏ bản trước, một bản chỉ có một bản kế tiếp (409 `DOCUMENT_ALREADY_SUPERSEDED`) |
+| Xem, tải | `GET /v1/documents/{id}`, `GET /v1/documents/{id}/content` trả URL ký sẵn kèm `sha256` để bên tải tự kiểm (Q29) |
+| Ai thấy gì | `INTERNAL`: mọi vai trừ `INVESTOR`, `CUSTODIAN`; người không được xem nhận 404 (US-2.04-AC3). `INVESTOR`, `PUBLIC`: mọi vai |
+| Mô-đun khác kiểm mã tài liệu | `platform.documents.DocumentRegistry.missing(ids)`; Onboarding trả 422 `DOCUMENT_NOT_FOUND` (Q26) |
+| Cấu hình | `werwa.storage.endpoint`, `bucket`, `access-key`, `secret-key`, `path-style`, `download-ttl`. Bucket do infra tạo; ứng dụng dừng khi khởi động nếu không có bucket (Q30) |
+
+## Phát hành (B6b)
+
+```mermaid
+stateDiagram-v2
+  [*] --> DRAFT: POST /v1/series (kiểm khung Đề án, sinh lịch)
+  DRAFT --> PENDING_REVIEW: /submit (đủ tài liệu bắt buộc)
+  PENDING_REVIEW --> DRAFT: PATCH term sheet (yêu cầu cũ CANCELLED)
+  PENDING_REVIEW --> DRAFT: từ chối
+  PENDING_REVIEW --> PENDING_SIGNATURES: duyệt đạt + giữ chỗ hạn mức
+  PENDING_SIGNATURES --> DEPLOYED: ký 3/3 (B6c)
+```
+
+| Cần | Dùng |
+|---|---|
+| Kiểm nghiệp vụ lúc duyệt | Bean `governance.api.ApprovalHook` theo loại thao tác; chạy trong giao dịch duyệt, ném lỗi thì yêu cầu vẫn PENDING (Q28). Đang có: `ORGANIZATION_KYB`, `PROGRAM_ACTIVATE`, `SERIES_SUBMIT` |
+| Đề án | `POST /v1/programs` gửi duyệt; duyệt đạt thì EFFECTIVE. Điều chỉnh bằng bản mới có `amendsProgramId`; bản cũ SUPERSEDED |
+| Hạn mức | `issuance.limit_ledger_entry` chỉ ghi thêm; tính trên cả chuỗi Đề án theo khối lượng bản hiệu lực (Q37). RELEASE ở B6c (hủy), USE ở B8 (mint) |
+| Lịch ngày làm việc | `governance.api.BusinessCalendar`; luật VN (cả âm lịch), NY cộng bảng `governance.holiday_calendar` (Q32). Sửa bảng và tính lại lịch các series: B12 |
+| Lịch sự kiện | Sinh khi tạo, sửa series; quy tắc dời ngày `werwa.issuance.business-day-convention` (FOLLOWING, MODIFIED_FOLLOWING) |
+| Tài liệu bắt buộc | `werwa.issuance.required-document-types` (Q31), kiểm khi gửi duyệt trên `termsDocumentId` + `documentIds` (Q38) |
+| `termsHash` | SHA-256 của JSON chuẩn hóa gồm tham số series và SHA-256 các tài liệu (Q34) |
+| Mã băm tiện ích | `platform.hash.Hashes` (chuyển từ governance để mọi mô-đun dùng) |
+
+## Phân phối (B7a)
+
+```mermaid
+sequenceDiagram
+  participant T as Tổ hợp
+  participant D as Phân phối
+  participant N as Nhà đầu tư
+  participant U as UBND
+  T->>D: POST /v1/offerings (series READY, có ISIN)
+  D->>D: mở sổ (giờ mở hoặc /open): series OFFERING
+  N->>D: đặt, sửa, hủy lệnh (KYC, loại, ví, chỉ dẫn, bội số)
+  D->>D: đóng sổ: lệnh khóa, series BOOK_CLOSED, phát offering.closed
+  T->>D: đề xuất danh sách (phiên bản, lá Merkle, gốc)
+  T->>D: /submit (tổng, khung lãi suất, quyết định UBND)
+  U->>D: duyệt qua /v1/approvals (vai ISSUER, Q40)
+  Note over U,D: B7b: UBND ký setAllocation, danh sách SIGNED
+```
+
+| Cần | Dùng |
+|---|---|
+| Lá, gốc, đường chứng minh | `distribution.allocation.AllocationMerkle`, khớp `SeriesLeaves` và `MerkleProof` của OpenZeppelin; UUID sang `bytes32` theo Q43 |
+| `listHash` | SHA-256 của JSON chuẩn hóa (Q44), đi kèm yêu cầu duyệt và sau này là đối số `setAllocation` |
+| Duyệt khác tổ chức | `Approvals.request(..., Role.ISSUER)` (Q40); hàng chờ `/v1/approvals` gồm yêu cầu chỉ định vai của người xem |
+| Ví, điều kiện nhà đầu tư | `onboarding.api.Wallets`, `onboarding.api.Investors` (Q41); ví nạp từ B5b |
+| Series từ Phân phối | `issuance.api.SeriesCatalog` (tham số, `markOffering`, `markBookClosed`), `issuance.api.IssuerDecisions` |
+| Tham số | `werwa.distribution.order-quantity-step` (Q42), `book-scheduler-enabled`, `book-schedule-interval` (Q46) |
+| Kiểm thử lớp nền | Hợp đồng thăm dò `src/test/resources/probe/openapi-probe.yaml` nạp qua `werwa.api.probe-contract`, để `ContractProbeController` không đụng đường dẫn thật |
+
+## Báo có và theo dõi tiền (B8a)
+
+```mermaid
+sequenceDiagram
+  participant B as BIDV (giả lập)
+  participant I as Tích hợp
+  participant D as Phân phối
+  B->>I: webhook báo có (mTLS ở ingress, X-Bank-Signature)
+  I->>I: kiểm chữ ký, chặn trùng theo bankRef, lưu nguyên văn
+  I-->>D: credit_received
+  D->>D: đối chiếu theo tài khoản ảo: MATCHED, SHORT, OVER, UNKNOWN
+  D-->>D: payment.matched; định kỳ: quá hạn, gom lô (gốc Merkle)
+  Note over D: B8b: BIDV ký gốc lô, mint
+```
+
+| Cần | Dùng |
+|---|---|
+| Kênh webhook ngân hàng | `platform.inbound.BankChannel`; Tích hợp cài `BidvBankChannel` khi có `werwa.integration.bidv.public-key` (Q49). Không có thì 403, sai chữ ký thì 401 và ghi `integration.inbound_message` |
+| Tài khoản ảo | `integration.api.VirtualAccounts` (Q51); mở khi UBND duyệt danh sách; giả lập `werwa.integration.bidv.virtual-account-prefix` + 10 chữ số |
+| Đối chiếu, quá hạn, lô | `distribution.payment.PaymentService` (Q52–Q54); việc định kỳ `werwa.distribution.payment-batch-interval` (mặc định PT15M), ân hạn `payment-grace-business-days` |
+| Tiến độ ghi sổ | `GET /v1/series/{id}/issuance-progress` |
+| Giả lập BIDV | `bidv-simulator/` (Q55), mô-đun Maven riêng; xem README trong đó |
+
+## Cảnh báo vận hành (B12a, I5)
+
+| Cần | Dùng |
+|---|---|
+| Nhận cảnh báo hạ tầng | `POST /v1/inbound/alerts/alertmanager`, token Bearer cố định `werwa.governance.alert-token` (Q56). Không đặt token thì kênh đóng (403) |
+| Kênh nhận dùng token | `platform.inbound.InboundToken`; đường `/v1/inbound/**` không đi qua JWT |
+| Hàng chờ | `governance.operational_alert`; `GET /v1/alerts`, `POST /v1/alerts/{id}/acknowledge` (Q57, Q58) |
+
+Cấu hình Alertmanager (phiên infra):
+
+```yaml
+webhook_configs:
+  - url: https://<ingress>/v1/inbound/alerts/alertmanager
+    send_resolved: true
+    http_config:
+      authorization:
+        credentials: <WERWA_GOVERNANCE_ALERTTOKEN>
+```
 
 ## Quy trình làm việc
 

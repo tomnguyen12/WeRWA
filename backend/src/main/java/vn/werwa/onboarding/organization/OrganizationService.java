@@ -20,6 +20,7 @@ import vn.werwa.governance.api.Approvals;
 import vn.werwa.governance.api.AuditLog;
 import vn.werwa.onboarding.OnboardingError;
 import vn.werwa.onboarding.api.Signers;
+import vn.werwa.platform.documents.DocumentRegistry;
 import vn.werwa.platform.events.Events;
 import vn.werwa.platform.id.Ids;
 import vn.werwa.platform.security.OrganizationDirectory;
@@ -28,7 +29,8 @@ import vn.werwa.platform.web.ApiException;
 
 /**
  * Tổ chức tham gia, KYB và người ký được ủy quyền (US-1.01). KYB duyệt 4 mắt qua mô-đun Quản trị: tạo tổ chức là gửi duyệt;
- * quyết định qua {@code /kyb-decision} hoặc {@code /v1/approvals/{id}/decision} đều dẫn về {@link #applyDecision}.
+ * quyết định qua {@code /kyb-decision} hoặc {@code /v1/approvals/{id}/decision} đều dẫn về {@link #applyDecision} qua
+ * {@code ApprovalHook} (Q28).
  *
  * <p>Cũng là nguồn vai tổ chức cho kiểm quyền (I7, thay tệp seed theo Q5): chỉ tổ chức đã qua KYB mới có vai.
  */
@@ -42,8 +44,11 @@ public class OrganizationService implements OrganizationDirectory, Signers {
     private final AuditLog audit;
     private final Events events;
     private final Clock clock;
+    private final DocumentRegistry documents;
 
-    public OrganizationService(JdbcTemplate jdbc, Approvals approvals, AuditLog audit, Events events, Clock clock) {
+    public OrganizationService(JdbcTemplate jdbc, Approvals approvals, AuditLog audit, Events events, Clock clock,
+            DocumentRegistry documents) {
+        this.documents = documents;
         this.jdbc = jdbc;
         this.approvals = approvals;
         this.audit = audit;
@@ -62,6 +67,7 @@ public class OrganizationService implements OrganizationDirectory, Signers {
     /** US-1.01-AC1: người lập nhập hồ sơ; tổ chức chờ duyệt KYB. */
     @Transactional
     public Org create(String legalName, String registrationNo, String country, List<String> roles, List<UUID> documents) {
+        requireDocuments(documents);
         UUID id = Ids.newId();
         Timestamp now = Timestamp.from(clock.instant());
         try {
@@ -111,11 +117,11 @@ public class OrganizationService implements OrganizationDirectory, Signers {
             }
             throw e;
         }
-        applyDecision(org.kybApprovalId(), approve);
+        // Kết quả đã được áp qua ApprovalHook (Q28) trong cùng giao dịch
         return get(id);
     }
 
-    /** Áp kết quả duyệt KYB; chạy lại an toàn (sự kiện approval.decided đến sau vẫn không đổi gì). */
+    /** Áp kết quả duyệt KYB; chạy lại an toàn. */
     @Transactional
     public void applyDecision(UUID approvalId, boolean approve) {
         List<Org> rows = jdbc.query(SELECT + " WHERE kyb_approval_id = ? AND kyb_status = 'PENDING_REVIEW' FOR UPDATE",
@@ -151,6 +157,7 @@ public class OrganizationService implements OrganizationDirectory, Signers {
         if (!"KYB_APPROVED".equals(org.kybStatus())) {
             throw new ApiException(OnboardingError.ORGANIZATION_NOT_APPROVED);
         }
+        requireDocuments(List.of(authorizationDocId));
         UUID id = Ids.newId();
         String address = signingAddress.toLowerCase(Locale.ROOT);
         try {
@@ -203,6 +210,14 @@ public class OrganizationService implements OrganizationDirectory, Signers {
                     }
                     return Set.copyOf(roles);
                 }, organizationId).stream().findFirst();
+    }
+
+    /** Q26: từ B6a, mã tài liệu phải có trong kho tài liệu. */
+    public void requireDocuments(java.util.Collection<UUID> ids) {
+        java.util.Collection<UUID> missing = documents.missing(ids);
+        if (!missing.isEmpty()) {
+            throw new ApiException(OnboardingError.DOCUMENT_NOT_FOUND, missing.toString());
+        }
     }
 
     private static final String SELECT = """

@@ -4,7 +4,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.jdbc.core.JdbcTemplate;
-import vn.werwa.governance.Hashes;
+import vn.werwa.platform.hash.Hashes;
 import vn.werwa.governance.api.AuditVerification;
 
 /**

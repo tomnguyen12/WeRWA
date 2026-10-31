@@ -53,6 +53,7 @@ Tên biến theo chuẩn Spring (I11). Property có sẵn của Spring giữ tê
 |---|---|---|
 | `SPRING_DATASOURCE_URL`, `_USERNAME`, `_PASSWORD` | `spring.datasource.*` | DB `werwa`, role `werwa_app` |
 | `WERWA_NATS_URL`, `_USERNAME`, `_PASSWORD`, `_STREAM` | `werwa.nats.*` | người dùng `werwa_app`, stream `WERWA` |
+| `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT` | `spring.mail.host`, `spring.mail.port` | Mailpit (Q62): `127.0.0.1:1025` trên máy, `mailpit.werwa.devnet:1025` trong mạng. Không xác thực, không TLS; thư không ra ngoài, xem tại `http://127.0.0.1:8025` |
 | `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI`, `_JWKSETURI`, `_AUDIENCES` | `spring.security.oauth2.resourceserver.jwt.issuer-uri`, `jwk-set-uri`, `audiences` | issuer cố định `http://localhost:8180/realms/werwa` ở cả hai tệp (I8); JWKS theo nơi chạy; audience `werwa-api` |
 | `WERWA_OIDC_CLIENTID` | `werwa.oidc.client-id` | `werwa-web` |
 | `WERWA_CHAIN_ID` | `werwa.chain.id` | chain ID devnet |
@@ -205,12 +206,13 @@ Mất kết nối HSM thì WeHSM thoát mã 70 và được `restart: unless-sto
 |---|---|---|---|---|
 | PostgreSQL | `postgres:18.6` | `127.0.0.1:5432` | `postgres.werwa.devnet:5432` | DB `werwa`, chủ là role `werwa_app` (không phải superuser). Sáu schema do Flyway của backend tạo |
 | NATS JetStream | `nats:2.15.1` | `127.0.0.1:4222`, giám sát `:8222` | `nats.werwa.devnet:4222` | Stream `WERWA` theo I2; người dùng `werwa_app` chỉ phát và nhận `werwa.>` |
+| Mailpit (SMTP thử, Q62) | `axllent/mailpit:v1.31.5` | SMTP `127.0.0.1:1025`, xem thư `http://127.0.0.1:8025` | `mailpit.werwa.devnet:1025` | Nhận mọi thư từ backend, không chuyển ra ngoài. Không xác thực, không TLS vì chỉ mở ở `127.0.0.1` và trong mạng nội bộ. Thư lưu trong volume, tối đa 5 000 thư. Môi trường XD dùng máy chủ thư thật của Holco |
 
 **Stream `WERWA` (I2, chốt 21/10):** nhận mọi chủ đề `werwa.>`, chủ đề trùng tên sự kiện. Lưu trên đĩa, giữ 30 ngày. Chống trùng 2 phút theo header `Nats-Msg-Id`, backend đặt bằng id CloudEvent. Không cho xóa từng sự kiện hay xóa sạch stream. Định nghĩa ở `services/nats/stream-werwa.json`; nếu stream trên máy chủ lệch tệp này, `services.sh` dừng.
 
-Mật khẩu sinh vào `services/out/.env`. Biến kết nối cho backend chạy trên máy ở `services/out/backend.env` (`SPRING_DATASOURCE_*`, `WERWA_NATS_*`). Cả hai gitignore.
+Mật khẩu sinh vào `services/out/.env`. Biến kết nối cho backend chạy trên máy ở `services/out/backend.env` (`SPRING_DATASOURCE_*`, `WERWA_NATS_*`, `SPRING_MAIL_*`). Cả hai gitignore.
 
-Lệnh: `up`, `status`, `down` (giữ dữ liệu), `reset` (xóa dữ liệu, giữ mật khẩu), `clean` (xóa cả `out/`). Cần thêm `nats` (natscli 0.5.0) trên máy.
+Lệnh: `up`, `status`, `down` (giữ dữ liệu), `reset` (xóa dữ liệu PostgreSQL, NATS và thư Mailpit, giữ mật khẩu), `clean` (xóa cả `out/`). Cần thêm `nats` (natscli 0.5.0) trên máy.
 ## Giám sát
 
 `monitoring/monitoring.sh up` chạy Prometheus và Alertmanager sau khi devnet đã chạy. Dừng giám sát trước khi dừng devnet, vì giám sát dùng chung mạng `werwa-devnet-p2p`.
@@ -298,6 +300,7 @@ Khóa OTP là chuỗi Keycloak lưu nguyên; khóa HMAC là byte UTF-8 của chu
 | US-6.04-AC1 | 9 hợp đồng Safe 1.4.1 đúng mã băm bản chính thức. Mỗi Safe: ngưỡng và owner đúng bảng trên, SafeL2 1.4.1, đúng fallback handler, không guard, không module. Người ký Safe tổ chức là 3 EOA riêng biệt. Safe liên bên có ngưỡng bằng số thành viên, không có BIDV | `test/us-6.04-ac1.sh` |
 | P1–P4 | `werwa_app` đăng nhập DB `werwa`, tạo được 6 schema, không phải superuser, không tạo DB, không vào DB `postgres`; PostgreSQL 18 | `test/services.sh` |
 | N1–N5 | Stream `WERWA` đúng I2; hai lần cùng `Nats-Msg-Id` chỉ giữ một bản; `werwa_app` chỉ phát vào `werwa.>`; kết nối ẩn danh bị từ chối; consumer bền và sự kiện còn sau khi NATS khởi động lại | như trên |
+| M1–M3 | Mailpit nhận thư gửi qua `SPRING_MAIL_HOST`/`PORT` của `backend.env`, đúng người nhận và tiêu đề; SMTP và giao diện chỉ mở ở `127.0.0.1`; thư còn sau khi Mailpit khởi động lại | `test/services.sh` |
 | K1 | Realm có đúng 11 vai trùng enum `roles` của OpenAPI; `werwa-web` chỉ đưa đúng 11 vai đó vào token | `test/keycloak.sh` |
 | K2 | Vai mặc định rỗng; mapper `roles`, `org_id`, audience `werwa-api`; `org_id` chỉ admin xem và sửa | như trên |
 | K3 | Mật khẩu và OTP đều REQUIRED; `CONFIGURE_TOTP` mặc định; TOTP SHA-1/6/30; `werwa-web` công khai, PKCE S256, không implicit, không direct grant; direct grant bị chặn với mọi client | như trên |
@@ -319,7 +322,7 @@ Khóa OTP là chuỗi Keycloak lưu nguyên; khóa HMAC là byte UTF-8 của chu
 | W2 | `up` lần nữa không tạo lại gì: cùng hợp đồng, Safe, mật khẩu, khóa OTP, tệp env gộp; nền tảng, realm, người dùng thử báo đã có | như trên |
 | W3 | `down` dừng mọi container; `up` lại: chuỗi chạy tiếp từ khối cũ, hợp đồng còn, người dùng thử đăng nhập bằng OTP cũ | như trên |
 | W4 | `clean` không để lại container, volume, mạng, `out/` (chỉ chạy với `--clean`) | như trên |
-| W5 | `out/werwa.env`, `out/werwa.docker.env`: đủ biến, tên theo relaxed binding (I11), quyền 600, gitignore; mọi giá trị dùng được thật: đăng nhập DB, kết nối NATS, discovery và JWKS của Keycloak, RPC đọc chỉ là O1 và mọi RPC trả đúng chain ID, mỗi hợp đồng và Safe có code, Alertmanager trả lời. Biến thể Docker thử từ một container trong mạng `werwa-devnet-app` | `test/werwa.sh` |
+| W5 | `out/werwa.env`, `out/werwa.docker.env`: đủ biến, tên theo relaxed binding (I11), quyền 600, gitignore; mọi giá trị dùng được thật: đăng nhập DB, kết nối NATS, discovery và JWKS của Keycloak, RPC đọc chỉ là O1 và mọi RPC trả đúng chain ID, mỗi hợp đồng và Safe có code, Alertmanager trả lời; thư thử gửi qua `SPRING_MAIL_*` tới Mailpit. Biến thể Docker thử từ một container trong mạng `werwa-devnet-app` | `test/werwa.sh` |
 | H1–H9 | WeHSM: ba khóa trong HSM khớp `eth_accounts`; thiếu token thì 401; Besu cấp phép `deployer`, `holcoOperator`; node HSM không mở cổng; `deployer` ký qua HSM tạo được hợp đồng; tệp khóa riêng duy nhất trong container là khóa mTLS; cắt phiên HSM thì lệnh ký trả -32011, WeHSM thoát mã 70 và tự lên lại; nhật ký ký toàn vẹn | `test/signer.sh` |
 | E1–E6 | Triển khai và vận hành qua WeHSM: `devnet.json` chế độ `pkcs11`, khóa trùng `keys.json`; **US-6.04-AC4**: `holcoOperator` ký qua PKCS#11 tới node HSM, `AuditAnchor.anchor` lên khối; khóa ký claim trong HSM ký được và được `ClaimIssuer` tin; chế độ `operate` từ chối `deployer` (`KEY_DISABLED`) và hàm ngoài chính sách (`FUNCTION_NOT_ALLOWED`); nhật ký có hai giai đoạn, toàn vẹn | `test/signer-deploy.sh` |
 

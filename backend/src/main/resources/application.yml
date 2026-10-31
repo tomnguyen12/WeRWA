@@ -21,6 +21,11 @@ spring:
     time-zone: UTC
     # Trường không có giá trị thì bỏ, không ghi null: lược đồ OpenAPI 3.1 không cho null ở trường tùy chọn.
     default-property-inclusion: non_null
+  servlet:
+    multipart:
+      # Tài liệu hồ sơ phát hành (US-2.04): tệp PDF lớn
+      max-file-size: 50MB
+      max-request-size: 51MB
   threads:
     virtual:
       enabled: true

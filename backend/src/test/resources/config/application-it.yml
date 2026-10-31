@@ -1,9 +1,14 @@
 # Cấu hình cho kiểm thử tích hợp (*IT). DataSource do Testcontainers cấp (@ServiceConnection).
 werwa:
+  api:
+    probe-contract: classpath:probe/openapi-probe.yaml
+  distribution:
+    book-scheduler-enabled: false
   onboarding:
     # Tổ chức thử của devnet (I6), đã qua KYB, để token thử khớp org_id.
     seed-organizations: classpath:seed/orgs.json
   governance:
+    alert-token: test-alert-token
     # Neo nhật ký cần chuỗi: kiểm thử neo gọi thẳng dịch vụ (AuditAnchorIT).
     anchor-enabled: false
   onchain:

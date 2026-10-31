@@ -20,7 +20,8 @@ import vn.werwa.platform.web.ETags;
 import vn.werwa.platform.web.Paging;
 
 /**
- * Controller chỉ có trong kiểm thử: gắn vào vài đường dẫn thật của hợp đồng để kiểm lớp nền B1 (quyền, Idempotency-Key,
+ * Controller chỉ có trong kiểm thử: gắn vào vài đường dẫn thật của hợp đồng thuộc mô-đun
+ * chưa làm (Phân phối) để kiểm lớp nền B1 (quyền, Idempotency-Key,
  * If-Match, phân trang, problem+json). Controller thật của từng API viết ở nhóm PR nghiệp vụ.
  */
 @RestController
@@ -28,31 +29,31 @@ class ContractProbeController {
 
     static final AtomicInteger CREATED = new AtomicInteger();
 
-    @PostMapping("/v1/series")
+    @PostMapping("/v1/probe/items")
     ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, Object> body) {
         if (Boolean.TRUE.equals(body.get("fail"))) {
             throw new IllegalStateException("lỗi giả lập");
         }
         CREATED.incrementAndGet();
         UUID id = Ids.newId();
-        return ResponseEntity.created(URI.create("/v1/series/" + id))
+        return ResponseEntity.created(URI.create("/v1/probe/items/" + id))
                 .body(Map.of("id", id.toString(), "legalName", String.valueOf(body.get("legalName"))));
     }
 
-    @GetMapping("/v1/series/{id}")
-    Map<String, Object> get(@PathVariable UUID id) {
+    @GetMapping("/v1/probe/lists/{id}/proofs/{allocationId}")
+    Map<String, Object> get(@PathVariable UUID id, @PathVariable String allocationId) {
         OrgScope.requireOwnOrganization(id);
         return Map.of("id", id.toString());
     }
 
-    @PatchMapping("/v1/orders/{id}")
+    @PatchMapping("/v1/probe/orders/{id}")
     ResponseEntity<Map<String, Object>> amend(
             @PathVariable UUID id, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         ETags.requireMatch(ifMatch, 3);
         return ResponseEntity.ok().eTag(ETags.of(4)).body(Map.of("id", id.toString()));
     }
 
-    @GetMapping("/v1/holdings")
+    @GetMapping("/v1/probe/holdings")
     Map<String, Object> holdings(@RequestParam(required = false) Integer limit) {
         return Map.of("limit", Paging.limit(limit));
     }

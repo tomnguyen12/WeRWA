@@ -57,7 +57,9 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return !(request.getAttribute(ContractAuthorizationFilter.OPERATION_ATTRIBUTE) instanceof Operation op)
-                || !op.idempotencyKeyRequired();
+                || !op.idempotencyKeyRequired()
+                // Webhook ngân hàng chặn trùng theo mã tham chiếu ngân hàng ở mô-đun Tích hợp (Q50)
+                || op.bankMtls();
     }
 
     @Override

@@ -29,8 +29,14 @@ class PlatformConfig {
 
     /** Hợp đồng {@code api/openapi.yaml}, chép vào classpath {@code contract/} khi build. */
     @Bean
-    ApiContract apiContract(@Value("classpath:contract/openapi.yaml") Resource spec) {
+    ApiContract apiContract(@Value("classpath:contract/openapi.yaml") Resource spec,
+            @Value("${werwa.api.probe-contract:#{null}}") Resource probe) {
         ApiContract contract = ApiContract.load(spec);
+        if (probe != null) {
+            // Chỉ kiểm thử đặt: API thăm dò để kiểm lớp nền mà không đụng đường dẫn thật
+            contract = contract.with(ApiContract.load(probe));
+            log.warn("Nạp thêm hợp đồng thăm dò {}", probe);
+        }
         log.info("Nạp hợp đồng API: {} API", contract.operations().size());
         return contract;
     }

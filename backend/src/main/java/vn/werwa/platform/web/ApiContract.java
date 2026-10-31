@@ -45,6 +45,13 @@ public final class ApiContract {
         }
     }
 
+    /** Gộp thêm API của hợp đồng khác; chỉ dùng cho hợp đồng thăm dò trong kiểm thử. */
+    public ApiContract with(ApiContract extra) {
+        List<Operation> all = new ArrayList<>(operations);
+        all.addAll(extra.operations);
+        return new ApiContract(all);
+    }
+
     public List<Operation> operations() {
         return operations;
     }
@@ -65,7 +72,8 @@ public final class ApiContract {
 
     /**
      * Một API của hợp đồng. {@code anyRole} ứng với {@code x-werwa-roles: [ANY]}: mọi vai, quyền kiểm theo đối tượng ở
-     * tầng nghiệp vụ. {@code bankMtls} là webhook ngân hàng, không dùng token OIDC.
+     * tầng nghiệp vụ. {@code bankMtls} là webhook ngân hàng, không dùng token OIDC. {@code inboundToken} là kênh dùng token
+     * cố định ({@code alertToken}, Q56).
      */
     public record Operation(
             String operationId,
@@ -76,7 +84,8 @@ public final class ApiContract {
             Set<Role> roles,
             boolean bankMtls,
             boolean idempotencyKeyRequired,
-            boolean ifMatchRequired) {}
+            boolean ifMatchRequired,
+            boolean inboundToken) {}
 
     @SuppressWarnings("unchecked")
     private static List<Operation> parse(Map<String, Object> root) {
@@ -105,6 +114,7 @@ public final class ApiContract {
                 }
                 List<Object> security = (List<Object>) op.getOrDefault("security", List.of());
                 boolean mtls = security.stream().anyMatch(s -> ((Map<String, Object>) s).containsKey("bankMtls"));
+                boolean alertToken = security.stream().anyMatch(s -> ((Map<String, Object>) s).containsKey("alertToken"));
                 Map<String, Map<String, Object>> headers = requiredHeaders(pathParams, op, sharedParams);
                 out.add(new Operation(
                         id,
@@ -115,7 +125,8 @@ public final class ApiContract {
                         Set.copyOf(roles),
                         mtls,
                         headers.containsKey("idempotency-key"),
-                        headers.containsKey("if-match")));
+                        headers.containsKey("if-match"),
+                        alertToken));
             }
         }
         return out;

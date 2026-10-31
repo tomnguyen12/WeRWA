@@ -3,13 +3,17 @@ name: backend
 # Cổng bắt buộc của luồng backend/ (CONTRIBUTING.md, mục CI).
 # Chạy với mọi PR và push vào main để đặt làm status check bắt buộc; chạy cả khi push nhánh backend,
 # vì phiên Claude backend build và kiểm thử trên CI trước khi mở PR (Q3).
+# CI chỉ chạy khi Tommy ra lệnh (31/10/2026): GitHub → Actions → chọn workflow → Run workflow, chọn nhánh.
+# Bật lại tự động: thay khối on dưới đây bằng khối đã tắt.
+#   on:
+#     pull_request:
+#     push:
+#       branches:
+#         - main
+#         - 'feat/backend/**'
+#         - 'fix/backend/**'
 on:
-  pull_request:
-  push:
-    branches:
-      - main
-      - 'feat/backend/**'
-      - 'fix/backend/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,7 +29,9 @@ defaults:
 jobs:
   build-test:
     name: build · unit · Modulith · tích hợp
-    runs-on: ubuntu-latest
+    # Runner: biến kho WERWA_BACKEND_RUNNER (JSON), ví dụ ["self-hosted","linux","werwa-ci"] cho runner tự host
+    # (infra/ci/README.md); không đặt thì dùng máy GitHub.
+    runs-on: ${{ fromJSON(vars.WERWA_BACKEND_RUNNER || '"ubuntu-latest"') }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -39,11 +45,12 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-          cache-dependency-path: backend/pom.xml
+          cache-dependency-path: |
+            backend/pom.xml
+            backend/bidv-simulator/pom.xml
       - name: Build, kiểm thử đơn vị, ApplicationModules.verify(), kiểm thử tích hợp (Testcontainers)
         run: |
-          set -o pipefail
-          mvn -B -ntp verify 2>&1 | tee build.log
+          ci/run.sh
           echo "::notice title=tests::$(grep -E 'Tests run:.*Fail' build.log | grep -v ' in ' | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
       - name: Tóm tắt lỗi thành annotation (đọc được qua API)
         if: failure()
@@ -53,7 +60,7 @@ jobs:
           first=$(grep -n -m1 '\[ERROR\]' build.log | cut -d: -f1)
           [ -n "$first" ] && echo "::error title=context-before-first-error::$(sed -n "$((first>60?first-60:1)),$((first+5))p" build.log | summary)"
           echo "::error title=bind::$(grep -h -A8 -E 'Failed to bind|Reason:|Property:' build.log target/failsafe-reports/*.txt 2>/dev/null | head -40 | summary)"
-          for f in target/surefire-reports/*.txt target/failsafe-reports/*.txt; do
+          for f in target/surefire-reports/*.txt target/failsafe-reports/*.txt bidv-simulator/target/surefire-reports/*.txt; do
             [ -f "$f" ] && grep -q -E 'FAILURE|ERROR' "$f" && echo "::error title=$(basename "$f")::$(head -60 "$f" | summary)"
           done
           true

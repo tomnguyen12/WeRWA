@@ -27,6 +27,7 @@
         <spring-modulith.version>2.1.2</spring-modulith.version>
         <openapi-generator.version>7.14.0</openapi-generator.version>
         <web3j.version>5.0.2</web3j.version>
+        <awssdk.version>2.31.0</awssdk.version>
         <jnats.version>2.26.4</jnats.version>
         <json-schema-validator.version>1.5.8</json-schema-validator.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -34,6 +35,13 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${awssdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.modulith</groupId>
                 <artifactId>spring-modulith-bom</artifactId>
@@ -101,6 +109,15 @@
             <groupId>org.web3j</groupId>
             <artifactId>core</artifactId>
             <version>${web3j.version}</version>
+        </dependency>
+        <dependency>
+            <!-- Kho tài liệu chuẩn S3: MinIO ở devnet, S3 của cloud trong nước ở môi trường thật (D7, Q30) -->
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
         </dependency>
         <dependency>
             <groupId>io.nats</groupId>

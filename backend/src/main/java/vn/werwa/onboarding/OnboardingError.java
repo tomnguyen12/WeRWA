@@ -16,6 +16,7 @@ public enum OnboardingError implements ErrorCode {
     MAKER_CHECKER_SAME_USER(HttpStatus.FORBIDDEN, "Người lập không được tự duyệt"),
     INVESTOR_CLASS_REQUIRED(HttpStatus.UNPROCESSABLE_CONTENT, "Kết luận đạt phải có loại nhà đầu tư"),
     INVESTOR_CLASS_UNKNOWN(HttpStatus.UNPROCESSABLE_CONTENT, "Loại nhà đầu tư không có trong danh mục"),
+    DOCUMENT_NOT_FOUND(HttpStatus.UNPROCESSABLE_CONTENT, "Mã tài liệu chưa có trong kho tài liệu"),
     REASON_REQUIRED(HttpStatus.UNPROCESSABLE_CONTENT, "Kết quả sàng lọc trùng: kết luận đạt phải ghi lý do");
 
     private final HttpStatus status;

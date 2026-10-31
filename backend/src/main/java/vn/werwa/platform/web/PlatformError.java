@@ -11,6 +11,8 @@ public enum PlatformError implements ErrorCode {
     ORGANIZATION_UNKNOWN(HttpStatus.FORBIDDEN, "Tổ chức của người dùng không có trên nền tảng"),
     ORG_SCOPE_VIOLATION(HttpStatus.FORBIDDEN, "Đối tượng thuộc tổ chức khác"),
     INBOUND_CHANNEL_NOT_ENABLED(HttpStatus.FORBIDDEN, "Kênh nhận từ ngân hàng chưa bật"),
+    BANK_SIGNATURE_INVALID(HttpStatus.UNAUTHORIZED, "Chữ ký thông điệp ngân hàng không hợp lệ"),
+    INBOUND_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "Token của kênh nhận không hợp lệ"),
     ROUTE_NOT_FOUND(HttpStatus.NOT_FOUND, "Không có API này"),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "Phương thức không được hỗ trợ"),
     MALFORMED_REQUEST(HttpStatus.BAD_REQUEST, "Request không đọc được"),

@@ -1,0 +1,42 @@
+# Hợp đồng thăm dò chỉ có trong kiểm thử: kiểm lớp nền B1 (quyền, Idempotency-Key, If-Match, phân trang) mà không
+# dùng đường dẫn thật của các mô-đun. Nạp qua werwa.api.probe-contract ở hồ sơ it.
+openapi: 3.1.0
+info:
+  title: Probe
+  version: 0.0.0
+paths:
+  /v1/probe/items:
+    post:
+      operationId: probeCreate
+      x-werwa-roles: [INVESTOR, CUSTODIAN]
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+  /v1/probe/lists/{id}/proofs/{allocationId}:
+    get:
+      operationId: probeGet
+      x-werwa-roles: [INVESTOR, CUSTODIAN]
+  /v1/probe/orders/{id}:
+    patch:
+      operationId: probeAmend
+      x-werwa-roles: [INVESTOR, SYNDICATE]
+      parameters:
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+  /v1/probe/holdings:
+    get:
+      operationId: probeList
+      x-werwa-roles: [INVESTOR, CUSTODIAN, REGISTRAR]
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
