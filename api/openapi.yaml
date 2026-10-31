@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.11.0
+  version: 0.12.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1253,6 +1253,68 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
   /v1/transfers:
+    get:
+      tags:
+      - distribution
+      operationId: listTransfers
+      summary: Danh sách chuyển OTC, mới nhất trước (Q81)
+      description: Nhà đầu tư, lưu ký thấy yêu cầu có ví chuyển hoặc ví nhận của tổ chức mình; Holco, VSDC, Cơ quan giám sát thấy toàn bộ.
+      x-werwa-function: '3.08'
+      x-werwa-callers: Nhà đầu tư, lưu ký, Holco, VSDC, Cơ quan giám sát
+      x-werwa-roles:
+      - INVESTOR
+      - CUSTODIAN
+      - OPERATOR
+      - REGISTRAR
+      - SUPERVISOR
+      parameters:
+      - name: seriesId
+        in: query
+        schema:
+          type: string
+          format: uuid
+          description: UUIDv7
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - PENDING_CONFIRMATIONS
+          - SUBMITTED
+          - COMPLETED
+          - REJECTED
+          - CANCELLED
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transfer'
+                  nextCursor:
+                    type: string
+                additionalProperties: false
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
     post:
       tags:
       - distribution
@@ -1290,12 +1352,48 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /v1/transfers/{id}:
+    get:
+      tags:
+      - distribution
+      operationId: getTransfer
+      summary: Một yêu cầu chuyển OTC (Q81)
+      x-werwa-function: '3.08'
+      x-werwa-callers: Nhà đầu tư, lưu ký, Holco, VSDC, Cơ quan giám sát
+      x-werwa-roles:
+      - INVESTOR
+      - CUSTODIAN
+      - OPERATOR
+      - REGISTRAR
+      - SUPERVISOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /v1/transfers/{id}/confirm:
     post:
       tags:
       - distribution
       operationId: confirmTransfer
       summary: Xác nhận chuyển; đủ xác nhận thì gửi lên chuỗi
+      description: Bên nhận xác nhận (lưu ký nếu ví nhận là omnibus). Bên chuyển đã xác nhận khi tạo (Q78). Đủ xác nhận thì phát werwa.distribution.transfer.confirmed.v1; trạng thái giữ PENDING_CONFIRMATIONS tới khi gửi lên chuỗi (Q82).
       x-werwa-function: '3.08'
       x-werwa-callers: Nhà đầu tư, lưu ký
       x-werwa-roles:
@@ -1307,6 +1405,39 @@ paths:
       responses:
         '202':
           description: Đã nhận xác nhận
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/transfers/{id}/cancel:
+    post:
+      tags:
+      - distribution
+      operationId: cancelTransfer
+      summary: Bên chuyển hủy yêu cầu khi còn chờ xác nhận (Q81)
+      x-werwa-function: '3.08'
+      x-werwa-callers: Nhà đầu tư, lưu ký
+      x-werwa-roles:
+      - INVESTOR
+      - CUSTODIAN
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -3826,6 +3957,10 @@ components:
           - SUBMITTED
           - COMPLETED
           - REJECTED
+          - CANCELLED
+        createdAt:
+          type: string
+          format: date-time
         fromConfirmedAt:
           type: string
           format: date-time
@@ -3835,6 +3970,12 @@ components:
         custodianConfirmedAt:
           type: string
           format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+        rejectReason:
+          type: string
+          description: Lý do hợp đồng từ chối (US-3.08-AC2)
         txHash:
           type: string
           pattern: ^0x[0-9a-fA-F]{64}$

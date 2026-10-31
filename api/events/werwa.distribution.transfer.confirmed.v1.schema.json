@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.distribution.transfer.confirmed.v1.schema.json",
+  "title": "werwa.distribution.transfer.confirmed.v1",
+  "description": "Bên phát: Phân phối. Bên nhận: Onchain. Yêu cầu chuyển OTC đã đủ xác nhận, chờ gửi lên chuỗi (Q81).",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.distribution.transfer.confirmed.v1"
+    },
+    "source": {
+      "const": "/werwa/distribution"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "transferId",
+        "seriesId",
+        "fromWalletId",
+        "toWalletId",
+        "quantity"
+      ],
+      "properties": {
+        "transferId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "seriesId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "fromWalletId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "toWalletId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
