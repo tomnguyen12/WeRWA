@@ -105,7 +105,7 @@ REQUIRED_KEYS=(SPRING_DATASOURCE_URL SPRING_DATASOURCE_USERNAME SPRING_DATASOURC
   SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI
   SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES WERWA_OIDC_CLIENTID
   WERWA_CHAIN_ID WERWA_CHAIN_READURLS WERWA_CHAIN_SUBMITURLS WERWA_CHAIN_DEPLOYEDATBLOCK WERWA_CHAIN_SIGNINGMODE
-  WERWA_MONITORING_ALERTMANAGERURL)
+  WERWA_MONITORING_ALERTMANAGERURL SPRING_MAIL_HOST SPRING_MAIL_PORT)
 
 for f in "$ENV_HOST" "$ENV_DOCKER"; do
   n=$(basename "$f")
@@ -150,6 +150,14 @@ nocode=""
 while IFS='=' read -r k a; do has_code "$a" || nocode="$nocode $k"; done < <(grep -E '^WERWA_(CONTRACTS|SAFES)_' "$H")
 check "W5 werwa.env: mọi WERWA_CONTRACTS_*, WERWA_SAFES_* có code trên chuỗi" "${nocode:-đủ}" "đủ"
 check "W5 werwa.env: Alertmanager trả lời" "$(curl -s -o /dev/null -w '%{http_code}' "$(ev "$H" WERWA_MONITORING_ALERTMANAGERURL)/-/ready")" 200
+# Thư thử qua SMTP theo SPRING_MAIL_* (Q62); đọc lại qua API của Mailpit trên máy.
+mail_found() { curl -sf http://127.0.0.1:8025/api/v1/search --get --data-urlencode "query=subject:\"$1\"" | jq '.messages | length'; }
+TAG_H="w5-host-$(date +%s%N)"; m=$(mktemp)
+printf 'From: no-reply@werwa.local\r\nTo: org@test.werwa.local\r\nSubject: %s\r\n\r\nW5\r\n' "$TAG_H" >"$m"
+curl -s --max-time 10 --url "smtp://$(ev "$H" SPRING_MAIL_HOST):$(ev "$H" SPRING_MAIL_PORT)" --mail-from no-reply@werwa.local \
+  --mail-rcpt org@test.werwa.local --upload-file "$m" || true
+rm -f "$m"
+check "W5 werwa.env: thư gửi qua SPRING_MAIL_HOST/PORT tới Mailpit" "$(mail_found "$TAG_H")" 1
 
 # Biến thể Docker, gọi từ trong mạng werwa-devnet-app
 D=$ENV_DOCKER
@@ -169,6 +177,17 @@ for u in $(tr ',' ' ' <<<"$(ev "$D" WERWA_CHAIN_READURLS),$(ev "$D" WERWA_CHAIN_
   check "W5 werwa.docker.env: $u trả đúng chain ID từ trong mạng" \
     "$(http_in_net POST "$u" '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' | jq -r .result)" "$CHAIN_HEX"
 done
+TAG_D="w5-docker-$(date +%s%N)"
+in_net "$(ev "$D" SPRING_MAIL_HOST)" "$(ev "$D" SPRING_MAIL_PORT)" "$TAG_D" >/dev/null 2>&1 <<'SH' || true
+exec 3<>"/dev/tcp/$1/$2"
+rd() { local l; while IFS= read -r l <&3; do case "$l" in [0-9][0-9][0-9]-*) ;; *) break ;; esac; done; }
+say() { printf '%s\r\n' "$1" >&3; rd; }
+rd
+say "EHLO probe.werwa.devnet"; say "MAIL FROM:<no-reply@werwa.local>"; say "RCPT TO:<org@test.werwa.local>"; say "DATA"
+printf 'From: no-reply@werwa.local\r\nTo: org@test.werwa.local\r\nSubject: %s\r\n\r\nW5\r\n.\r\n' "$3" >&3; rd
+say "QUIT"
+SH
+check "W5 werwa.docker.env: thư gửi qua SPRING_MAIL_HOST/PORT từ trong mạng tới Mailpit" "$(mail_found "$TAG_D")" 1
 check "W5 werwa.docker.env: Alertmanager trả lời từ trong mạng" \
   "$(http_in_net GET "$(ev "$D" WERWA_MONITORING_ALERTMANAGERURL)/-/ready" | head -c 2)" "OK"
 check "W5 hai biến thể cùng mật khẩu, hợp đồng, Safe" \

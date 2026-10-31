@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dịch vụ dùng chung cho backend trên devnet: PostgreSQL và NATS JetStream.
+# Dịch vụ dùng chung cho backend trên devnet: PostgreSQL, NATS JetStream và Mailpit (SMTP thử, Q62).
 #
 #   ./services.sh up       sinh mật khẩu (lần đầu), chạy dịch vụ, tạo DB và stream; chạy lại an toàn
 #   ./services.sh status   trạng thái container, DB, stream
@@ -7,13 +7,16 @@
 #   ./services.sh reset    dừng và xóa dữ liệu (volume); giữ mật khẩu
 #   ./services.sh clean    dừng, xóa dữ liệu và out/
 #
-# Biến môi trường: POSTGRES_IMAGE (mặc định postgres:18.6), NATS_IMAGE (mặc định nats:2.15.1).
+# Biến môi trường: POSTGRES_IMAGE (mặc định postgres:18.6), NATS_IMAGE (mặc định nats:2.15.1),
+# MAILPIT_IMAGE (mặc định axllent/mailpit:v1.31.5).
 # Cần: docker (Compose v2), curl, jq, openssl, nats (natscli 0.5.0).
 #
 # Kết quả trong out/ (gitignore):
 #   .env          mật khẩu cho compose
 #   backend.env   biến kết nối cho backend chạy trên máy (127.0.0.1); trong mạng
-#                 werwa-devnet-app thì dùng postgres.werwa.devnet và nats.werwa.devnet
+#                 werwa-devnet-app thì dùng postgres.werwa.devnet, nats.werwa.devnet, mailpit.werwa.devnet
+#
+# Mailpit: SMTP 127.0.0.1:1025, xem thư tại http://127.0.0.1:8025. Nhận mọi thư, không chuyển ra ngoài.
 
 set -euo pipefail
 SERVICES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,6 +26,7 @@ OUT="$SERVICES_DIR/out"
 ENV_FILE="$OUT/.env"
 STREAM_FILE="$SERVICES_DIR/nats/stream-werwa.json"
 NATS_HTTP="http://127.0.0.1:8222"
+MAILPIT_HTTP="http://127.0.0.1:8025"
 
 sc() { docker compose -p werwa-services -f "$SERVICES_DIR/compose.yaml" --env-file "$ENV_FILE" "$@"; }
 secret() { openssl rand -hex 24; }
@@ -60,6 +64,14 @@ wait_nats() {
   done
 }
 
+wait_mailpit() {
+  local t=0
+  until curl -sf "$MAILPIT_HTTP/readyz" >/dev/null 2>&1; do
+    [ "$t" -ge 60 ] && die "Mailpit không sẵn sàng"
+    sleep 2; t=$((t + 2))
+  done
+}
+
 # DB `werwa` thuộc role `werwa_app` (không phải superuser). Sáu schema do Flyway của backend tạo.
 provision_postgres() {
   sc exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -q \
@@ -92,7 +104,7 @@ provision_stream() {
 write_backend_env() {
   (umask 077; cat >"$OUT/backend.env" <<EOF
 # Sinh bởi services.sh — kết nối cho backend chạy trên máy. Trong mạng werwa-devnet-app thay
-# 127.0.0.1 bằng postgres.werwa.devnet và nats.werwa.devnet.
+# 127.0.0.1 bằng postgres.werwa.devnet, nats.werwa.devnet và mailpit.werwa.devnet.
 SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/werwa
 SPRING_DATASOURCE_USERNAME=werwa_app
 SPRING_DATASOURCE_PASSWORD=$(env_get WERWA_APP_DB_PASSWORD)
@@ -100,6 +112,8 @@ WERWA_NATS_URL=nats://127.0.0.1:4222
 WERWA_NATS_USERNAME=werwa_app
 WERWA_NATS_PASSWORD=$(env_get NATS_APP_PASSWORD)
 WERWA_NATS_STREAM=WERWA
+SPRING_MAIL_HOST=127.0.0.1
+SPRING_MAIL_PORT=1025
 EOF
   )
 }
@@ -111,6 +125,7 @@ cmd_up() {
   sc up -d
   wait_postgres; provision_postgres
   wait_nats; provision_stream
+  wait_mailpit
   write_backend_env
   log "dịch vụ sẵn sàng; biến kết nối: $OUT/backend.env"
 }
@@ -118,13 +133,14 @@ cmd_up() {
 cmd_status() {
   sc ps --format 'table {{.Service}}\t{{.State}}\t{{.Status}}'
   nats_admin stream info WERWA --json 2>/dev/null | jq '{stream: .config.name, messages: .state.messages, consumers: .state.consumer_count}' || true
+  curl -sf "$MAILPIT_HTTP/api/v1/messages?limit=1" 2>/dev/null | jq '{mailpit: "http://127.0.0.1:8025", messages: .total}' || true
 }
 
 case "${1:-}" in
   up) cmd_up ;;
   status) cmd_status ;;
   down) sc down ;;
-  reset) sc down -v; log "đã xóa dữ liệu PostgreSQL và NATS" ;;
+  reset) sc down -v; log "đã xóa dữ liệu PostgreSQL, NATS và Mailpit" ;;
   clean) [ -f "$ENV_FILE" ] && sc down -v || true; rm -rf "$OUT"; log "đã xóa out/" ;;
-  *) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

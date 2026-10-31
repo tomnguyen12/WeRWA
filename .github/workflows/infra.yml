@@ -99,7 +99,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Dựng PostgreSQL và NATS JetStream
         run: services/services.sh up
-      - name: Kiểm dịch vụ (P1–P4, N1–N5)
+      - name: Kiểm dịch vụ (P1–P4, N1–N5, M1–M3)
         run: test/services.sh
       - name: Nhật ký khi lỗi
         if: failure()
