@@ -40,6 +40,16 @@ events:
   producerVi: Phát hành
   consumers: Mọi mô-đun
   schema: werwa.issuance.series.state_changed.v1.schema.json
+- type: werwa.issuance.series.paused.v1
+  producer: issuance
+  producerVi: Phát hành
+  consumers: Phân phối, Quản trị (thông báo)
+  schema: werwa.issuance.series.paused.v1.schema.json
+- type: werwa.issuance.series.unpaused.v1
+  producer: issuance
+  producerVi: Phát hành
+  consumers: Phân phối, Quản trị (thông báo)
+  schema: werwa.issuance.series.unpaused.v1.schema.json
 - type: werwa.issuance.debt_service.funding_short.v1
   producer: issuance
   producerVi: Phát hành
