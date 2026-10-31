@@ -55,6 +55,11 @@
         "currency": {
           "type": "string",
           "pattern": "^[A-Z]{3}$"
+        },
+        "payoutHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$",
+          "description": "Kỳ gốc: SHA-256 JSON chuẩn hóa các dòng chi BIDV đã xác nhận (Q164)"
         }
       },
       "additionalProperties": true
