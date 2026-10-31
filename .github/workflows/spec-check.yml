@@ -1,10 +1,14 @@
 name: spec-check
 
 # Chạy với mọi PR và mọi push vào main, để có thể đặt hai bước dưới làm status check bắt buộc.
+# CI chỉ chạy khi Tommy ra lệnh (31/10/2026): GitHub → Actions → chọn workflow → Run workflow, chọn nhánh.
+# Bật lại tự động: thay khối on dưới đây bằng khối đã tắt.
+#   on:
+#     pull_request:
+#     push:
+#       branches: [main]
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -2,10 +2,14 @@ name: contracts
 
 # Cổng bắt buộc của luồng contracts/ (CONTRIBUTING.md, mục CI).
 # Chạy với mọi PR và push vào main, để đặt được các job dưới làm status check bắt buộc.
+# CI chỉ chạy khi Tommy ra lệnh (31/10/2026): GitHub → Actions → chọn workflow → Run workflow, chọn nhánh.
+# Bật lại tự động: thay khối on dưới đây bằng khối đã tắt.
+#   on:
+#     pull_request:
+#     push:
+#       branches: [main]
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
