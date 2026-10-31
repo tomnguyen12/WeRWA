@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: WeRWA API
-  version: 0.23.0
+  version: 0.24.0
   description: 'Bản đầu sinh từ docs/design/05-api-va-su-kien.md (duyệt 19/10/2026). Đây là hợp đồng giữa backend và frontend: đổi ở đây trước,
     qua PR có SA duyệt, rồi mới sửa code. Thao tác dẫn tới ký trên chuỗi trả 202 kèm mã đề nghị ký.'
 servers:
@@ -1501,6 +1501,85 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AllocationCorrection'
+      responses:
+        '202':
+          description: Đã tạo yêu cầu duyệt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRef'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/series/{id}/pause:
+    post:
+      tags:
+      - issuance
+      operationId: pauseSeries
+      summary: Tạm dừng khẩn cấp series; đề nghị Safe 2/2 VSDC và Holco ký pause() ngay (Q172)
+      description: Không qua duyệt 4 mắt riêng. Series đang dừng thì 409 SERIES_ALREADY_PAUSED; đã có yêu cầu đang mở thì 409 PAUSE_REQUEST_PENDING; series chưa triển khai hoặc đã đóng thì 409 SERIES_NOT_PAUSABLE.
+      x-werwa-function: '4.02'
+      x-werwa-callers: Holco, VSDC
+      x-werwa-roles:
+      - OPERATOR
+      - REGISTRAR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PauseReason'
+      responses:
+        '202':
+          description: Đã tạo đề nghị ký
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SigningProposalRef'
+        4XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        5XX:
+          description: Lỗi
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/series/{id}/unpause:
+    post:
+      tags:
+      - issuance
+      operationId: unpauseSeries
+      summary: Mở lại series; duyệt 4 mắt Holco rồi Safe 3/3 UBND, VSDC, Holco ký unpause() (Q173)
+      description: Series không tạm dừng thì 409 SERIES_NOT_PAUSED; đã có yêu cầu đang mở thì 409 PAUSE_REQUEST_PENDING.
+      x-werwa-function: '4.02'
+      x-werwa-callers: Holco
+      x-werwa-roles:
+      - OPERATOR
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PauseReason'
       responses:
         '202':
           description: Đã tạo yêu cầu duyệt
@@ -4279,6 +4358,13 @@ components:
           type: string
           format: uuid
           description: UUIDv7; có sau khi duyệt 4 mắt đạt (Q35)
+        paused:
+          type: boolean
+          description: Series đang tạm dừng trên chuỗi (Q174)
+        pauseRequestId:
+          type: string
+          format: uuid
+          description: UUIDv7; yêu cầu tạm dừng hoặc mở lại đang mở (Q176)
         version:
           type: integer
           description: Phiên bản, trùng ETag; dùng cho If-Match khi sửa (Q36)
@@ -4913,6 +4999,15 @@ components:
           enum:
           - BURN
           - DISMISS
+        reason:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    PauseReason:
+      type: object
+      required:
+      - reason
+      properties:
         reason:
           type: string
           minLength: 1
@@ -6238,6 +6333,8 @@ components:
           - PAYOUT_FAILED
           - PAYMENT_GRACE_EXPIRED
           - SIGNATURE_REQUESTED
+          - SERIES_PAUSED
+          - SERIES_UNPAUSED
         severity:
           type: string
           enum:

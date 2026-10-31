@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.werwa/events/werwa.issuance.series.paused.v1.schema.json",
+  "title": "werwa.issuance.series.paused.v1",
+  "description": "Bên phát: Phát hành. Bên nhận: Phân phối, Quản trị (thông báo).",
+  "allOf": [
+    {
+      "$ref": "cloudevent.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "werwa.issuance.series.paused.v1"
+    },
+    "source": {
+      "const": "/werwa/issuance"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "seriesId",
+        "requestId",
+        "txHash"
+      ],
+      "properties": {
+        "seriesId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7"
+        },
+        "requestId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUIDv7; yêu cầu tạm dừng (Q174)"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "txHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
